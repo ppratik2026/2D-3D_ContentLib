@@ -1,5 +1,5 @@
 --- a/video.js	2026-11-03 13:14:03.000000000 +0000
-+++ b/video.js	2026-11-24 09:13:18.511871897 +0000
++++ b/video.js	2026-11-24 11:19:47.672835267 +0000
 @@ -524,7 +524,7 @@
    const scenes = opts.scenes || news.scenes;
    const pre = opts.label ? opts.label + ' · ' : '';
@@ -9,52 +9,57 @@
    let noAud = scenes.filter((s) => !aud.has(s.n)).map((s) => s.n);
    // v3.9: voiceover missing (aur images poori) → pehle apne aap voiceover bana do, phir video
    if (!opts.inner && !noImg.length && noAud.length && !scenes.some((s) => !aud.has(s.n) && !oneLine(s.dialogue))) {
-@@ -669,6 +669,8 @@
+@@ -669,6 +669,7 @@
      const FX = typeof txPrepare === 'function' ? await txPrepare(scenes, T, clips, sc, { inner: !!opts.inner, preview: !!opts.preview, shorts: !!opts.shorts }).catch((e) => { addLog('✨ Effects: ' + e.message, 'warn'); return null; }) : null; // v3.88: ✨
      if (EM && CM) { EM.chRight = true; EM.bub = new Set(scenes.map((s, i) => (s.cm && s.cm.text ? i : -1)).filter((i) => i >= 0)); } // comic: bubble se takraav nahi
      if (typeof otArrange === 'function') { try { otArrange({ scenes, T, clips, facts, charts, EM, SY, VS, opts, extraB: DK ? DK.blocks : [] }); } catch (e) { addLog('🧹 ' + e.message, 'warn'); } } // v3.95: 🧹 ek waqt par ek bada text
 +    const TC = typeof tcPrepare === 'function' ? (() => { try { return tcPrepare(scenes, T, clips, sc, { W: IW, H, inner: !!opts.inner, preview: !!opts.preview, shorts: !!opts.shorts }); } catch (e) { addLog('🧸 Cartoon 2D: ' + e.message, 'warn'); return null; } })() : null; // v4.17: 🧸 chalte-firte cartoon characters
-+    const LP = !TC && typeof lpPrepare === 'function' ? await lpPrepare(scenes, T, clips, sc, { inner: !!opts.inner, preview: !!opts.preview, shorts: !!opts.shorts }).catch((e) => { addLog('🪄 Living pictures: ' + e.message, 'warn'); return null; }) : null; // v4.19: 🪄 picture zinda (bolna, palak, aag, paani, gaadi)
      const QV = typeof qvPrepare === 'function' ? await qvPrepare(scenes, T, clips, { W, H, inner: !!opts.inner, shorts: !!opts.shorts, preview: !!opts.preview, stops: [IO && IO.outro ? IO.outro.t0 : null, SFD ? SFD.t0 : null, ES ? ES.t0 : null, DC ? DC.t0 : null, EG && EG.tail ? EG.c0 : null, DK && DK.credits ? DK.c0 : null, total] }).catch((e) => { addLog('🧠 Quiz: ' + e.message, 'warn'); return null; }) : null; // v3.96: 🧠 quiz video
  
      if (!opts.inner && typeof tnT === 'function') tnT('preparing'); // v3.48
-@@ -790,14 +792,14 @@
+@@ -790,14 +791,14 @@
      };
      // v3.27: B-roll scene → us waqt ka video frame (motion nahi — clip khud chalti hai)
      if (typeof brPrepare === 'function' && (brOn() || scenes.some((s) => s.kclip))) { /* v3.40: 🎞 key-shot clips */ try { BR = await brPrepare(scenes, T, clips, IW, H, (t) => vProgress(0, 1, pre + t)); } catch (e) { addLog('B-roll: ' + e.message, 'warn'); } }
 -    const bmpAt = async (i, tq) => (BR.has(i) ? (await lyClipFrame(BR.get(i).clip, Math.max(0, tq - sc[i].vs))) || getBmp(i) : ((typeof hmShotBmp === 'function' && await hmShotBmp(i, tq)) || getBmp(i))); // v3.35: 🎬 multi-shot
 -    const moOf = (i, x) => (BR.has(i) ? 'none' : x.motion);
-+    const bmpAt = async (i, tq) => (TC && TC.on(i) ? tcFrame(TC, i, tq, () => getBmp(i)) : BR.has(i) ? (await lyClipFrame(BR.get(i).clip, Math.max(0, tq - sc[i].vs))) || getBmp(i) : LP && LP.on(i) ? lpFrame(LP, i, tq, await getBmp(i)) : ((typeof hmShotBmp === 'function' && await hmShotBmp(i, tq)) || getBmp(i))); // v3.35: 🎬 multi-shot
-+    const moOf = (i, x) => (BR.has(i) || (TC && TC.on(i)) ? 'none' : LP && LP.on(i) ? LP.mo(i, x.motion) : x.motion); // v4.17: 🧸 cartoon ka apna camera · v4.19: 🪄 gaadi / chalne wale ke saath camera
++    const bmpAt = async (i, tq) => (TC && TC.on(i) ? tcFrame(TC, i, tq, () => getBmp(i)) : BR.has(i) ? (await lyClipFrame(BR.get(i).clip, Math.max(0, tq - sc[i].vs))) || getBmp(i) : ((typeof hmShotBmp === 'function' && await hmShotBmp(i, tq)) || getBmp(i))); // v3.35: 🎬 multi-shot
++    const moOf = (i, x) => (BR.has(i) || (TC && TC.on(i)) ? 'none' : x.motion); // v4.17: 🧸 cartoon ka apna camera
      const SS = typeof ssPrepare === 'function' && !opts.preview ? ssPrepare(scenes, T, clips, cues, { inner: !!opts.inner, skip: (i) => BR.has(i) || !!scenes[i].kclip || (typeof HMR !== 'undefined' && HMR && HMR.shots && HMR.shots.has(i)) || (SX && SX.at.has(i) && !['countdown', 'pov', 'timeline'].includes(SX.at.get(i).type)) }) : (typeof ssPrepare === 'function' && opts.preview ? ssPrepare(scenes, T, clips, cues, { inner: true, skip: (i) => BR.has(i) }) : null); // v3.49: ✂
      if (!LAY && !useChar && typeof prPrepare === 'function') { try { PRS = await prPrepare(clips, T, total, FPS); } catch (e) { addLog('Presenter: ' + e.message, 'warn'); } }
      else if (typeof prOn === 'function' && prOn() && !opts.inner) addLog('🗣 Presenter is not used with the studio layout / side character (they already have a presenter)', 'info');
      const F = Math.ceil(total * FPS);
      if (typeof rrBegin === 'function' && !opts.rrOff) RRH = await rrBegin({ inner: !!opts.inner, preview: !!opts.preview, size: opts.size, scenes, sc, T, clips, cues, total, FPS, W, H, format, vc,
 -      plan: { CK: CKX ? CKX.sig : null, MO: MO ? MO.sig : null, BZ: BZ ? BZ.sig : null, NT: NT ? NT.sig : null, EG: EG ? EG.sig : null, DK: DK ? DK.sig : null, DC: DC ? DC.sig : null, QV: QV ? QV.sig : null, EM, SX, HE: HE ? { ev: HE.ev, mute: HE.mute, warp: HE.warp } : null, facts, charts, MAPS, ES, IO, RC, SFD, SFR: typeof SFR !== 'undefined' ? SFR : null,
-+      plan: { LP: LP ? LP.sig : null, TC: TC ? TC.sig : null, CK: CKX ? CKX.sig : null, MO: MO ? MO.sig : null, BZ: BZ ? BZ.sig : null, NT: NT ? NT.sig : null, EG: EG ? EG.sig : null, DK: DK ? DK.sig : null, DC: DC ? DC.sig : null, QV: QV ? QV.sig : null, EM, SX, HE: HE ? { ev: HE.ev, mute: HE.mute, warp: HE.warp } : null, facts, charts, MAPS, ES, IO, RC, SFD, SFR: typeof SFR !== 'undefined' ? SFR : null,
++      plan: { TC: TC ? TC.sig : null, CK: CKX ? CKX.sig : null, MO: MO ? MO.sig : null, BZ: BZ ? BZ.sig : null, NT: NT ? NT.sig : null, EG: EG ? EG.sig : null, DK: DK ? DK.sig : null, DC: DC ? DC.sig : null, QV: QV ? QV.sig : null, EM, SX, HE: HE ? { ev: HE.ev, mute: HE.mute, warp: HE.warp } : null, facts, charts, MAPS, ES, IO, RC, SFD, SFR: typeof SFR !== 'undefined' ? SFR : null,
          CMP: CM && CM.pages && CM.pages.size ? CM : null, LAY: LAY ? LAY.name || 'lay' : '', CH: useChar && typeof CH !== 'undefined' ? CH.name : '', heads, PRS: !!PRS, subOn, sOpt } }).catch((e) => { addLog('⚡ Quick re-render: ' + e.message, 'warn'); return null; }); // v3.67
      const FRM = typeof tnFrameMode === 'function' && !opts.preview ? await tnFrameMode(W, H).catch(() => 'canvas') : 'canvas'; // v3.51
      let cur = 0;
+--- a/look.js	2026-11-03 13:14:03.000000000 +0000
++++ b/look.js	2026-11-24 11:19:47.678806697 +0000
+@@ -131,7 +131,7 @@
+     if (!s.kclip || out.has(i)) continue;
+     const blob = await idbVid.get(`${news.id}:kclip:${s.n}`).catch(() => null);
+     if (!blob) continue;
+-    try { const clip = await lyClip(blob, IW, H, 15, Math.min(25, Math.ceil((clips[i] ? clips[i].dur : 6) + 1.5))); if (clip) out.set(i, { clip, n: s.n, q: '🎞 key-shot clip' }); }
++    try { const ai = !!s.kclip.ai, clip = await lyClip(blob, IW, H, ai ? 24 : 15, Math.min(ai ? 60 : 25, Math.ceil((clips[i] ? clips[i].dur : 6) + (ai ? 2.5 : 1.5)))); if (clip) out.set(i, { clip, n: s.n, q: ai ? '🎞 AI motion clip' : '🎞 key-shot clip' }); } // v4.3: AI clip 24 fps, lambi line tak
+     catch (e) { addLog(`🎞 Key-shot #${s.n}: ${e.message} — keeps the picture`, 'warn'); }
+   }
+   return out;
 --- a/sidepanel.html	2026-11-03 13:14:03.000000000 +0000
-+++ b/sidepanel.html	2026-11-24 11:09:16.718762591 +0000
-@@ -1747,6 +1747,44 @@
++++ b/sidepanel.html	2026-11-24 11:19:47.677688070 +0000
+@@ -1747,6 +1747,39 @@
              <option value="fit">Fit (blurred bars)</option>
            </select></label>
          </div>
-+        <details id="lpBox" class="chbox"> <!-- v4.19: 🪄 living pictures -->
-+          <summary>🪄 Living pictures — the Flow picture itself moves: people talk and blink, the whole background comes alive</summary>
-+          <div class="row wrap"><label class="small">Mode <select id="lpMode"><option value="off">Off (zoom / pan only, as before)</option><option value="on">🪄 On — read every picture and move what can move</option></select></label>
-+          <label class="small">Strength <select id="lpStrength"><option value="60">Light</option><option value="100">Normal</option><option value="140">Strong</option></select></label></div>
-+          <p id="lpInfo" class="muted small"></p>
-+          <div id="lpOpts">
-+            <div class="row wrap"><label class="check small"><input id="lpTalk" type="checkbox" /> 👄 Speaker's mouth with the voice</label><label class="check small"><input id="lpBlink" type="checkbox" /> 👁 Blinking</label><label class="check small"><input id="lpBreath" type="checkbox" /> 🫁 Breathing / small head moves</label></div>
-+            <div class="row wrap"><label class="check small"><input id="lpNature" type="checkbox" /> 🌳 Background too: sky + birds, sun rays + dust, clouds, mist, trees, grass, flowers, water, sea, waterfall, fire, smoke, diya, lamps, flags, curtains, swings, fans, boats, rain, snow</label><label class="check small"><input id="lpVehicle" type="checkbox" /> 🚗 Vehicles: wheels turn, shake, dust, camera follows</label><label class="check small"><input id="lpWalk" type="checkbox" /> 🚶 Walking people: legs step (when the feet are in the picture), body bobs, camera follows</label><label class="check small"><input id="lpCam" type="checkbox" /> 🎥 Camera zooms towards whoever is talking</label></div>
-+            <div class="row wrap"><button id="lpReadBtn" class="ghost small-btn">👁 Read all pictures again (Gemini)</button></div>
-+            <canvas id="lpPrev" width="640" height="360" style="width:100%;border-radius:8px;background:#111;cursor:crosshair"></canvas>
-+            <div class="row wrap"><select id="lpScene" class="grow"></select><button id="lpPrevBtn" class="ghost small-btn">▶ Preview</button><label class="check small"><input id="lpMarks" type="checkbox" checked /> show what was found</label></div>
-+            <p class="muted small">Boxes: yellow = speaker's face, red = mouth, green = eyes, orange = moving things. Wrong spot? Click where the mouth is (that face then talks) · Shift + click = an eye · Alt + click = animate nothing on that face. Old projects are read again by themselves (the reading was improved). One picture cannot make a car drive away; for that use Veo.</p>
-+          </div>
++        <details id="aivBox" class="chbox"> <!-- v4.3: 🎞 AI motion -->
++          <summary>🎞 AI motion — every picture becomes a real moving clip (free: your GPU or Kaggle / Colab)</summary>
++          <p class="muted small">Needs the AI motion server (folder local-motion-server: start_ltx.bat on a PC with an NVIDIA GPU, or kaggle_colab.ipynb on a free Kaggle / Colab GPU). Each picture + a motion prompt (+ the voice for lip-sync) goes to the server; the clip comes back and replaces the still picture in the video. Clips are saved in the project.</p>
++          <div class="row wrap"><input id="aivUrl" type="text" class="grow" placeholder="Server link, e.g. http://127.0.0.1:7871 or https://….trycloudflare.com" /><input id="aivToken" type="text" style="width:150px" placeholder="Token (Kaggle / Colab)" /><button id="aivTestBtn" class="ghost small-btn">🔌 Test</button></div>
++          <div class="row wrap"><label class="check small"><input id="aivTalk" type="checkbox" /> 🗣 Speakers talk in their clip</label><label class="check small"><input id="aivLip" type="checkbox" /> 👄 Lip-sync to the voice (if the server has it)</label><label class="check small"><input id="aivRedo" type="checkbox" /> 🔄 Make again scenes that already have a clip</label></div>
++          <div class="row wrap"><button id="aivPromptBtn" class="ghost small-btn">✨ Write motion prompts (Gemini, 1 request)</button><button id="aivRunBtn" class="primary small-btn">🎞 Make clips</button><button id="aivStopBtn" class="ghost small-btn" disabled>⏸ Stop</button></div>
++          <p id="aivInfo" class="muted small"></p>
++          <div id="aivList"></div>
 +        </details>
 +        <details id="tcBox" class="chbox"> <!-- v4.17: 🧸 cartoon 2D -->
 +          <summary>🧸 Cartoon 2D — walking, talking cartoon characters (free, no GPU)</summary>
@@ -83,13 +88,13 @@
          <details id="moBox" class="chbox"> <!-- v4.11: 🎨 motion pack -->
            <summary>🎨 Motion pack — logo intro, particles, icons, 3D title, kinetic text, own layers</summary>
            <label class="sub small">🎬 Animated logo</label>
-@@ -2330,6 +2368,9 @@
+@@ -2330,6 +2363,9 @@
    <script src="crkit.js"></script>
    <script src="charlock.js"></script>
    <script src="kidvoice.js"></script>
 +  <script src="cartoon2d.js"></script>
 +  <script src="cartoon2d_hd.js"></script>
-+  <script src="livepic.js"></script>
++  <script src="aimotion.js"></script>
    <script src="profilesync.js"></script>
    <script src="layout.js"></script>
    <script src="wizard.js"></script>

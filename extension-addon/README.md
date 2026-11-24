@@ -1,46 +1,50 @@
-# Add-ons for the "Video Generation" extension (v4.19)
+# Add-ons for the "Video Generation" extension (v4.3)
 
-Two add-ons, each off by default and each in its own box in the Video tab:
+Two add-ons, each in its own box in the Video tab:
 
-- **🪄 Living pictures** (`livepic.js`): your Flow pictures themselves move. Gemini reads every picture, then while the
-  video is made the speaker's mouth moves with the voice, people blink, breathe and nod, fire / smoke / water / leaves /
-  clouds / flags / diyas move, vehicles get turning wheels, shake and dust, and walking people bob, with the camera following.
-  Everything else (story, Flow pictures, voice, subtitles, music, zoom / pan, transitions, upload) stays the same.
+- **🎞 AI motion** (`aimotion.js` + the `local-motion-server/` folder): every scene picture becomes a **real moving clip**
+  (image-to-video): people walk, turn, gesture, vehicles drive, rain falls. With lip-sync on, the speaker's lips follow
+  the voice. Free: it runs on your own NVIDIA GPU or on the free GPU of Kaggle / Colab.
 - **🧸 Cartoon 2D** (`cartoon2d.js`, `cartoon2d_hd.js`): replaces the pictures with code-drawn cartoon characters (see below).
 
-Install: copy `livepic.js`, `cartoon2d.js` and `cartoon2d_hd.js` into `flow-bulk-generator-v3-news/`, then
-`patch -p1 -d flow-bulk-generator-v3-news < v4.19-addons.patch` (6 guarded lines in `video.js` + the two settings boxes
-and script tags in `sidepanel.html`), and Reload the extension.
+(The earlier "🪄 Living pictures" add-on, which bent the still picture in code, was removed: it could not give real motion.)
 
-## 🪄 Living pictures
+Install: copy `aimotion.js`, `cartoon2d.js` and `cartoon2d_hd.js` into `flow-bulk-generator-v3-news/`, then
+`patch -p1 -d flow-bulk-generator-v3-news < v4.3-addons.patch`, and Reload the extension. Put `local-motion-server/`
+next to `local-voice-server/`.
 
-Sample made by the real extension: [`../examples/demo_extension_living_pictures.mp4`](../examples/demo_extension_living_pictures.mp4).
+## 🎞 AI motion
 
-- **Reading the pictures**: 1 Gemini request reads 4 pictures (people, faces, mouths, eyes, who is speaking,
-  fire / smoke / water / leaves / clouds / flags / flames / rain / snow, vehicles with direction and wheels). A second
-  request per 8 speakers looks at a close-up of the speaker's face to find the lip corners and eyes precisely.
-  The results are saved in the project, so re-renders cost nothing. It runs on its own the first time you make the video,
-  or with **👁 Read all pictures again**.
-- **Background too**: sky with flying birds, stars at night, sun rays with floating dust, clouds, mist, tree crowns,
-  grass / crops / bushes / flowers (rooted at the bottom, the tops sway), rivers / ponds, sea waves, waterfalls / fountains,
-  fire, smoke, steam, diyas / candles, lamps / lanterns / bulbs / screens (glow and flicker), flags / banners / kites,
-  curtains / hanging clothes, swings / hanging lanterns / bells (swing from the top), fans / windmills (spin),
-  boats (bob on the water), sitting birds, rain and snow. Gemini lists up to 14 of these per picture.
-- **Speaker**: comes from the script's `speaker` (narration lines have no talking mouth). The jaw opens with the loudness
-  of the voice and the mouth inside, teeth and tongue are drawn with soft edges. Beards move down with the jaw.
-- **Accuracy safeguards (v4.2.1)**: Gemini returns tight boxes (not points) for every face, and each face is then checked
-  in a close-up for its eyes and lips. An eye must lie in the upper-middle part of its face and the mouth in the lower part,
-  with a sensible size; anything else is thrown away, so nothing is drawn rather than something drawn in the wrong place.
-  Blinks stretch the picture's own eyelid skin down over the eye. The open mouth is small and takes its colour from the
-  picture. Pictures are numbered per request, so every batch maps to the right scene. A failed batch is retried
-  picture by picture. Projects read by the older version are read again automatically.
-- **Walking**: when the feet are in the picture, the two legs step forward and back in turn, and the body bobs.
-  The camera follows walkers and vehicles and zooms towards whoever is talking (🎥 option).
-- **Preview** shows a scene moving with what Gemini found (yellow box = speaker, red dot = mouth, green = eyes,
-  orange = moving elements, purple = vehicles). If a spot is wrong, **click** where the mouth is (**Shift + click** for an eye).
-- **Limits**: one picture cannot make legs take steps, arms do new gestures or a car actually drive away.
-  Vehicles and walkers get "moving" effects plus a camera that follows them. Use a walk sheet or Veo for real movement.
-  Gemini's positions can be a few pixels off, which is why the click-to-fix exists.
+How it works:
+1. Make the story, Flow pictures and voice as always.
+2. Start the AI motion server:
+   - **On a PC with an NVIDIA GPU**: `local-motion-server/install.bat` once, then `start_ltx.bat` (12-16 GB GPU)
+     or `start_wan.bat` (24 GB GPU). Optional lip-sync: `install_lipsync.bat` once.
+   - **Free, without a GPU**: open `local-motion-server/kaggle_colab.ipynb` on Kaggle (GPU T4 ×2, Internet on) or Colab
+     (T4 GPU) and run all cells. The last cell prints a link and a token.
+3. Video tab → **🎞 AI motion**: paste the server link (and the token for Kaggle / Colab), press **🔌 Test**,
+   then **🎞 Make clips**. Gemini writes one motion prompt per scene (1 request for 40 scenes). You can edit every prompt.
+4. Each picture goes to the server with its motion prompt (and the voice when the line has a speaker and lip-sync is on).
+   The clip comes back and is saved as that scene's key-shot clip. **🎬 Make video** then plays the clip in place of the
+   picture (24 fps; a long line is several clips, each continuing from the last frame of the one before).
+   Subtitles, music, transitions and upload stay the same.
+
+Per scene you can ▶ play the clip, 🔄 make it again, or ✕ go back to the picture. Clips are saved in the project, so
+making the video again does not make them again. If the panel is closed while the server is still working, the next
+**Make clips** picks up the same job.
+
+Server API (`local-motion-server/server.py`, standard library only): `GET /health`, `POST /animate`, `GET /job?id=`,
+`GET /result?id=`, optional `x-token` header. Backends: `ltx` (LTX-Video via diffusers), `wan` (Wan 2.1 I2V 480p via
+diffusers) and `mock` (no GPU; a zoom clip with ffmpeg, only for testing the connection). Lip-sync: LatentSync 1.5.
+
+Tested here: the server API, clip joining and trimming, token check, and the whole extension path (prompts → server →
+clip saved → video uses it) with the `mock` backend. The real models need a GPU and could not run here. The diffusers
+classes and call parameters used were checked against diffusers 0.43.
+
+Limits: AI video can change small details (faces, hands, signs) during a clip. Lip-sync needs a visible, front-facing face;
+flat comic faces are often not found, and then the clip is used without lip-sync. On a free T4 a 5 s LTX clip takes
+roughly 4-8 minutes, so a long story takes hours: start it and come back later. Check each model's licence
+(Wan 2.1 and LatentSync: Apache-2.0; LTX-Video: its own licence) before monetising.
 
 ---
 
@@ -78,14 +82,14 @@ and [`../examples/demo_extension_cartoon2d.mp4`](../examples/demo_extension_cart
 | `cartoon2d.js` | The add-on: cast, actions, lip-sync, simple look, settings box |
 | `cartoon2d_hd.js` | 🏡 HD village look: shaded characters in village clothes, charpai, buffalo / cow / goat, layered village backgrounds, camera pan |
 | `sidepanel-box.html` | The "🧸 Cartoon 2D" settings box (goes into the Video tab) |
-| `v4.19-addons.patch` | The small changes to `video.js` and `sidepanel.html` for both add-ons |
-| `livepic.js`, `sidepanel-box-livepic.html` | 🪄 Living pictures |
+| `v4.3-addons.patch` | The small changes to `video.js`, `look.js` and `sidepanel.html` for both add-ons |
+| `aimotion.js`, `sidepanel-box-aimotion.html` | 🎞 AI motion (plus `../local-motion-server/`) |
 
 ## Install (into your own extension folder)
 
 1. Copy `cartoon2d.js` and `cartoon2d_hd.js` into `flow-bulk-generator-v3-news/`.
 2. Apply the patch from the folder that contains `flow-bulk-generator-v3-news`:
-   `patch -p1 -d flow-bulk-generator-v3-news < v4.19-addons.patch`
+   `patch -p1 -d flow-bulk-generator-v3-news < v4.3-addons.patch`
    (or make the same 4 edits in `video.js` by hand and paste `sidepanel-box.html` above the 🎨 Motion pack box,
    then add `<script src="cartoon2d.js"></script>` and `<script src="cartoon2d_hd.js"></script>` after `kidvoice.js`).
 3. Open `chrome://extensions` and click Reload on Video Generation.

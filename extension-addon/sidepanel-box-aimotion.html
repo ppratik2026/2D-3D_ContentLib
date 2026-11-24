@@ -1,0 +1,9 @@
+        <details id="aivBox" class="chbox"> <!-- v4.3: 🎞 AI motion -->
+          <summary>🎞 AI motion — every picture becomes a real moving clip (free: your GPU or Kaggle / Colab)</summary>
+          <p class="muted small">Needs the AI motion server (folder local-motion-server: start_ltx.bat on a PC with an NVIDIA GPU, or kaggle_colab.ipynb on a free Kaggle / Colab GPU). Each picture + a motion prompt (+ the voice for lip-sync) goes to the server; the clip comes back and replaces the still picture in the video. Clips are saved in the project.</p>
+          <div class="row wrap"><input id="aivUrl" type="text" class="grow" placeholder="Server link, e.g. http://127.0.0.1:7871 or https://….trycloudflare.com" /><input id="aivToken" type="text" style="width:150px" placeholder="Token (Kaggle / Colab)" /><button id="aivTestBtn" class="ghost small-btn">🔌 Test</button></div>
+          <div class="row wrap"><label class="check small"><input id="aivTalk" type="checkbox" /> 🗣 Speakers talk in their clip</label><label class="check small"><input id="aivLip" type="checkbox" /> 👄 Lip-sync to the voice (if the server has it)</label><label class="check small"><input id="aivRedo" type="checkbox" /> 🔄 Make again scenes that already have a clip</label></div>
+          <div class="row wrap"><button id="aivPromptBtn" class="ghost small-btn">✨ Write motion prompts (Gemini, 1 request)</button><button id="aivRunBtn" class="primary small-btn">🎞 Make clips</button><button id="aivStopBtn" class="ghost small-btn" disabled>⏸ Stop</button></div>
+          <p id="aivInfo" class="muted small"></p>
+          <div id="aivList"></div>
+        </details>
