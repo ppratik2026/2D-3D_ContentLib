@@ -1,4 +1,37 @@
-# 🧸 Cartoon 2D add-on for the "Video Generation" extension (v4.17)
+# Add-ons for the "Video Generation" extension (v4.19)
+
+Two add-ons, each off by default and each in its own box in the Video tab:
+
+- **🪄 Living pictures** (`livepic.js`): your Flow pictures themselves move. Gemini reads every picture, then while the
+  video is made the speaker's mouth moves with the voice, people blink, breathe and nod, fire / smoke / water / leaves /
+  clouds / flags / diyas move, vehicles get turning wheels, shake and dust, and walking people bob, with the camera following.
+  Everything else (story, Flow pictures, voice, subtitles, music, zoom / pan, transitions, upload) stays the same.
+- **🧸 Cartoon 2D** (`cartoon2d.js`, `cartoon2d_hd.js`): replaces the pictures with code-drawn cartoon characters (see below).
+
+Install: copy `livepic.js`, `cartoon2d.js` and `cartoon2d_hd.js` into `flow-bulk-generator-v3-news/`, then
+`patch -p1 -d flow-bulk-generator-v3-news < v4.19-addons.patch` (6 guarded lines in `video.js` + the two settings boxes
+and script tags in `sidepanel.html`), and Reload the extension.
+
+## 🪄 Living pictures
+
+Sample made by the real extension: [`../examples/demo_extension_living_pictures.mp4`](../examples/demo_extension_living_pictures.mp4).
+
+- **Reading the pictures**: 1 Gemini request reads 4 pictures (people, faces, mouths, eyes, who is speaking,
+  fire / smoke / water / leaves / clouds / flags / flames / rain / snow, vehicles with direction and wheels). A second
+  request per 8 speakers looks at a close-up of the speaker's face to find the lip corners and eyes precisely.
+  The results are saved in the project, so re-renders cost nothing. It runs on its own the first time you make the video,
+  or with **👁 Read all pictures again**.
+- **Speaker**: comes from the script's `speaker` (narration lines have no talking mouth). The jaw opens with the loudness
+  of the voice and the mouth inside, teeth and tongue are drawn with soft edges. Beards move down with the jaw.
+- **Preview** shows a scene moving with what Gemini found (yellow box = speaker, red dot = mouth, green = eyes,
+  orange = moving elements, purple = vehicles). If a spot is wrong, **click** where the mouth is (**Shift + click** for an eye).
+- **Limits**: one picture cannot make legs take steps, arms do new gestures or a car actually drive away.
+  Vehicles and walkers get "moving" effects plus a camera that follows them. Use a walk sheet or Veo for real movement.
+  Gemini's positions can be a few pixels off, which is why the click-to-fix exists.
+
+---
+
+# 🧸 Cartoon 2D add-on
 
 This add-on turns each scene into a **moving 2D cartoon**. The characters walk, run, wave, jump, dance,
 sit, think, cry and laugh, and the speaker's mouth moves with their voice (lip-sync).
@@ -32,13 +65,14 @@ and [`../examples/demo_extension_cartoon2d.mp4`](../examples/demo_extension_cart
 | `cartoon2d.js` | The add-on: cast, actions, lip-sync, simple look, settings box |
 | `cartoon2d_hd.js` | 🏡 HD village look: shaded characters in village clothes, charpai, buffalo / cow / goat, layered village backgrounds, camera pan |
 | `sidepanel-box.html` | The "🧸 Cartoon 2D" settings box (goes into the Video tab) |
-| `v4.17-cartoon2d.patch` | The small changes to `video.js` (4 guarded lines) and `sidepanel.html` |
+| `v4.19-addons.patch` | The small changes to `video.js` and `sidepanel.html` for both add-ons |
+| `livepic.js`, `sidepanel-box-livepic.html` | 🪄 Living pictures |
 
 ## Install (into your own extension folder)
 
 1. Copy `cartoon2d.js` and `cartoon2d_hd.js` into `flow-bulk-generator-v3-news/`.
 2. Apply the patch from the folder that contains `flow-bulk-generator-v3-news`:
-   `patch -p1 -d flow-bulk-generator-v3-news < v4.17-cartoon2d.patch`
+   `patch -p1 -d flow-bulk-generator-v3-news < v4.19-addons.patch`
    (or make the same 4 edits in `video.js` by hand and paste `sidepanel-box.html` above the 🎨 Motion pack box,
    then add `<script src="cartoon2d.js"></script>` and `<script src="cartoon2d_hd.js"></script>` after `kidvoice.js`).
 3. Open `chrome://extensions` and click Reload on Video Generation.
