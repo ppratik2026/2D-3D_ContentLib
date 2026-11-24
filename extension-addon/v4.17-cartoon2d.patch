@@ -36,15 +36,16 @@
      const FRM = typeof tnFrameMode === 'function' && !opts.preview ? await tnFrameMode(W, H).catch(() => 'canvas') : 'canvas'; // v3.51
      let cur = 0;
 --- a/sidepanel.html	2026-11-03 13:14:03.000000000 +0000
-+++ b/sidepanel.html	2026-11-24 06:41:00.689017621 +0000
-@@ -1747,6 +1747,29 @@
++++ b/sidepanel.html	2026-11-24 07:38:30.671619428 +0000
+@@ -1747,6 +1747,30 @@
              <option value="fit">Fit (blurred bars)</option>
            </select></label>
          </div>
 +        <details id="tcBox" class="chbox"> <!-- v4.17: 🧸 cartoon 2D -->
 +          <summary>🧸 Cartoon 2D — walking, talking cartoon characters (free, no GPU)</summary>
 +          <div class="row wrap"><label class="small">Mode <select id="tcMode"><option value="off">Off (Flow pictures as before)</option><option value="2d">🧸 2D cartoon animation</option></select></label>
-+          <label class="small">Background <select id="tcBg"><option value="flow">🖼 Flow picture (empty place, cartoon style)</option><option value="builtin">✏ Built-in drawing (free, no Flow)</option></select></label></div>
++          <label class="small">Look <select id="tcStyle"><option value="hd">🏡 HD village (detailed, shaded)</option><option value="simple">🙂 Simple (round, flat)</option></select></label>
++          <label class="small">Background <select id="tcBg"><option value="flow">🖼 Flow picture (empty place, cartoon style)</option><option value="builtin">✏ Built-in drawing (free, no Flow): village field, courtyard, mud house …</option></select></label></div>
 +          <p id="tcInfo" class="muted small"></p>
 +          <div id="tcOpts">
 +            <div class="row wrap"><label class="small">Characters from <select id="tcRegion">
@@ -67,11 +68,12 @@
          <details id="moBox" class="chbox"> <!-- v4.11: 🎨 motion pack -->
            <summary>🎨 Motion pack — logo intro, particles, icons, 3D title, kinetic text, own layers</summary>
            <label class="sub small">🎬 Animated logo</label>
-@@ -2330,6 +2353,7 @@
+@@ -2330,6 +2354,8 @@
    <script src="crkit.js"></script>
    <script src="charlock.js"></script>
    <script src="kidvoice.js"></script>
 +  <script src="cartoon2d.js"></script>
++  <script src="cartoon2d_hd.js"></script>
    <script src="profilesync.js"></script>
    <script src="layout.js"></script>
    <script src="wizard.js"></script>

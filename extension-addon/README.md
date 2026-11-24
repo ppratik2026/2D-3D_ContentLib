@@ -5,23 +5,42 @@ sit, think, cry and laugh, and the speaker's mouth moves with their voice (lip-s
 Everything else stays the same: story (Gemini), voice and character voices, subtitles, music,
 transitions and the YouTube upload. It runs on the Canvas, with no GPU and no Flow credits for the characters.
 
-Sample made by the real extension: [`../examples/demo_extension_cartoon2d.mp4`](../examples/demo_extension_cartoon2d.mp4)
+Samples made by the real extension: [`../examples/demo_extension_village_hd.mp4`](../examples/demo_extension_village_hd.mp4) (🏡 HD village look)
+and [`../examples/demo_extension_cartoon2d.mp4`](../examples/demo_extension_cartoon2d.mp4) (simple look).
+
+## 🏡 HD village look (Look → HD village, the default)
+
+- **Characters** have real proportions and shading, eyes with eyelids, eyebrows, nose and moustache,
+  bangles and a bindi for women, and chappals. Clothes are drawn from the visual bible words:
+  kurta + lungi (checked), vest + lungi + gamchha, kurta / shirt + dhoti, saree (with border, pleats and pallu),
+  lehenga / ghagra choli, salwar with dupatta, frock, shirt + pant, and suit. Pagdi, headband, glasses
+  and a lathi or glass in the hand are also drawn.
+- **Poses**: walk, run, namaste, wave, talk with hand moves, point, think, laugh, cry, scared, jump, dance,
+  sitting on a **charpai** (`sit`) and sitting cross-legged on the floor (`sit_floor`).
+- **Animals**: buffalo, cow, bull / ox, goat and dog are detailed. Others use the simple drawing.
+- **Built-in backgrounds** are built in layers: sky → far trees / palms → middle (fields with furrows and
+  grass strips, a blue house with a clay-tile roof and open door, a thatched hut, big leafy trees, or a
+  mud-house wall with a thatched roof, beams, barred windows and a door) → foreground grass.
+  The camera pans slowly with parallax, the clouds drift and birds fly.
+  Field / farm / khet → field. Home / inside → mud house. Anything else outdoors → village courtyard.
+- With **Flow background** the prompt asks Flow for the same rich, detailed village-cartoon background.
 
 ## Files
 
 | File | What it is |
 |---|---|
-| `cartoon2d.js` | The whole add-on: characters, actions, lip-sync, backgrounds, settings box |
+| `cartoon2d.js` | The add-on: cast, actions, lip-sync, simple look, settings box |
+| `cartoon2d_hd.js` | 🏡 HD village look: shaded characters in village clothes, charpai, buffalo / cow / goat, layered village backgrounds, camera pan |
 | `sidepanel-box.html` | The "🧸 Cartoon 2D" settings box (goes into the Video tab) |
 | `v4.17-cartoon2d.patch` | The small changes to `video.js` (4 guarded lines) and `sidepanel.html` |
 
 ## Install (into your own extension folder)
 
-1. Copy `cartoon2d.js` into `flow-bulk-generator-v3-news/`.
+1. Copy `cartoon2d.js` and `cartoon2d_hd.js` into `flow-bulk-generator-v3-news/`.
 2. Apply the patch from the folder that contains `flow-bulk-generator-v3-news`:
    `patch -p1 -d flow-bulk-generator-v3-news < v4.17-cartoon2d.patch`
    (or make the same 4 edits in `video.js` by hand and paste `sidepanel-box.html` above the 🎨 Motion pack box,
-   then add `<script src="cartoon2d.js"></script>` after `kidvoice.js`).
+   then add `<script src="cartoon2d.js"></script>` and `<script src="cartoon2d_hd.js"></script>` after `kidvoice.js`).
 3. Open `chrome://extensions` and click Reload on Video Generation.
 
 Every change in `video.js` uses the same `typeof … === 'function'` guard as the other packs.

@@ -6,7 +6,7 @@
 // Default OFF. Video tab → 🧸 Cartoon 2D.
 
 const tcz = (id) => document.getElementById(id);
-const TC_DEF = { tcMode: 'off', tcBg: 'flow', tcRegion: 'indian', tcSize: 'm', tcGround: '88', tcCam: 'gentle', tcAuto: 'on' };
+const TC_DEF = { tcMode: 'off', tcStyle: 'hd', tcBg: 'flow', tcRegion: 'indian', tcSize: 'm', tcGround: '88', tcCam: 'gentle', tcAuto: 'on' };
 let TCS = { ...TC_DEF };
 const TC_INK = '#1e1828';
 
@@ -93,8 +93,8 @@ const TC_OUTFITS = {
   kimono: { lab: 'Kimono', len: 'ankle', d: ['obi', 'cross'] },
   robe: { lab: 'Long robe (thobe / abaya)', len: 'ankle', d: [] },
 };
-const TC_HAIR = { short: 'Short', side: 'Side part', spiky: 'Spiky', curly: 'Curly', afro: 'Afro', long: 'Long', ponytail: 'Ponytail', pigtails: 'Two pigtails', braid: 'Braid', bun: 'Bun', bob: 'Bob cut', bald: 'Bald', hijab: 'Hijab', turban: 'Turban', cap: 'Cap' };
-const TC_EXTRAS = { glasses: '👓 Glasses', beard: '🧔 Beard', moustache: 'Moustache', bindi: 'Bindi', earrings: 'Earrings', scarf: 'Scarf', stick: 'Walking stick', bag: 'School bag' };
+const TC_HAIR = { short: 'Short', turban: 'Pagdi / turban', side: 'Side part', spiky: 'Spiky', curly: 'Curly', afro: 'Afro', long: 'Long', ponytail: 'Ponytail', pigtails: 'Two pigtails', braid: 'Braid', bun: 'Bun', bob: 'Bob cut', bald: 'Bald', hijab: 'Hijab', turban: 'Turban', cap: 'Cap' };
+const TC_EXTRAS = { glasses: '👓 Glasses', beard: '🧔 Beard', moustache: 'Moustache', headband: 'Headband', bindi: 'Bindi', earrings: 'Earrings', scarf: 'Scarf', stick: 'Walking stick', bag: 'School bag' };
 const TC_AGES = { toddler: '🍼 Toddler (2-5)', child: '🧒 Child (6-10)', teen: '🧑 Teen (11-17)', adult: '🧑‍🦱 Adult', old: '🧓 Old' };
 // lambai / naap (unit = adult ~260 lamba)
 const TC_BODY = {
@@ -121,7 +121,7 @@ function tcColorNear(text, words) { // "red saree" → #d32f2f
 }
 
 // ---------- visual bible → character ka look (koi Gemini request nahi) ----------
-function tcAnimalOf(c) { const t = `${c.look || ''} ${c.name || ''}`.toLowerCase(); const m = t.match(/\b(dog|puppy|cat|kitten|rabbit|bunny|lion|tiger|elephant|monkey|crow|parrot|bird|fox|bear|cow|goat|horse|mouse|owl|tortoise|turtle|frog|deer|wolf|squirrel|duck|hen|peacock)\b/); return m && !/\b(man|woman|boy|girl|person|child|kid|human)\b/.test(t) ? m[1] : null; }
+function tcAnimalOf(c) { const t = `${c.look || ''} ${c.name || ''}`.toLowerCase(); const m = t.match(/\b(buffalo|bull|ox|dog|puppy|cat|kitten|rabbit|bunny|lion|tiger|elephant|monkey|crow|parrot|bird|fox|bear|cow|goat|horse|mouse|owl|tortoise|turtle|frog|deer|wolf|squirrel|duck|hen|peacock)\b/); return m && !/\b(man|woman|boy|girl|person|child|kid|human)\b/.test(t) ? m[1] : null; }
 function tcAutoSpec(c, idx = 0) {
   const t = `${c.look || ''} ${c.outfit || ''} ${c.name || ''}`, tl = t.toLowerCase(), v = String(c.voice || '').toLowerCase(), seed = tcHash(c.name || idx);
   let region = TCS.tcRegion || 'indian';
@@ -146,8 +146,8 @@ function tcAutoSpec(c, idx = 0) {
   if (outfit === 'hanbok' || outfit === 'kimono' || outfit === 'robe' || outfit === 'saree' || outfit === 'lehenga') { /* ok */ }
   if (!outfit) outfit = tcPick(R[g][age] || R[g].adult, seed >>> 3);
   const O = TC_OUTFITS[outfit] || TC_OUTFITS.shirt;
-  const top = tcColorNear(tl, [outfit === 'saree' ? 'sar' : outfit, 'kurta', 'shirt', 't-shirt', 'top', 'dress', 'frock', 'sweater', 'coat', 'hoodie', 'jacket', 'blouse', 'kameez', 'suit', 'robe', 'kimono', 'hanbok']) || tcPick(R.tops, seed >>> 5);
-  const bottom = tcColorNear(tl, ['pant', 'trouser', 'jeans', 'pajama', 'shorts', 'skirt', 'salwar', 'dhoti', 'leggings', 'blouse']) || (outfit === 'dhoti' ? '#f5f0e1' : outfit === 'kurta' ? '#f5f0e1' : outfit === 'saree' ? tcShade(top, 0.7) : tcPick(R.bottoms, seed >>> 7));
+  const top = tcColorNear(tl, [...(outfit === 'saree' ? ['sar'] : []), 'kurta', 't-shirt', 'tshirt', 'shirt', 'top', 'dress', 'frock', 'sweater', 'coat', 'hoodie', 'jacket', 'kameez', 'suit', 'robe', 'kimono', 'hanbok', 'vest', 'banyan', 'blouse', 'choli']) || tcPick(R.tops, seed >>> 5);
+  const bottom = tcColorNear(tl, ['lungi', 'ghagra', 'lehenga', 'pant', 'trouser', 'jeans', 'pajama', 'shorts', 'skirt', 'salwar', 'dhoti', 'leggings', 'blouse']) || (outfit === 'dhoti' ? '#f5f0e1' : outfit === 'kurta' ? '#f5f0e1' : outfit === 'saree' ? tcShade(top, 0.7) : tcPick(R.bottoms, seed >>> 7));
   // baal
   let hair = null;
   const hairWords = [['hijab', /\b(hijab|headscarf|head scarf)\b/], ['turban', /\b(turban|pagdi|pagri|safa)\b/], ['bald', /\bbald\b/], ['afro', /\bafro\b/], ['pigtails', /\b(pigtails|two ponytails|two plaits|two braids)\b/],
@@ -165,7 +165,12 @@ function tcAutoSpec(c, idx = 0) {
   if (/\b(scarf|dupatta|muffler)\b/.test(tl) && outfit !== 'salwar') extras.push('scarf');
   if (/\b(walking stick|cane|lathi)\b/.test(tl)) extras.push('stick');
   if (/\b(school ?bag|backpack|bag)\b/.test(tl) && (age === 'child' || age === 'teen')) extras.push('bag');
-  return { region, gender: female ? 'f' : 'm', age, skin: skinW || tcPick(R.skin, seed >>> 1), hair, hairColor, outfit, top, bottom: O.shirt ? bottom : bottom, extras, animal: tcAnimalOf(c) };
+  // 🏡 HD look ke gaon wale kapde (shabd se)
+  const hdOutfit = /\blungi\b/.test(tl) ? (/\b(vest|banyan|baniyan|sando)\b/.test(tl) ? 'vest_lungi' : 'kurta_lungi') : /\bdhoti\b/.test(tl) ? (/\b(t-?shirt|shirt)\b/.test(tl) ? 'shirt_dhoti' : 'kurta_dhoti') : /\b(ghagra|lehenga|ghaghra|choli)\b/.test(tl) ? 'lehenga_choli' : /\b(vest|banyan|baniyan)\b/.test(tl) ? 'vest_lungi' : '';
+  const pattern = /\b(check|checked|checkered|plaid)\b/.test(tl) ? 'checks' : /\b(polka|dotted|dots|printed)\b/.test(tl) ? 'dots' : /\bstripe/.test(tl) ? 'stripes' : '';
+  const border = tcColorNear(tl, ['border']) || '';
+  if (/\bheadband\b/.test(tl)) extras.push('headband');
+  return { hdOutfit, pattern, border, region, gender: female ? 'f' : 'm', age, skin: skinW || tcPick(R.skin, seed >>> 1), hair, hairColor, outfit, top, bottom: O.shirt ? bottom : bottom, extras, animal: tcAnimalOf(c) };
 }
 function tcSeries() { return news && news.series && typeof SERIES !== 'undefined' ? SERIES[news.series.id] || null : null; }
 // final cast: project mein badla hua > series lock > visual bible se apne aap
@@ -505,7 +510,7 @@ function tcBuiltinBg(kind, night, W, H, gy) {
 }
 
 // ---------- line se apne aap action / emotion (koi Gemini request nahi) ----------
-const TC_ACT_WORDS = [['dance', /\b(danc\w*|naach\w*|naach)\b|नाच|નાચ/i], ['run_across', /\b(run|ran|running|daud\w*|bhaag\w*|chase|rush\w*)\b|दौड़|भाग|દોડ/i], ['jump', /\b(jump\w*|kood\w*|hop\w*|leap\w*)\b|कूद|ઉછળ/i],
+const TC_ACT_WORDS = [['namaste', /\b(namaste|namaskar|pranam|ram ram)\b|नमस्ते|प्रणाम|નમસ્તે/i], ['dance', /\b(danc\w*|naach\w*|naach)\b|नाच|નાચ/i], ['run_across', /\b(run|ran|running|daud\w*|bhaag\w*|chase|rush\w*)\b|दौड़|भाग|દોડ/i], ['jump', /\b(jump\w*|kood\w*|hop\w*|leap\w*)\b|कूद|ઉછળ/i],
   ['wave', /\b(hello|hi|namaste|bye|goodbye|wave\w*|alvida|salaam)\b|नमस्ते|अलविदा|નમસ્તે/i], ['cry', /\b(cry|cried|crying|tears|weep\w*|ro (pad|rah)\w*|rone)\b|रो(ने|या|ई| पड़)|આંસુ/i], ['laugh', /\b(laugh\w*|giggl\w*|haha|hans\w*|has pad\w*)\b|हँस|हंस|હસ/i],
   ['sleep', /\b(sleep\w*|slept|asleep|so ga\w*|neend)\b|सो (गया|गई)|नींद/i], ['think', /\b(think\w*|wonder\w*|idea|soch\w*|plan\w*)\b|सोच|વિચાર/i], ['point', /\b(look there|see that|over there|dekho|wahan)\b|देखो|वहाँ/i],
   ['scared', /\b(scared|afraid|fear|frighten\w*|dar (gay|lag)\w*|ghost|bhoot)\b|डर|ડર/i], ['sit', /\b(sit|sat|sitting|baith\w*)\b|बैठ|બેઠ/i], ['walk_across', /\b(walk\w*|went|going|chal\w*|ja rah\w*|stroll\w*)\b|चल|जा रह|ચાલ/i]];
@@ -583,7 +588,7 @@ function tcStateOf(TC, i, pc, lt, endL, W) {
   const moveSeg = (xa, xb, t0, t1, run) => { if (lt < t0) return false; const p = tcClamp((lt - t0) / Math.max(0.01, t1 - t0)); st.x = xa + (xb - xa) * p; if (lt < t1) { st.walk = 1; st.run = run; st.ph = ((lt - t0) * Math.abs(xb - xa) / Math.max(0.01, t1 - t0)) / stride * Math.PI; st.f = xb > xa ? 1 : -1; } return true; };
   // andar aana
   let enterEnd = 0;
-  if (pc.enter !== 'none') {
+  if (pc.enter !== 'none' && !/^(sit|sit_floor|sleep)$/.test(pc.act)) { // baitha / soya hua character pehle se wahan hota hai
     const side = pc.enter === 'left' ? -1 : pc.enter === 'right' ? 1 : x0 < W / 2 ? -1 : 1, xs = side < 0 ? -Hc * 0.6 : W + Hc * 0.6;
     const d = Math.min(2.4, Math.max(0.8, Math.abs(x0 - xs) / speed)); enterEnd = d;
     if (lt < d) { st.x = xs; moveSeg(xs, x0, 0, d, false); if (lt < 0) { st.x = xs; st.walk = 0; } }
@@ -595,6 +600,7 @@ function tcStateOf(TC, i, pc, lt, endL, W) {
     if (d > 0.5 && lt >= mid) { const dir = st.f, xb = Math.max(Hc * 0.5, Math.min(W - Hc * 0.5, x0 + dir * speed * d)); moveSeg(x0, xb, mid, mid + d, a === 'run_across'); if (lt >= mid + d) st.x = xb; }
   }
   if (a === 'jump' && lt > mid) { const p = ((lt - mid) % 0.7) / 0.7, cnt = Math.floor((lt - mid) / 0.7); if (cnt < 3) st.jump = Math.sin(p * Math.PI) * Hc * 0.28; }
+  if (a === 'namaste' && lt > mid) { if (TCS.tcStyle === 'hd') st.namaste = 1; else st.wave = tcClamp(Math.min((lt - mid) * 4, (mid + 2.2 - lt) * 4)); }
   if (a === 'wave' && lt > mid) st.wave = tcClamp(Math.min((lt - mid) * 4, (mid + 2.2 - lt) * 4));
   if (a === 'dance' && lt > mid) { st.dance = 1; st.dph = (lt - mid) * Math.PI * 2 * 1.9; }
   if (a === 'sit') st.sit = lt > mid ? tcClamp((lt - mid) * 3) : 0;
@@ -616,6 +622,7 @@ function tcStateOf(TC, i, pc, lt, endL, W) {
 }
 function S_blink(t, seed) { const period = 3.1 + seed, p = (t + seed * 1.7) % period; return p < 0.12 ? Math.abs(p - 0.06) / 0.06 : 1; }
 async function tcFrame(TC, i, tq, getBg) {
+  if (TCS.tcStyle === 'hd' && typeof tcFrameHD === 'function') return tcFrameHD(TC, i, tq, getBg); // 🏡 HD village look
   const W = TC.W, H = TC.H;
   let c = TC.canv.get(i); if (!c) { c = new OffscreenCanvas(W, H); TC.canv.set(i, c); for (const key of TC.canv.keys()) if (key < i - 2) TC.canv.delete(key); }
   const x = c.getContext('2d'), s = TC.scenes[i], sc = TC.sc[i];
@@ -648,7 +655,7 @@ function tcBgPrompt(s, B) {
   const names = ((B && B.characters) || []).map((c) => c.name).filter(Boolean);
   let place = pl ? `${pl.name} — ${pl.look}` : core;
   for (const n of names) place = place.replace(new RegExp(`\\b${reEsc(n)}\\b`, 'gi'), 'someone');
-  return oneLine(`Empty background for an animated 2D cartoon (the characters are added later, so leave them out). The place: ${place}. Draw ONLY the place: no people, no characters, no animals, no faces, no hands, no text, no letters. ${when ? `Time / weather: ${when}. ` : ''}Wide shot at eye level, straight-on camera, open flat ground across the bottom quarter of the picture where characters can stand, nothing blocking the bottom middle. Style: 2D cartoon background art, flat colours, clean bold dark outlines, simple soft cel shading, bright cheerful palette, children's animated TV show look, 16:9.`);
+  return oneLine(`Empty background for an animated 2D cartoon (the characters are added later, so leave them out). The place: ${place}. Draw ONLY the place: no people, no characters, no animals, no faces, no hands, no text, no letters. ${when ? `Time / weather: ${when}. ` : ''}Wide shot at eye level, straight-on camera, open flat ground across the bottom quarter of the picture where characters can stand, nothing blocking the bottom middle. ${TCS.tcStyle === 'hd' ? 'Style: rich, detailed 2D cartoon background illustration like Indian animated story videos — clean vector art with soft gradient shading, textured mud / brick walls, clay tile or thatched roofs, big leafy trees made of many layered leaf clusters, grass strips with blades, warm natural colours, a clear foreground, middle ground and far background for depth, 16:9.' : "Style: 2D cartoon background art, flat colours, clean bold dark outlines, simple soft cel shading, bright cheerful palette, children's animated TV show look, 16:9."}`);
 }
 (function tcPromptHook() {
   const _bc = window.bibleCompose;
@@ -702,9 +709,10 @@ function tcCastPaint() {
     <select data-k="region">${tcOpts(TC_REGIONS, c.region)}</select>
     <select data-k="gender"><option value="m"${c.gender === 'm' ? ' selected' : ''}>♂ Male</option><option value="f"${c.gender === 'f' ? ' selected' : ''}>♀ Female</option></select>
     <select data-k="age">${tcOpts(TC_AGES, c.age)}</select>
-    <select data-k="animal"><option value="">🧍 Human</option>${Object.keys(TC_ANIMAL).concat(['crow', 'parrot', 'owl', 'duck', 'hen']).map((a) => `<option value="${a}"${a === c.animal ? ' selected' : ''}>🐾 ${a}</option>`).join('')}</select></div>
+    <select data-k="animal"><option value="">🧍 Human</option>${Object.keys(TC_ANIMAL).concat(['crow', 'parrot', 'owl', 'duck', 'hen'], typeof HD_ANIMAL !== 'undefined' ? Object.keys(HD_ANIMAL).filter((a) => !TC_ANIMAL[a]) : []).map((a) => `<option value="${a}"${a === c.animal ? ' selected' : ''}>🐾 ${a}</option>`).join('')}</select></div>
     <div class="row wrap small">Skin <input data-k="skin" type="color" value="${c.skin}"> Hair <select data-k="hair">${tcOpts(TC_HAIR, c.hair)}</select><input data-k="hairColor" type="color" value="${c.hairColor}">
     Clothes <select data-k="outfit">${tcOpts(TC_OUTFITS, c.outfit)}</select><input data-k="top" type="color" value="${/^#/.test(c.top) ? c.top : '#1e88e5'}" title="Top / saree / dress colour"><input data-k="bottom" type="color" value="${/^#/.test(c.bottom) ? c.bottom : '#37474f'}" title="Pants / skirt / blouse colour"></div>
+    ${typeof HD_OUTFITS !== 'undefined' ? `<div class="row wrap small">🏡 HD clothes <select data-k="hdOutfit"><option value="">Auto</option>${Object.entries(HD_OUTFITS).map(([k, v]) => `<option value="${k}"${k === c.hdOutfit ? ' selected' : ''}>${v.lab}</option>`).join('')}</select> Print <select data-k="pattern"><option value="">Auto</option>${['plain', 'checks', 'dots', 'stripes'].map((v) => `<option${v === c.pattern ? ' selected' : ''}>${v}</option>`).join('')}</select> Saree / lehenga border <input data-k="border" type="color" value="${/^#/.test(c.border || '') ? c.border : '#b71c1c'}"> In hand <select data-k="prop"><option value="">Nothing</option><option value="glass"${c.prop === 'glass' ? ' selected' : ''}>🥛 Glass</option><option value="stick"${c.prop === 'stick' ? ' selected' : ''}>🦯 Lathi</option></select></div>` : ''}
     <div class="row wrap small">${Object.entries(TC_EXTRAS).map(([k, v]) => `<label class="check small"><input type="checkbox" data-x="${k}"${(c.extras || []).includes(k) ? ' checked' : ''}> ${v}</label>`).join('')}<button class="ghost small-btn" data-reset="1" title="Back to the look found in the visual bible">↺ Auto</button></div></div>`; }).join('');
   box.querySelectorAll('.tcRow').forEach((row) => {
     const n = decodeURIComponent(row.dataset.n);
