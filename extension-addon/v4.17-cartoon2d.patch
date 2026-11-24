@@ -1,0 +1,77 @@
+--- a/video.js	2026-11-03 13:14:03.000000000 +0000
++++ b/video.js	2026-11-24 06:40:45.886554310 +0000
+@@ -524,7 +524,7 @@
+   const scenes = opts.scenes || news.scenes;
+   const pre = opts.label ? opts.label + ' · ' : '';
+   let { img, aud } = await sceneHas();
+-  const noImg = scenes.filter((s) => !img.has(s.n)).map((s) => s.n);
++  const noImg = scenes.filter((s) => !img.has(s.n) && !(typeof tcNoImgOk === 'function' && tcNoImgOk())).map((s) => s.n); // v4.17: 🧸 built-in cartoon background = picture nahi chahiye
+   let noAud = scenes.filter((s) => !aud.has(s.n)).map((s) => s.n);
+   // v3.9: voiceover missing (aur images poori) → pehle apne aap voiceover bana do, phir video
+   if (!opts.inner && !noImg.length && noAud.length && !scenes.some((s) => !aud.has(s.n) && !oneLine(s.dialogue))) {
+@@ -669,6 +669,7 @@
+     const FX = typeof txPrepare === 'function' ? await txPrepare(scenes, T, clips, sc, { inner: !!opts.inner, preview: !!opts.preview, shorts: !!opts.shorts }).catch((e) => { addLog('✨ Effects: ' + e.message, 'warn'); return null; }) : null; // v3.88: ✨
+     if (EM && CM) { EM.chRight = true; EM.bub = new Set(scenes.map((s, i) => (s.cm && s.cm.text ? i : -1)).filter((i) => i >= 0)); } // comic: bubble se takraav nahi
+     if (typeof otArrange === 'function') { try { otArrange({ scenes, T, clips, facts, charts, EM, SY, VS, opts, extraB: DK ? DK.blocks : [] }); } catch (e) { addLog('🧹 ' + e.message, 'warn'); } } // v3.95: 🧹 ek waqt par ek bada text
++    const TC = typeof tcPrepare === 'function' ? (() => { try { return tcPrepare(scenes, T, clips, sc, { W: IW, H, inner: !!opts.inner, preview: !!opts.preview, shorts: !!opts.shorts }); } catch (e) { addLog('🧸 Cartoon 2D: ' + e.message, 'warn'); return null; } })() : null; // v4.17: 🧸 chalte-firte cartoon characters
+     const QV = typeof qvPrepare === 'function' ? await qvPrepare(scenes, T, clips, { W, H, inner: !!opts.inner, shorts: !!opts.shorts, preview: !!opts.preview, stops: [IO && IO.outro ? IO.outro.t0 : null, SFD ? SFD.t0 : null, ES ? ES.t0 : null, DC ? DC.t0 : null, EG && EG.tail ? EG.c0 : null, DK && DK.credits ? DK.c0 : null, total] }).catch((e) => { addLog('🧠 Quiz: ' + e.message, 'warn'); return null; }) : null; // v3.96: 🧠 quiz video
+ 
+     if (!opts.inner && typeof tnT === 'function') tnT('preparing'); // v3.48
+@@ -790,14 +791,14 @@
+     };
+     // v3.27: B-roll scene → us waqt ka video frame (motion nahi — clip khud chalti hai)
+     if (typeof brPrepare === 'function' && (brOn() || scenes.some((s) => s.kclip))) { /* v3.40: 🎞 key-shot clips */ try { BR = await brPrepare(scenes, T, clips, IW, H, (t) => vProgress(0, 1, pre + t)); } catch (e) { addLog('B-roll: ' + e.message, 'warn'); } }
+-    const bmpAt = async (i, tq) => (BR.has(i) ? (await lyClipFrame(BR.get(i).clip, Math.max(0, tq - sc[i].vs))) || getBmp(i) : ((typeof hmShotBmp === 'function' && await hmShotBmp(i, tq)) || getBmp(i))); // v3.35: 🎬 multi-shot
+-    const moOf = (i, x) => (BR.has(i) ? 'none' : x.motion);
++    const bmpAt = async (i, tq) => (TC && TC.on(i) ? tcFrame(TC, i, tq, () => getBmp(i)) : BR.has(i) ? (await lyClipFrame(BR.get(i).clip, Math.max(0, tq - sc[i].vs))) || getBmp(i) : ((typeof hmShotBmp === 'function' && await hmShotBmp(i, tq)) || getBmp(i))); // v3.35: 🎬 multi-shot
++    const moOf = (i, x) => (BR.has(i) || (TC && TC.on(i)) ? 'none' : x.motion); // v4.17: 🧸 cartoon ka apna camera
+     const SS = typeof ssPrepare === 'function' && !opts.preview ? ssPrepare(scenes, T, clips, cues, { inner: !!opts.inner, skip: (i) => BR.has(i) || !!scenes[i].kclip || (typeof HMR !== 'undefined' && HMR && HMR.shots && HMR.shots.has(i)) || (SX && SX.at.has(i) && !['countdown', 'pov', 'timeline'].includes(SX.at.get(i).type)) }) : (typeof ssPrepare === 'function' && opts.preview ? ssPrepare(scenes, T, clips, cues, { inner: true, skip: (i) => BR.has(i) }) : null); // v3.49: ✂
+     if (!LAY && !useChar && typeof prPrepare === 'function') { try { PRS = await prPrepare(clips, T, total, FPS); } catch (e) { addLog('Presenter: ' + e.message, 'warn'); } }
+     else if (typeof prOn === 'function' && prOn() && !opts.inner) addLog('🗣 Presenter is not used with the studio layout / side character (they already have a presenter)', 'info');
+     const F = Math.ceil(total * FPS);
+     if (typeof rrBegin === 'function' && !opts.rrOff) RRH = await rrBegin({ inner: !!opts.inner, preview: !!opts.preview, size: opts.size, scenes, sc, T, clips, cues, total, FPS, W, H, format, vc,
+-      plan: { CK: CKX ? CKX.sig : null, MO: MO ? MO.sig : null, BZ: BZ ? BZ.sig : null, NT: NT ? NT.sig : null, EG: EG ? EG.sig : null, DK: DK ? DK.sig : null, DC: DC ? DC.sig : null, QV: QV ? QV.sig : null, EM, SX, HE: HE ? { ev: HE.ev, mute: HE.mute, warp: HE.warp } : null, facts, charts, MAPS, ES, IO, RC, SFD, SFR: typeof SFR !== 'undefined' ? SFR : null,
++      plan: { TC: TC ? TC.sig : null, CK: CKX ? CKX.sig : null, MO: MO ? MO.sig : null, BZ: BZ ? BZ.sig : null, NT: NT ? NT.sig : null, EG: EG ? EG.sig : null, DK: DK ? DK.sig : null, DC: DC ? DC.sig : null, QV: QV ? QV.sig : null, EM, SX, HE: HE ? { ev: HE.ev, mute: HE.mute, warp: HE.warp } : null, facts, charts, MAPS, ES, IO, RC, SFD, SFR: typeof SFR !== 'undefined' ? SFR : null,
+         CMP: CM && CM.pages && CM.pages.size ? CM : null, LAY: LAY ? LAY.name || 'lay' : '', CH: useChar && typeof CH !== 'undefined' ? CH.name : '', heads, PRS: !!PRS, subOn, sOpt } }).catch((e) => { addLog('⚡ Quick re-render: ' + e.message, 'warn'); return null; }); // v3.67
+     const FRM = typeof tnFrameMode === 'function' && !opts.preview ? await tnFrameMode(W, H).catch(() => 'canvas') : 'canvas'; // v3.51
+     let cur = 0;
+--- a/sidepanel.html	2026-11-03 13:14:03.000000000 +0000
++++ b/sidepanel.html	2026-11-24 06:41:00.689017621 +0000
+@@ -1747,6 +1747,29 @@
+             <option value="fit">Fit (blurred bars)</option>
+           </select></label>
+         </div>
++        <details id="tcBox" class="chbox"> <!-- v4.17: 🧸 cartoon 2D -->
++          <summary>🧸 Cartoon 2D — walking, talking cartoon characters (free, no GPU)</summary>
++          <div class="row wrap"><label class="small">Mode <select id="tcMode"><option value="off">Off (Flow pictures as before)</option><option value="2d">🧸 2D cartoon animation</option></select></label>
++          <label class="small">Background <select id="tcBg"><option value="flow">🖼 Flow picture (empty place, cartoon style)</option><option value="builtin">✏ Built-in drawing (free, no Flow)</option></select></label></div>
++          <p id="tcInfo" class="muted small"></p>
++          <div id="tcOpts">
++            <div class="row wrap"><label class="small">Characters from <select id="tcRegion">
++              <option value="indian">🇮🇳 Indian</option><option value="korean">🇰🇷 Korean</option><option value="japanese">🇯🇵 Japanese</option><option value="chinese">🇨🇳 Chinese</option><option value="sea">🌏 South-East Asian</option>
++              <option value="russian">🇷🇺 Russian / East European</option><option value="european">🇪🇺 European</option><option value="american">🇺🇸 American</option><option value="african">🌍 African</option><option value="middle_eastern">🕌 Middle Eastern</option><option value="latin">🌎 Latin American</option><option value="mixed">🎲 Mixed</option></select></label>
++            <label class="small">Size <select id="tcSize"><option value="s">Small</option><option value="m">Medium</option><option value="l">Large</option></select></label>
++            <label class="small">Feet at <select id="tcGround"><option value="80">80%</option><option value="84">84%</option><option value="88">88%</option><option value="92">92%</option><option value="95">95%</option></select> of the height</label>
++            <label class="small">Camera <select id="tcCam"><option value="gentle">Slow push-in</option><option value="still">Still</option></select></label>
++            <label class="small">Actions <select id="tcAuto"><option value="on">From the words of each line</option><option value="off">Only standing + talking</option></select></label></div>
++            <p class="muted small">"Characters from" is the default for every character; a word in the visual bible ("Korean girl", "Russian man" …) or your choice below wins.</p>
++            <div class="row wrap"><button id="tcRewrite" class="ghost small-btn">🖼 Picture prompts → empty cartoon backgrounds</button><button id="tcPlanBtn" class="ghost small-btn">✨ Plan actions with Gemini (1 request)</button><button id="tcPlanClear" class="ghost small-btn">↺ Automatic actions</button></div>
++            <label class="sub small">🎭 Cast — country, age, hair and clothes of every character (saved in the project, locked in a series)</label>
++            <div id="tcCast"></div>
++            <div class="row wrap"><input id="tcAddName" type="text" placeholder="Add a character by hand: name" style="width:150px" /><input id="tcAddLook" type="text" class="grow" placeholder="look, e.g. 8-year-old Korean girl, red frock, ponytail" /><button id="tcAddBtn" class="ghost small-btn">➕ Add</button></div>
++            <canvas id="tcPrev" width="640" height="300" style="width:100%;border-radius:8px;background:#111"></canvas>
++            <div class="row wrap"><select id="tcTestScene" class="grow"></select><button id="tcTestBtn" class="ghost small-btn">▶ Test this scene</button></div>
++            <p class="muted small">The voice, subtitles, music, transitions and YouTube upload stay the same. Who talks comes from the script ("speaker"), who is in the scene from the visual bible ("chars").</p>
++          </div>
++        </details>
+         <details id="moBox" class="chbox"> <!-- v4.11: 🎨 motion pack -->
+           <summary>🎨 Motion pack — logo intro, particles, icons, 3D title, kinetic text, own layers</summary>
+           <label class="sub small">🎬 Animated logo</label>
+@@ -2330,6 +2353,7 @@
+   <script src="crkit.js"></script>
+   <script src="charlock.js"></script>
+   <script src="kidvoice.js"></script>
++  <script src="cartoon2d.js"></script>
+   <script src="profilesync.js"></script>
+   <script src="layout.js"></script>
+   <script src="wizard.js"></script>
