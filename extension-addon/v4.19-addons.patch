@@ -37,19 +37,19 @@
      const FRM = typeof tnFrameMode === 'function' && !opts.preview ? await tnFrameMode(W, H).catch(() => 'canvas') : 'canvas'; // v3.51
      let cur = 0;
 --- a/sidepanel.html	2026-11-03 13:14:03.000000000 +0000
-+++ b/sidepanel.html	2026-11-24 09:13:18.518929255 +0000
++++ b/sidepanel.html	2026-11-24 09:20:18.984604664 +0000
 @@ -1747,6 +1747,44 @@
              <option value="fit">Fit (blurred bars)</option>
            </select></label>
          </div>
 +        <details id="lpBox" class="chbox"> <!-- v4.19: 🪄 living pictures -->
-+          <summary>🪄 Living pictures — the Flow picture itself moves: talking, blinking, fire, water, vehicles …</summary>
++          <summary>🪄 Living pictures — the Flow picture itself moves: people talk and blink, the whole background comes alive</summary>
 +          <div class="row wrap"><label class="small">Mode <select id="lpMode"><option value="off">Off (zoom / pan only, as before)</option><option value="on">🪄 On — read every picture and move what can move</option></select></label>
 +          <label class="small">Strength <select id="lpStrength"><option value="60">Light</option><option value="100">Normal</option><option value="140">Strong</option></select></label></div>
 +          <p id="lpInfo" class="muted small"></p>
 +          <div id="lpOpts">
 +            <div class="row wrap"><label class="check small"><input id="lpTalk" type="checkbox" /> 👄 Speaker's mouth with the voice</label><label class="check small"><input id="lpBlink" type="checkbox" /> 👁 Blinking</label><label class="check small"><input id="lpBreath" type="checkbox" /> 🫁 Breathing / small head moves</label></div>
-+            <div class="row wrap"><label class="check small"><input id="lpNature" type="checkbox" /> 🔥 Fire, smoke, water, leaves, clouds, flags, diya</label><label class="check small"><input id="lpVehicle" type="checkbox" /> 🚗 Vehicles: wheels turn, shake, dust, camera follows</label><label class="check small"><input id="lpWalk" type="checkbox" /> 🚶 Walking people: step bob, camera follows</label></div>
++            <div class="row wrap"><label class="check small"><input id="lpNature" type="checkbox" /> 🌳 Background too: sky + birds, sun rays + dust, clouds, mist, trees, grass, flowers, water, sea, waterfall, fire, smoke, diya, lamps, flags, curtains, swings, fans, boats, rain, snow</label><label class="check small"><input id="lpVehicle" type="checkbox" /> 🚗 Vehicles: wheels turn, shake, dust, camera follows</label><label class="check small"><input id="lpWalk" type="checkbox" /> 🚶 Walking people: step bob, camera follows</label></div>
 +            <div class="row wrap"><button id="lpReadBtn" class="ghost small-btn">👁 Read all pictures again (Gemini)</button></div>
 +            <canvas id="lpPrev" width="640" height="360" style="width:100%;border-radius:8px;background:#111;cursor:crosshair"></canvas>
 +            <div class="row wrap"><select id="lpScene" class="grow"></select><button id="lpPrevBtn" class="ghost small-btn">▶ Preview</button><label class="check small"><input id="lpMarks" type="checkbox" checked /> show what was found</label></div>

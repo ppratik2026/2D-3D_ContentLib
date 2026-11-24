@@ -21,6 +21,11 @@ Sample made by the real extension: [`../examples/demo_extension_living_pictures.
   request per 8 speakers looks at a close-up of the speaker's face to find the lip corners and eyes precisely.
   The results are saved in the project, so re-renders cost nothing. It runs on its own the first time you make the video,
   or with **👁 Read all pictures again**.
+- **Background too**: sky with flying birds, stars at night, sun rays with floating dust, clouds, mist, tree crowns,
+  grass / crops / bushes / flowers (rooted at the bottom, the tops sway), rivers / ponds, sea waves, waterfalls / fountains,
+  fire, smoke, steam, diyas / candles, lamps / lanterns / bulbs / screens (glow and flicker), flags / banners / kites,
+  curtains / hanging clothes, swings / hanging lanterns / bells (swing from the top), fans / windmills (spin),
+  boats (bob on the water), sitting birds, rain and snow. Gemini lists up to 14 of these per picture.
 - **Speaker**: comes from the script's `speaker` (narration lines have no talking mouth). The jaw opens with the loudness
   of the voice and the mouth inside, teeth and tongue are drawn with soft edges. Beards move down with the jaw.
 - **Preview** shows a scene moving with what Gemini found (yellow box = speaker, red dot = mouth, green = eyes,

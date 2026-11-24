@@ -34,7 +34,14 @@ async function lpAnalyze(scenes, status = () => {}, force = false) {
     const parts = [{ text: `We will animate each numbered picture (2D animation from a still picture). Find everything that can move.
 Coordinates: box_2d = [ymin, xmin, ymax, xmax] and points = [y, x], all 0-1000 of THAT picture. Be precise.
 "people": people and animals with a visible face (max 6, biggest first): "name" (from the character list if you can tell, else ""), "speaking" (true ONLY for the named SPEAKER of that picture), "face" box_2d, "mouth" point (centre between the lips), "mouth_w" (mouth width, 0-1000 of picture width), "eyes" (points of the visible eyes, max 2), "eye_w" (one eye's width, 0-1000), "body" box_2d (whole body visible), "facing" (left/right/front), "walking" (true if walking or running).
-"fx": things that should move by themselves: fire, smoke, steam, water (river / sea / pond / waterfall), leaves (tree crowns, bushes), clouds, flag, cloth (curtain, hanging saree, clothesline), flame (candle, diya, lamp), rain, snow — each {"type", "box": box_2d}. Max 8.
+"fx": EVERYTHING in the picture, foreground and background, that would move in real life — each {"type", "box": box_2d}, max 14, biggest / most visible first. Use these types:
+  fire, smoke, steam, flame (candle / diya / lamp / torch), lamp (lantern, bulb, street light, TV / screen glow),
+  water (river / lake / pond / puddle), sea (waves), waterfall (also fountain),
+  leaves (tree crowns), grass (grass, crops, field), bush, flowers,
+  clouds, sky (open sky with no clouds), stars (night sky), mist (fog),
+  light (sun rays, light beams, glowing window light), flag (also banner, kite), cloth (curtain, hanging clothes / saree, clothesline),
+  swing (jhoola, hanging lantern, bell, chandelier — things hanging from the top), fan (ceiling fan, table fan, windmill, any spinning wheel),
+  boat (boat or anything floating), bird (birds sitting or flying), rain, snow.
 "vehicles": car, bus, truck, auto, bike, cycle, cart, tractor, train, boat, plane — {"type", "box": box_2d, "dir": "left"|"right", "moving": true|false, "wheels": [[y, x, r]] (r = radius 0-1000 of picture width)}.
 Character list:
 ${looks || '(none)'}
@@ -53,7 +60,7 @@ Return ONLY JSON: {"pictures": [{"n": 1, "people": [], "fx": [], "vehicles": []}
         const s = part.find((q) => q.n === Number(x.n)); if (!s) continue;
         s.lp = {
           people: (x.people || []).map((p) => ({ name: oneLine(p.name || ''), speaking: !!p.speaking, face: lpBox(p.face), mouth: lpPt(p.mouth), mw: lpClamp(Number(p.mouth_w) / 1000 || 0.02, 0.004, 0.2), eyes: (p.eyes || []).map(lpPt).filter(Boolean).slice(0, 2), ew: lpClamp(Number(p.eye_w) / 1000 || 0.012, 0.002, 0.08), body: lpBox(p.body), facing: String(p.facing || 'front'), walking: !!p.walking })).filter((p) => p.face),
-          fx: (x.fx || []).map((f) => ({ type: String(f.type || '').toLowerCase(), box: lpBox(f.box) })).filter((f) => f.box).slice(0, 8),
+          fx: (x.fx || []).map((f) => ({ type: String(f.type || '').toLowerCase(), box: lpBox(f.box) })).filter((f) => f.box).slice(0, 14),
           veh: (x.vehicles || []).map((v) => ({ type: String(v.type || ''), box: lpBox(v.box), dir: v.dir === 'left' ? -1 : 1, moving: v.moving !== false, wheels: (v.wheels || []).map((w) => (Array.isArray(w) && w.length >= 3 ? { x: lpClamp(w[1] / 1000), y: lpClamp(w[0] / 1000), r: lpClamp(w[2] / 1000, 0.003, 0.2) } : null)).filter(Boolean) })).filter((v) => v.box),
         };
         got++;
@@ -139,10 +146,10 @@ function lpFrame(LP, i, tq, bmp) {
   const talk = lt >= 0 && lt < cl.dur ? E.env[Math.min(E.env.length - 1, Math.floor(lt * E.hz))] || 0 : 0;
   const cols = lpColors(LP, i, bmp, s), seed = (s.n * 0.37) % 1;
   // 1) maahaul: aag, dhuaan, paani, patte, baadal, jhanda, diya
-  if (LPS.lpNature) for (let k = 0; k < A.fx.length; k++) lpFx(x, bmp, A.fx[k], W, H, t, K, k);
+  if (LPS.lpNature) { const ord = A.fx.map((f, k) => [f, k]).sort((p, q) => (q[0].box.w * q[0].box.h) - (p[0].box.w * p[0].box.h)); for (const [f, k] of ord) if (!/light|ray|beam|mist|fog/.test(f.type)) lpFx(x, bmp, f, W, H, t, K, k); }
   // 2) gaadi
   if (LPS.lpVehicle) for (const v of A.veh) if (v.moving) lpVehicle(x, bmp, v, W, H, t, K);
-  // 3) log: saans / chalna / sar / muh / palak
+  // 3) log: saans / chalna / sar / muh / palak (roshni / kohra baad mein, sabke upar)
   A.people.forEach((p, k) => {
     const ph = seed * 7 + k * 1.9;
     if (p.body && ((LPS.lpWalk && p.walking) || (LPS.lpBreath && !p.speaking))) lpBody(x, bmp, p, W, H, t, K, ph); // bolne wale ka chehra jabde ke saath hi hilta hai
@@ -150,6 +157,7 @@ function lpFrame(LP, i, tq, bmp) {
     else if (LPS.lpBreath && p.face && !p.walking) lpNod(x, bmp, p.face, W, H, Math.sin(t * 1.1 + ph) * 0.6);
     if (LPS.lpBlink && p.eyes && p.eyes.length) { const per = 3.1 + ((k * 0.73 + seed) % 1.4), q = (t + k * 1.3 + seed * 3) % per, b = q < 0.16 ? 1 - Math.abs(q - 0.08) / 0.08 : 0; if (b > 0) p.eyes.forEach((e, j) => lpLid(x, e, p, W, H, b, cols[k].lid[j])); }
   });
+  if (LPS.lpNature) A.fx.forEach((f, k) => { if (/light|ray|beam|mist|fog/.test(f.type)) lpFx(x, bmp, f, W, H, t, K, k); });
   return c;
 }
 // patle tukdon se lehar (canvas par sasta "warp") — naram kinaaron wala tukda banao, phir jahan chahiye wahan rakho
@@ -164,20 +172,47 @@ function lpPiece(bmp, b, W, H, fn, key, feather = 0.25) {
   return { c: tc, x: bx, y: by };
 }
 function lpWave(x, bmp, b, W, H, fn, key, feather) { const p = lpPiece(bmp, b, W, H, fn, key, feather); if (p) x.drawImage(p.c, p.x, p.y); }
+function lpGlow(x, cx, cy, r, col, a) { if (a <= 0.003) return; const g = x.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, `rgba(${col},${a})`); g.addColorStop(1, `rgba(${col},0)`); x.save(); x.globalCompositeOperation = 'lighter'; x.fillStyle = g; x.fillRect(cx - r, cy - r, 2 * r, 2 * r); x.restore(); }
+function lpRotPiece(x, bmp, b, W, H, ang, px, py, key, feather = 0.12) { // tukda kisi bindu ke aas-paas ghumao (jhoola, pankha, naav)
+  const pc = lpPiece(bmp, b, W, H, null, key, feather); if (!pc) return; x.save(); x.translate(px, py); x.rotate(ang); x.translate(-px, -py); x.drawImage(pc.c, pc.x, pc.y); x.restore();
+}
 function lpFx(x, bmp, f, W, H, t, K, k) {
-  const b = f.box, bw = b.w * W, ty = f.type;
-  if (/fire|flame|diya|candle|lamp|torch/.test(ty)) {
-    lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 18 + t * 15 + k) * bw * 0.035 * K * (1 - v), 'fx' + k, 0.2);
-    const fl = 0.5 + 0.5 * Math.sin(t * 17 + k) * Math.sin(t * 7.3), cx = (b.x + b.w / 2) * W, cy = (b.y + b.h * 0.6) * H, r = Math.max(b.w * W, b.h * H) * 2.2;
-    const g = x.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, `rgba(255,170,60,${0.12 * fl * K})`); g.addColorStop(1, 'rgba(255,140,40,0)');
-    x.save(); x.globalCompositeOperation = 'lighter'; x.fillStyle = g; x.fillRect(cx - r, cy - r, 2 * r, 2 * r); x.restore();
-  } else if (/smoke|steam/.test(ty)) lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 7 - t * 2.2 + k) * bw * 0.06 * K * (1 - v), 'fx' + k, 0.15);
-  else if (/water|river|sea|pond|lake|waterfall|ocean/.test(ty)) {
-    lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 60 + t * 3 + k) * bw * 0.006 * K, 'fx' + k, 0.3);
-    x.save(); x.globalCompositeOperation = 'lighter'; x.globalAlpha = 0.08 * K; for (let j = 0; j < 14; j++) { const u = (Math.sin(j * 12.9) * 0.5 + 0.5), v = (Math.sin(j * 78.2) * 0.5 + 0.5), a = 0.5 + 0.5 * Math.sin(t * 3 + j); x.fillStyle = `rgba(255,255,255,${a})`; x.fillRect((b.x + u * b.w) * W, (b.y + v * b.h) * H, b.w * W * 0.06, 2); } x.restore();
-  } else if (/leaves|leaf|tree|bush|grass|crop|field/.test(ty)) lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 5 + t * 1.6 + k) * bw * 0.008 * K * (1 - v * 0.7), 'fx' + k, 0.3);
-  else if (/flag|cloth|curtain|saree|cloth/.test(ty)) lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 9 + t * 4 + k) * bw * 0.03 * K, 'fx' + k, 0.25);
-  else if (/cloud/.test(ty)) lpWave(x, bmp, b, W, H, () => Math.sin(t * 0.25 + k) * bw * 0.04 * K, 'fx' + k, 0.35);
+  const b = f.box, bw = b.w * W, bh = b.h * H, bx = b.x * W, by = b.y * H, ty = f.type, cx = bx + bw / 2, cy = by + bh / 2, ph = k * 1.7;
+  const rnd = (j, q) => { const v = Math.sin(j * 127.1 + q * 311.7 + k * 74.7) * 43758.5453; return v - Math.floor(v); };
+  if (/fire|torch/.test(ty)) {
+    lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 18 + t * 15 + ph) * bw * 0.035 * K * (1 - v), 'fx' + k, 0.2);
+    lpGlow(x, cx, by + bh * 0.6, Math.max(bw, bh) * 2.2, '255,160,60', 0.13 * K * (0.6 + 0.4 * Math.sin(t * 17 + ph) * Math.sin(t * 7.3)));
+  } else if (/flame|diya|candle/.test(ty)) {
+    lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 14 + t * 13 + ph) * bw * 0.06 * K * (1 - v), 'fx' + k, 0.2);
+    lpGlow(x, cx, cy, Math.max(bw, bh) * 3, '255,190,90', 0.16 * K * (0.65 + 0.35 * Math.sin(t * 11 + ph)));
+  } else if (/lamp|lantern|bulb|light ?bulb|screen|tv|neon|street/.test(ty)) lpGlow(x, cx, cy, Math.max(bw, bh) * 1.6, '255,220,150', 0.1 * K * (0.7 + 0.3 * Math.sin(t * 5 + ph) + (Math.sin(t * 37 + ph) > 0.97 ? -0.4 : 0)));
+  else if (/smoke|steam/.test(ty)) lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 7 - t * 2.2 + ph) * bw * 0.06 * K * (1 - v), 'fx' + k, 0.15);
+  else if (/waterfall|fountain/.test(ty)) {
+    lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 40 - t * 9 + ph) * bw * 0.008 * K, 'fx' + k, 0.25);
+    x.save(); x.globalCompositeOperation = 'lighter'; for (let j = 0; j < 26; j++) { const u = rnd(j, 1), v = (rnd(j, 2) + t * (0.8 + rnd(j, 3))) % 1; x.fillStyle = `rgba(255,255,255,${0.16 * K})`; x.fillRect(bx + u * bw, by + v * bh, 1.5, bh * 0.08); } x.restore();
+  } else if (/sea|wave|ocean/.test(ty)) {
+    lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 30 + t * 2 + ph) * bw * 0.01 * K, 'fx' + k, 0.25);
+    x.save(); x.globalCompositeOperation = 'lighter'; for (let j = 0; j < 18; j++) { const u = rnd(j, 1), v = rnd(j, 2), a = Math.max(0, Math.sin(t * 2.5 + j)); x.fillStyle = `rgba(255,255,255,${0.12 * a * K})`; x.fillRect(bx + ((u + t * 0.02) % 1) * bw, by + v * bh, bw * 0.05, 2); } x.restore();
+  } else if (/water|river|pond|lake|puddle/.test(ty)) {
+    lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 60 + t * 3 + ph) * bw * 0.006 * K, 'fx' + k, 0.3);
+    x.save(); x.globalCompositeOperation = 'lighter'; for (let j = 0; j < 14; j++) { const a = 0.5 + 0.5 * Math.sin(t * 3 + j); x.fillStyle = `rgba(255,255,255,${0.08 * a * K})`; x.fillRect(bx + rnd(j, 1) * bw, by + rnd(j, 2) * bh, bw * 0.06, 2); } x.restore();
+  } else if (/leaves|leaf|tree/.test(ty)) lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 5 + t * 1.6 + ph) * bw * 0.008 * K * (1 - v * 0.7), 'fx' + k, 0.3);
+  else if (/grass|crop|field|bush|flower|plant/.test(ty)) lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 4 + t * 2.1 + ph + bx * 0.01) * bw * (/flower|bush/.test(ty) ? 0.01 : 0.006) * K * (1 - v), 'fx' + k, 0.3); // jad tiki, upar hilta
+  else if (/flag|banner|kite|cloth|curtain|saree|cloth/.test(ty)) lpWave(x, bmp, b, W, H, (v) => Math.sin(v * 9 + t * 4 + ph) * bw * 0.03 * K, 'fx' + k, 0.25);
+  else if (/cloud/.test(ty)) lpWave(x, bmp, b, W, H, () => Math.sin(t * 0.25 + ph) * bw * 0.04 * K, 'fx' + k, 0.35);
+  else if (/mist|fog/.test(ty)) { x.save(); for (let j = 0; j < 5; j++) { const u = (rnd(j, 1) + t * 0.015 * (1 + j * 0.3)) % 1.3 - 0.15; const g = x.createRadialGradient(bx + u * bw, by + rnd(j, 2) * bh, 0, bx + u * bw, by + rnd(j, 2) * bh, bh * 0.6); g.addColorStop(0, `rgba(255,255,255,${0.12 * K})`); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(bx, by, bw, bh); } x.restore(); }
+  else if (/light|ray|beam|sunbeam|god ?ray/.test(ty)) {
+    const pul = 0.5 + 0.5 * Math.sin(t * 0.9 + ph); x.save(); x.globalCompositeOperation = 'lighter'; const g = x.createLinearGradient(bx, by, bx, by + bh); g.addColorStop(0, `rgba(255,235,180,${0.09 * pul * K})`); g.addColorStop(1, 'rgba(255,235,180,0)'); x.fillStyle = g; x.fillRect(bx, by, bw, bh);
+    for (let j = 0; j < 40; j++) { const u = (rnd(j, 1) + Math.sin(t * 0.3 + j) * 0.02) % 1, v = (rnd(j, 2) - t * 0.02 * (0.3 + rnd(j, 3)) + 2) % 1, a = 0.5 + 0.5 * Math.sin(t * 2 + j); x.fillStyle = `rgba(255,235,170,${0.5 * a * K})`; x.beginPath(); x.arc(bx + u * bw, by + v * bh, 1.2 + rnd(j, 4) * 1.6, 0, 7); x.fill(); } x.restore();
+  } else if (/stars|night sky/.test(ty)) { x.save(); x.globalCompositeOperation = 'lighter'; for (let j = 0; j < 50; j++) { const a = Math.max(0, Math.sin(t * (1 + rnd(j, 3) * 3) + j)); x.fillStyle = `rgba(255,255,230,${0.7 * a * K})`; x.beginPath(); x.arc(bx + rnd(j, 1) * bw, by + rnd(j, 2) * bh, 0.8 + rnd(j, 4) * 1.2, 0, 7); x.fill(); } x.restore(); }
+  else if (/sky/.test(ty)) { // khule aasmaan mein udti chidiya
+    x.save(); x.strokeStyle = 'rgba(30,30,30,0.75)'; x.lineWidth = Math.max(1.2, W / 900);
+    for (let j = 0; j < 3; j++) { const sp = 0.04 + rnd(j, 1) * 0.04, u = ((rnd(j, 2) + t * sp) % 1.3) - 0.15, v = 0.2 + rnd(j, 3) * 0.5, s2 = W / 160 * (0.7 + rnd(j, 4) * 0.6), fl = Math.sin(t * 9 + j) * s2 * 0.5, px = bx + u * bw, py = by + v * bh + Math.sin(t * 0.8 + j) * 6; x.beginPath(); x.moveTo(px - s2, py - fl); x.quadraticCurveTo(px - s2 * 0.4, py - s2 * 0.4, px, py); x.quadraticCurveTo(px + s2 * 0.4, py - s2 * 0.4, px + s2, py - fl); x.stroke(); }
+    x.restore();
+  } else if (/swing|jhoola|hanging|lantern|bell|chandelier|pendulum/.test(ty)) lpRotPiece(x, bmp, b, W, H, Math.sin(t * 2.2 + ph) * 0.06 * K, cx, by, 'fx' + k);
+  else if (/fan|windmill|spinning|wheel/.test(ty)) { const r = Math.min(bw, bh) / 2; x.save(); x.beginPath(); x.arc(cx, cy, r, 0, 7); x.clip(); x.translate(cx, cy); x.rotate(t * 6 * K); x.translate(-cx, -cy); x.drawImage(bmp, cx - r, cy - r, 2 * r, 2 * r, cx - r, cy - r, 2 * r, 2 * r); x.restore(); }
+  else if (/boat|float/.test(ty)) lpRotPiece(x, bmp, b, W, H, Math.sin(t * 1.4 + ph) * 0.025 * K, cx, by + bh, 'fx' + k, 0.08);
+  else if (/bird/.test(ty)) { const pc = lpPiece(bmp, b, W, H, null, 'fx' + k, 0.15); if (pc) x.drawImage(pc.c, pc.x, pc.y - Math.abs(Math.sin(t * 3 + ph)) * bh * 0.04 * K); }
   else if (/rain|snow/.test(ty)) { x.save(); x.strokeStyle = /snow/.test(ty) ? 'rgba(255,255,255,0.8)' : 'rgba(200,220,255,0.45)'; x.lineWidth = /snow/.test(ty) ? 3 : 1.4; for (let j = 0; j < 90; j++) { const u = (j * 0.618) % 1, sp = /snow/.test(ty) ? 0.08 : 0.9, v = ((j * 0.37) + t * sp) % 1, px = (b.x + u * b.w) * W, py = (b.y + v * b.h) * H; x.beginPath(); x.moveTo(px, py); x.lineTo(px - 2, py + (/snow/.test(ty) ? 1 : 14)); x.stroke(); } x.restore(); }
 }
 function lpVehicle(x, bmp, v, W, H, t, K) {
