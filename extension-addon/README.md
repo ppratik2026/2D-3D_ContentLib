@@ -28,6 +28,14 @@ Sample made by the real extension: [`../examples/demo_extension_living_pictures.
   boats (bob on the water), sitting birds, rain and snow. Gemini lists up to 14 of these per picture.
 - **Speaker**: comes from the script's `speaker` (narration lines have no talking mouth). The jaw opens with the loudness
   of the voice and the mouth inside, teeth and tongue are drawn with soft edges. Beards move down with the jaw.
+- **Accuracy safeguards (v4.2.1)**: Gemini returns tight boxes (not points) for every face, and each face is then checked
+  in a close-up for its eyes and lips. An eye must lie in the upper-middle part of its face and the mouth in the lower part,
+  with a sensible size; anything else is thrown away, so nothing is drawn rather than something drawn in the wrong place.
+  Blinks stretch the picture's own eyelid skin down over the eye. The open mouth is small and takes its colour from the
+  picture. Pictures are numbered per request, so every batch maps to the right scene. A failed batch is retried
+  picture by picture. Projects read by the older version are read again automatically.
+- **Walking**: when the feet are in the picture, the two legs step forward and back in turn, and the body bobs.
+  The camera follows walkers and vehicles and zooms towards whoever is talking (🎥 option).
 - **Preview** shows a scene moving with what Gemini found (yellow box = speaker, red dot = mouth, green = eyes,
   orange = moving elements, purple = vehicles). If a spot is wrong, **click** where the mouth is (**Shift + click** for an eye).
 - **Limits**: one picture cannot make legs take steps, arms do new gestures or a car actually drive away.
