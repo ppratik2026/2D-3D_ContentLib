@@ -21,13 +21,13 @@ async function est() {
   const m = $('#min').value, n = Math.max(1, +$('#count').value || 1); $('#minv').textContent = m + ' min';
   const e = await api.call('estimate', { style: $('#style').value, minutes: m });
   $('#estTotal').textContent = e.totalText;
-  const names = { story: 'Story (Gemini)', voice: 'Hindi voices (Piper)', sound: 'Music + effects', prepare: 'Preparing', render: '3D render' };
+  const names = { story: 'Story (AI)', voice: 'Hindi voices (Piper)', sound: 'Music + effects', prepare: 'Preparing', render: '3D render' };
   $('#estParts').innerHTML = Object.entries(e.partsText).map(([k, v]) => `<tr><td>${names[k]}</td><td>${v}</td></tr>`).join('');
   $('#estNote').textContent = e.measured ? 'Based on the real speed of this PC.' : 'Rough estimate — it becomes exact after the first video on this PC.';
   $('#estSum').textContent = n > 1 ? `${n} videos ≈ ${fmt(e.total * n)} (one after another)` : '';
 }
-const src = () => document.querySelector('input[name=src]:checked').value;
-document.querySelectorAll('input[name=src]').forEach((r) => (r.onchange = () => { $('#pasteBox').hidden = src() !== 'paste'; $('#demo').checked = src() === 'demo'; $('#keyWarn').hidden = src() !== 'api' || S?.hasKey; }));
+const src = () => { const v = $('#storySrc').value || 'auto'; return v === 'paste' || v === 'demo' ? v : 'api'; };
+$('#storySrc').onchange = () => { $('#pasteBox').hidden = src() !== 'paste'; $('#demo').checked = src() === 'demo'; $('#keyWarn').hidden = src() !== 'api' || S?.hasKey; };
 $('#copyPrompt').onclick = async () => { const p = await api.call('story:prompt', { category: cat, minutes: $('#min').value, idea: $('#idea').value, style: $('#style').value });
   try { await navigator.clipboard.writeText(p); $('#copyMsg').textContent = 'Copied ✓ — now paste it in the Gemini app'; } catch { $('#pasted').value = p; $('#copyMsg').textContent = 'Prompt placed in the box below — copy it from there'; } };
 let pasteOk = false;
@@ -36,7 +36,7 @@ $('#pasted').oninput = async () => { const t = $('#pasted').value.trim(); if (!t
   $('#pasteMsg').className = 'small ' + (r.ok ? '' : 'warn'); $('#pasteMsg').textContent = r.ok ? `✓ Story read: "${r.title}" · ${r.scenes} scenes · ${r.lines} lines · ${r.chars}` : r.msg; };
 async function add(start) {
   const mode = src();
-  const o = { category: cat, idea: $('#idea').value, minutes: $('#min').value, count: $('#count').value, style: $('#style').value, look: $('#look').value, subs: $('#subs').value, demo: mode === 'demo', start };
+  const o = { category: cat, idea: $('#idea').value, minutes: $('#min').value, count: $('#count').value, style: $('#style').value, look: $('#look').value, subs: $('#subs').value, demo: mode === 'demo', storyAI: mode === 'api' ? $('#storySrc').value : null, start };
   if (mode === 'paste') { if (!pasteOk) { $('#pasteMsg').className = 'small warn'; $('#pasteMsg').textContent = 'Paste Gemini\'s answer first.'; return; } o.pasted = $('#pasted').value; }
   if (mode === 'api' && !S?.hasKey) { $('#keyWarn').hidden = false; return; }
   renderQueue(await api.call('queue:add', o)); if (mode === 'paste') { $('#pasted').value = ''; $('#pasteMsg').textContent = ''; pasteOk = false; } $('[data-tab=queue]').click();
@@ -121,11 +121,8 @@ dz.ondrop = async (e) => { e.preventDefault(); dz.classList.remove('drop'); cons
   if (paths.length) { const r = await api.call('chars:importPaths', paths); sel = r[0]?.id; loadChars(); } };
 
 // ---------- settings ----------
-async function loadSettings() { S = await api.call('settings:get'); $('#model').value = S.model; $('#conc').value = S.concurrency; $('#dataDir').textContent = S.dataDir;
-  $$('input[name=renderer]').forEach((r) => (r.checked = r.value === S.renderer)); $('#key').placeholder = S.hasKey ? `Saved: ${S.keyHint}` : 'AIza...'; $('#keyWarn').hidden = S.hasKey || src() !== 'api'; }
-$('#keySave').onclick = async () => { S = await api.call('settings:set', { key: $('#key').value }); $('#key').value = ''; $('#keyMsg').textContent = S.hasKey ? 'Saved ✓' : 'Key removed'; loadSettings(); };
-$('#keyTest').onclick = async () => { $('#keyMsg').textContent = 'Checking…'; const r = await api.call('settings:testKey'); $('#keyMsg').textContent = r.msg; $('#keyMsg').className = 'small ' + (r.ok ? '' : 'warn'); };
-$('#model').onchange = () => api.call('settings:set', { model: $('#model').value.trim() || 'gemini-2.5-flash' });
+async function loadSettings() { S = await api.call('settings:get'); $('#conc').value = S.concurrency; $('#dataDir').textContent = S.dataDir;
+  $$('input[name=renderer]').forEach((r) => (r.checked = r.value === S.renderer)); $('#keyWarn').hidden = S.hasKey || src() !== 'api'; }
 $('#conc').onchange = () => api.call('settings:set', { concurrency: Math.max(1, Math.min(8, +$('#conc').value || 2)) });
 $$('input[name=renderer]').forEach((r) => (r.onchange = async () => { await api.call('settings:set', { renderer: r.value }); est(); }));
 $('#openData').onclick = () => api.call('open:data'); $('#reSetup').onclick = () => checkSetup(true);
@@ -140,6 +137,35 @@ async function checkSetup(force) {
 api.on('setup:progress', (p) => { const pct = ((p.index + (p.total ? p.got / p.total : 0)) / p.count) * 100; $('#setupBar').style.width = pct.toFixed(1) + '%';
   $('#setupMsg').textContent = `${p.label} ${p.total > 1 ? Math.round((p.got / p.total) * 100) + '%' : ''} (${Math.min(p.index + 1, p.count)}/${p.count})`; });
 $('#setupRetry').onclick = () => checkSetup(true);
+
+// ---------- Story AI ----------
+let AI = null;
+function fillStorySrc() { const cur = $('#storySrc').value || 'auto'; const P = AI.providers; const withKey = Object.entries(P).filter(([, p]) => p.hasKey);
+  const order = [AI.primary, ...Object.keys(P).filter((n) => n !== AI.primary)].filter((n) => P[n]?.hasKey).map((n) => P[n].label).join(' → ');
+  $('#storySrc').innerHTML = (withKey.length ? `<option value="auto">Auto: ${esc(order)}</option>` : '') + withKey.map(([n, p]) => `<option value="${n}">${esc(p.label)}${p.model ? ' · ' + esc(p.model) : ''}</option>`).join('') +
+    '<option value="paste">Paste from Gemini app (no API)</option><option value="demo">Demo story (test)</option>';
+  $('#storySrc').value = [...$('#storySrc').options].some((o) => o.value === cur) ? cur : withKey.length ? 'auto' : 'paste'; $('#storySrc').onchange(); }
+function showProv() { const n = $('#aiProv').value, p = AI.providers[n];
+  $('#aiFree').textContent = p.free; $('#aiKeyLink').innerHTML = p.keyUrl ? `· get a key: ${esc(p.keyUrl)}` : ''; $('#aiBaseWrap').hidden = n !== 'custom'; $('#aiBase').value = p.baseUrl || '';
+  $('#aiKey').value = ''; $('#aiKey').placeholder = p.hasKey ? `Saved: ${p.keyHint}` : 'Paste key';
+  $('#aiModel').innerHTML = `<option value="">Auto (best free model)</option>${p.model ? `<option value="${esc(p.model)}">${esc(p.model)}</option>` : ''}`; $('#aiModel').value = p.model || '';
+  $('#aiPrimary').checked = AI.primary === n; $('#aiFallback').checked = AI.fallback; $('#aiMsg').textContent = '';
+  const order = [AI.primary, ...Object.keys(AI.providers).filter((x) => x !== AI.primary)].filter((x) => AI.providers[x].hasKey);
+  $('#aiOrder').textContent = order.length ? 'Order used for videos: ' + (AI.fallback ? order : order.slice(0, 1)).map((x) => AI.providers[x].label + (AI.providers[x].model ? ` (${AI.providers[x].model})` : '')).join(' → ') : 'No AI key saved yet.';
+  if (p.hasKey) loadModels(); }
+async function loadAI() { AI = await api.call('ai:get'); const cur = $('#aiProv').value || AI.primary;
+  $('#aiProv').innerHTML = Object.entries(AI.providers).map(([n, p]) => `<option value="${n}">${esc(p.label)}${p.hasKey ? ' ✓' : ''}</option>`).join(''); $('#aiProv').value = cur; showProv(); fillStorySrc(); }
+async function loadModels() { const n = $('#aiProv').value; $('#aiMsg').textContent = 'Loading models…'; const r = await api.call('ai:models', n); if (n !== $('#aiProv').value) return;
+  if (!r.ok) { $('#aiMsg').className = 'small warn'; $('#aiMsg').textContent = r.msg; return; }
+  const sel = AI.providers[n].model; $('#aiModel').innerHTML = '<option value="">Auto (best free model)</option>' + r.ids.map((id) => `<option value="${esc(id)}">${esc(id)}</option>`).join(''); $('#aiModel').value = sel && r.ids.includes(sel) ? sel : '';
+  $('#aiMsg').className = 'small muted'; $('#aiMsg').textContent = `${r.ids.length} models available on this key.`; }
+$('#aiProv').onchange = showProv; $('#aiRefresh').onclick = loadModels;
+$('#aiSave').onclick = async () => { const n = $('#aiProv').value; const o = { provider: n }; if ($('#aiKey').value.trim()) o.key = $('#aiKey').value.trim(); if (n === 'custom') o.baseUrl = $('#aiBase').value.trim();
+  if (!AI.providers[AI.primary]?.hasKey) o.primary = true; AI = await api.call('ai:set', o); S = await api.call('settings:get'); await loadAI(); $('#aiMsg').className = 'small'; $('#aiMsg').textContent = 'Saved ✓'; };
+$('#aiModel').onchange = async () => { AI = await api.call('ai:set', { provider: $('#aiProv').value, model: $('#aiModel').value }); fillStorySrc(); showProv(); };
+$('#aiPrimary').onchange = async () => { if ($('#aiPrimary').checked) { AI = await api.call('ai:set', { provider: $('#aiProv').value, primary: true }); await loadAI(); } };
+$('#aiFallback').onchange = async () => { AI = await api.call('ai:set', { provider: $('#aiProv').value, fallback: $('#aiFallback').checked }); await loadAI(); };
+$('#aiTest').onclick = async () => { $('#aiMsg').className = 'small'; $('#aiMsg').textContent = 'Testing…'; const r = await api.call('ai:test', $('#aiProv').value); $('#aiMsg').className = 'small ' + (r.ok ? '' : 'warn'); $('#aiMsg').textContent = r.msg; };
 
 // ---------- updates ----------
 let queueBusy = false;
@@ -161,4 +187,4 @@ $('#updInstall').onclick = install;
 $('#updBtn').onclick = async () => { const u = await api.call('update:get'); if (u.state === 'available') renderUpd(await api.call('update:download')); else if (u.state === 'ready') install(); else $('[data-tab=settings]').click(); };
 api.on('queue', (q) => (queueBusy = q.running));
 
-(async () => { renderUpd(await api.call('update:get')); await loadSettings(); await initNew(); renderQueue(await api.call('queue:get')); checkSetup(false); })();
+(async () => { renderUpd(await api.call('update:get')); await loadSettings(); await loadAI(); await initNew(); renderQueue(await api.call('queue:get')); checkSetup(false); })();

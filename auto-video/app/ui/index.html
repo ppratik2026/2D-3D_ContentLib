@@ -33,7 +33,7 @@
           <div><h3>6. Subtitles</h3><select id="subs"></select></div>
         </div>
         <h3>7. Story source</h3>
-        <div class="row src"><label class="check"><input type="radio" name="src" value="api" checked> Gemini API (automatic)</label><label class="check"><input type="radio" name="src" value="paste"> Paste from Gemini app</label><label class="check"><input type="radio" name="src" value="demo"> Demo story (test)</label></div>
+        <select id="storySrc"></select>
         <div id="pasteBox" hidden>
           <div class="muted small">1. Click <b>Copy prompt</b> → 2. paste it in the Gemini app (gemini.google.com) → 3. copy Gemini's whole answer → 4. paste it below.</div>
           <div class="btns"><button id="copyPrompt" class="ghost" type="button">Copy prompt</button><span id="copyMsg" class="small muted"></span></div>
@@ -96,11 +96,17 @@
   <section id="tab-settings" class="tab">
     <div class="grid2">
       <div class="card">
-        <h3>Gemini API key</h3>
-        <div class="muted small">Free key: aistudio.google.com/apikey · The key stays on this PC only (encrypted).</div>
-        <div class="row"><input id="key" type="password" placeholder="AIza..."><button id="keySave" class="primary">Save</button><button id="keyTest" class="ghost">Test</button></div>
-        <div id="keyMsg" class="small"></div>
-        <h3>Gemini model</h3><input id="model" placeholder="gemini-2.5-flash">
+        <h3>Story AI (writes the story)</h3>
+        <label>Provider<select id="aiProv"></select></label>
+        <div class="muted small" id="aiFree"></div>
+        <label id="aiBaseWrap" hidden>Server URL (OpenAI-compatible)<input id="aiBase" placeholder="http://localhost:1234/v1"></label>
+        <label>API key <small id="aiKeyLink"></small></label>
+        <div class="row"><input id="aiKey" type="password" placeholder="Paste key"><button id="aiSave" class="primary">Save</button><button id="aiTest" class="ghost">Test</button></div>
+        <label>Model<div class="row"><select id="aiModel"><option value="">Auto (best free model)</option></select><button id="aiRefresh" class="ghost" type="button">Load models</button></div></label>
+        <div id="aiMsg" class="small"></div>
+        <label class="check"><input type="checkbox" id="aiPrimary"> Use this provider first</label>
+        <label class="check"><input type="checkbox" id="aiFallback"> If it fails (no quota / busy), automatically try my other AI keys</label>
+        <div class="muted small" id="aiOrder"></div>
       </div>
       <div class="card">
         <h3>Renderer</h3>

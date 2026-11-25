@@ -45,7 +45,31 @@ function readSettings() { try { return { ...DEFAULTS, ...JSON.parse(fs.readFileS
 function writeSettings(s) { fs.writeFileSync(SETTINGS, JSON.stringify(s, null, 2)); }
 function getKey() { const s = readSettings(); try { if (s.keyEnc && safeStorage.isEncryptionAvailable()) return safeStorage.decryptString(Buffer.from(s.keyEnc, 'base64')); } catch {} return s.keyPlain || process.env.GEMINI_API_KEY || ''; }
 function setKey(k) { const s = readSettings(); k = String(k || '').trim(); if (safeStorage.isEncryptionAvailable()) { s.keyEnc = k ? safeStorage.encryptString(k).toString('base64') : ''; s.keyPlain = ''; } else { s.keyPlain = k; s.keyEnc = ''; } writeSettings(s); }
-const publicSettings = () => { const s = readSettings(); const k = getKey(); return { model: s.model, renderer: s.renderer, concurrency: s.concurrency, hasKey: !!k, keyHint: k ? k.slice(0, 4) + '…' + k.slice(-4) : '', dataDir: process.env.AUTOVIDEO_DATA }; };
+const publicSettings = () => { const s = readSettings(); const k = getKey() || ['groq', 'openrouter', 'mistral', 'cerebras', 'custom'].map((n) => dec((s.ai?.providers || {})[n])).find(Boolean) || ''; return { model: s.model, renderer: s.renderer, concurrency: s.concurrency, hasKey: !!k, keyHint: k ? k.slice(0, 4) + '…' + k.slice(-4) : '', dataDir: process.env.AUTOVIDEO_DATA }; };
+
+// ---------- Story AI providers (one key per provider, encrypted) ----------
+const ai = await import('../pipeline/ai.mjs');
+const ORDER = ['gemini', 'groq', 'openrouter', 'mistral', 'cerebras', 'custom'];
+const enc = (k) => (k && safeStorage.isEncryptionAvailable() ? { keyEnc: safeStorage.encryptString(k).toString('base64') } : { keyPlain: k || '' });
+const dec = (c) => { try { if (c?.keyEnc && safeStorage.isEncryptionAvailable()) return safeStorage.decryptString(Buffer.from(c.keyEnc, 'base64')); } catch {} return c?.keyPlain || ''; };
+function aiConf() { const s = readSettings(); const a = s.ai || { primary: 'gemini', fallback: true, providers: {} };
+  if (!a.providers.gemini && (s.keyEnc || s.keyPlain)) a.providers.gemini = { keyEnc: s.keyEnc, keyPlain: s.keyPlain, model: s.model }; // migrate old Gemini key
+  return a; }
+function saveAi(a) { const s = readSettings(); s.ai = a; writeSettings(s); }
+const provKey = (name) => dec(aiConf().providers[name]);
+function aiView() { const a = aiConf(); return { primary: a.primary, fallback: a.fallback !== false, providers: Object.fromEntries(ORDER.map((n) => { const c = a.providers[n] || {}; const k = dec(c);
+  return [n, { ...ai.PROVIDERS[n], hasKey: !!k, keyHint: k ? k.slice(0, 4) + '…' + k.slice(-4) : '', model: c.model || '', baseUrl: c.baseUrl || '' }]; })) }; }
+// story AI chain for a job: chosen provider first, then (if fallback on) every other provider that has a key
+async function buildChain(choice) {
+  const a = aiConf(); const first = choice && choice !== 'auto' ? choice : a.primary || 'gemini';
+  const names = [first, ...(a.fallback !== false ? ORDER.filter((n) => n !== first) : [])].filter((n) => provKey(n));
+  const chain = [];
+  for (const n of names) { const c = a.providers[n] || {}; const p = { provider: n, key: dec(c), baseUrl: c.baseUrl };
+    let ids = []; try { ids = await ai.listModels(p); } catch {}
+    const ranked = ai.rankModels(n, ids); const models = [c.model && (ids.includes(c.model) || !ids.length) ? c.model : null, ranked[0], n === 'gemini' ? ranked.find((x) => /flash-lite/.test(x)) : null].filter(Boolean);
+    for (const m of [...new Set(models)].slice(0, 2)) chain.push({ ...p, model: m }); }
+  return chain;
+}
 
 // ---------- queue ----------
 const QFILE = path.join(STATE, 'queue.json');
@@ -72,7 +96,8 @@ async function pump() {
   job.stages = Object.fromEntries(STAGES.map((k) => [k, { state: 'todo', done: 0, total: 0, label: '' }])); abort = new AbortController(); broadcast(true);
   const s = readSettings();
   try {
-    const r = await makeVideo({ ...job.opts, id: job.id, key: getKey(), model: s.model, renderer: s.renderer, concurrency: s.concurrency, renderFn: s.renderer === 'remotion' ? null : chromeRender },
+    const chain = job.opts.storyJson || job.opts.demo ? [] : await buildChain(job.opts.storyAI);
+    const r = await makeVideo({ ...job.opts, id: job.id, chain, renderer: s.renderer, concurrency: s.concurrency, renderFn: s.renderer === 'remotion' ? null : chromeRender },
       (e) => { Object.assign(job, { step: e.step, msg: e.msg, elapsed: e.elapsed }); if (e.progress != null) job.progress = e.progress; if (e.eta != null) job.eta = e.eta; if (e.estimate) job.estimate = e.estimate; if (e.title) job.title = e.title; if (e.duration) job.duration = e.duration;
         if (e.stage && job.stages[e.stage.name]) { const i = STAGES.indexOf(e.stage.name); STAGES.forEach((k, j) => { if (j < i) job.stages[k].state = 'done'; });
           Object.assign(job.stages[e.stage.name], { state: e.stage.total && e.stage.done >= e.stage.total ? 'done' : 'active', done: e.stage.done, total: e.stage.total, label: e.stage.label }); }
@@ -148,18 +173,17 @@ const H = {
   estimate: (o) => { const e = estimate({ style: o.style, minutes: Number(o.minutes) || 1, renderer: readSettings().renderer }); return { ...e, totalText: fmt(e.total), partsText: Object.fromEntries(Object.entries(e.parts).map(([k, v]) => [k, fmt(v)])) }; },
   'settings:get': () => publicSettings(),
   'settings:set': (s) => { const cur = readSettings(); if (s.key !== undefined) setKey(s.key); const next = readSettings(); for (const k of ['model', 'renderer', 'concurrency']) if (s[k] !== undefined) next[k] = s[k]; writeSettings(next); void cur; return publicSettings(); },
-  'settings:testKey': async () => { const k = getKey(); if (!k) return { ok: false, msg: 'No key saved' };
-    const story = await import('../pipeline/story.mjs'); const model = readSettings().model; let ids;
-    try { ids = await story.listModels(k); } catch (e) { return { ok: false, msg: `Gemini rejected the key: ${e.message}` }; }
-    const avail = ids.includes(model); const list = story.pickModels(ids, model);
-    const results = [];
-    for (const m of (avail ? [model] : []).concat(list.filter((x) => x !== model)).slice(0, 3)) {
-      try { const r = await story.generate({ key: k, model: m, user: 'Reply with this JSON only: {"ok": true}', temperature: 0 }); results.push(`${m}: ✓ works`); if (r) break; }
-      catch (e) { results.push(`${m}: ✗ ${String(e.message).slice(0, 140)}`); } }
-    const ok = results.some((r) => r.includes('✓'));
-    const quota = !ok && results.every((r) => /429/.test(r) && /quota|billing/i.test(r));
-    const hint = ok ? '' : quota ? ' → This key has NO QUOTA left. Free quota resets daily (~1:30 PM India time), or enable billing in Google AI Studio. Until then use "Paste from Gemini app" on the New Video tab.' : ' → Gemini is not answering right now; use "Paste from Gemini app" on the New Video tab.';
-    return { ok, msg: `Key works ✓ · ${avail ? `model ${model} found` : `model "${model}" NOT found`} · Test: ${results.map((r) => r.replace(/For more information.*$/, '')).join(' | ')}${hint}` }; },
+  'ai:get': () => aiView(),
+  'ai:set': (o) => { const a = aiConf(); const c = (a.providers[o.provider] ||= {});
+    if (o.key !== undefined) { delete c.keyEnc; delete c.keyPlain; Object.assign(c, enc(String(o.key).trim())); }
+    if (o.model !== undefined) c.model = o.model; if (o.baseUrl !== undefined) c.baseUrl = o.baseUrl;
+    if (o.primary) a.primary = o.provider; if (o.fallback !== undefined) a.fallback = !!o.fallback; saveAi(a); return aiView(); },
+  'ai:models': async (name) => { const c = aiConf().providers[name] || {}; const k = dec(c); if (!k) return { ok: false, msg: 'Save a key first', ids: [] };
+    try { const ids = ai.rankModels(name, await ai.listModels({ provider: name, key: k, baseUrl: c.baseUrl })); return { ok: true, ids }; } catch (e) { return { ok: false, msg: e.message, ids: [] }; } },
+  'ai:test': async (name) => { const c = aiConf().providers[name] || {}; const k = dec(c); if (!k) return { ok: false, msg: 'No key saved' };
+    let model = c.model; if (!model) { try { model = ai.defaultModel(name, await ai.listModels({ provider: name, key: k, baseUrl: c.baseUrl })); } catch (e) { return { ok: false, msg: 'Key rejected: ' + e.message }; } }
+    try { const t = await ai.chat({ provider: name, key: k, model, baseUrl: c.baseUrl }, { user: 'Reply with this JSON only: {"ok": true}', temperature: 0, maxTokens: 50 }); ai.parseJSON(t); return { ok: true, msg: `✓ ${model} works` }; }
+    catch (e) { const q = e.status === 429 && /quota|billing|credit/i.test(e.message); return { ok: false, msg: `✗ ${model}: ${e.message.replace(/For more information.*$/, '').slice(0, 220)}${q ? ' → no quota left on this key today; pick another provider/model or wait for the reset.' : ''}` }; } },
   'story:prompt': async (o) => (await import('../pipeline/story.mjs')).buildPastePrompt({ category: o.category, minutes: Number(o.minutes) || 1, idea: o.idea || '', actors: lib.actorsFor(o.style || 'toon').map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })) }),
   'story:parse': async (o) => { try { const st = (await import('../pipeline/story.mjs')).parsePastedStory(o.text, Number(o.minutes) || 1); return { ok: true, title: st.title, scenes: st.scenes.length, lines: st.scenes.reduce((n, sc) => n + sc.beats.filter((b) => b.type === 'line').length, 0), chars: st.characters.map((c) => c.name).join(', ') }; } catch (e) { return { ok: false, msg: e.message }; } },
   'setup:status': () => setupStatus(),
@@ -167,7 +191,7 @@ const H = {
   'queue:get': () => queueView(),
   'queue:add': async (o) => { const n = Math.max(1, Math.min(20, Number(o.count) || 1)); const ideas = String(o.idea || '').split('\n').map((x) => x.trim()).filter(Boolean);
     let storyJson = null; if (o.pasted) { storyJson = (await import('../pipeline/story.mjs')).parsePastedStory(o.pasted, Number(o.minutes) || 1); }
-    for (let i = 0; i < (storyJson ? 1 : n); i++) { const opts = { category: o.category, idea: storyJson ? storyJson.title : ideas[i] ?? (n > 1 ? '' : o.idea || ''), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs, demo: !!o.demo, storyJson };
+    for (let i = 0; i < (storyJson ? 1 : n); i++) { const opts = { category: o.category, idea: storyJson ? storyJson.title : ideas[i] ?? (n > 1 ? '' : o.idea || ''), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs, demo: !!o.demo, storyJson, storyAI: o.storyAI || 'auto' };
       const est = estimate({ style: opts.style, minutes: opts.minutes, renderer: readSettings().renderer });
       queue.push({ id: newJobId(o.category) + (n > 1 ? `_${i + 1}` : ''), opts, status: 'queued', progress: 0, estimate: est, created: Date.now(), msg: 'Queued', session: SESSION }); }
     if (o.start) autoRun = true; broadcast(true); pump(); return queueView(); },
@@ -205,7 +229,7 @@ function createWindow() {
   if (shots > 0) win.webContents.once('did-finish-load', async () => { // dev: screenshots of every tab
     const dir = process.argv[shots + 1]; const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); await wait(2500);
     if (process.argv.includes('--paste-ui')) { const demo = fs.readFileSync(path.join(APP_DIR, 'pipeline', 'demo-story.json'), 'utf8');
-      await win.webContents.executeJavaScript(`document.querySelector('input[name=src][value=paste]').click(); const t=document.querySelector('#pasted'); t.value = ${JSON.stringify('Sure! Here is the story:\n' + demo)}; t.dispatchEvent(new Event('input'));`);
+      await win.webContents.executeJavaScript(`const ss=document.querySelector('#storySrc'); ss.value='paste'; ss.onchange(); const t=document.querySelector('#pasted'); t.value = ${JSON.stringify('Sure! Here is the story:\n' + demo)}; t.dispatchEvent(new Event('input'));`);
       await wait(2500); fs.writeFileSync(path.join(dir, 'paste_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
     if (process.argv.includes('--queue-demo')) { await H['queue:add']({ category: 'romance', minutes: 1, count: 2, style: 'toon', look: 'auto', subs: 'auto', demo: true, start: true });
       await win.webContents.executeJavaScript(`document.querySelector('[data-tab=queue]').click()`);

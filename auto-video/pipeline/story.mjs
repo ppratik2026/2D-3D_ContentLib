@@ -2,85 +2,7 @@
 // Uses Gemini's OpenAI-compatible endpoint with the key as a Bearer token.
 import { CATEGORIES, LOCATIONS, ACTIONS, TIMES_OF_DAY } from './config.mjs';
 
-// Google's native Gemini REST API (key in the x-goog-api-key header).
-const API = 'https://generativelanguage.googleapis.com/v1beta';
-const SKIP = /(tts|image|audio|live|embedding|vision|aqa|native|computer|robotics|veo|imagen|learnlm|gemma|nano|banana|thinking-exp)/i;
-let modelCache = null;
-export async function listModels(key) {
-  if (modelCache && modelCache.key === key && Date.now() - modelCache.at < 10 * 60e3) return modelCache.ids;
-  const ids = []; let page = '';
-  for (let k = 0; k < 5; k++) {
-    const r = await fetch(`${API}/models?pageSize=200${page ? '&pageToken=' + page : ''}`, { headers: { 'x-goog-api-key': key } });
-    const txt = await r.text(); if (!r.ok) throw apiError(r.status, txt);
-    const j = JSON.parse(txt); for (const m of j.models || []) if ((m.supportedGenerationMethods || []).includes('generateContent')) ids.push(String(m.name).replace(/^models\//, ''));
-    if (!j.nextPageToken) break; page = j.nextPageToken;
-  }
-  modelCache = { key, at: Date.now(), ids }; return ids;
-}
-const ver = (id) => { const m = id.match(/gemini-(\d+(?:\.\d+)?)/); return m ? parseFloat(m[1]) : 0; };
-export function pickModels(ids, preferred) {
-  const ok = ids.filter((id) => /^gemini-/.test(id) && !SKIP.test(id));
-  const score = (id) => ver(id) * 10 + (/flash-lite/.test(id) ? 2 : /flash/.test(id) ? 3 : /pro/.test(id) ? 1 : 0) - (/preview|exp/.test(id) ? 0.5 : 0) - (/-\d{3}$|-\d{2}-\d{4}/.test(id) ? 0.2 : 0);
-  const list = []; if (preferred && (ids.includes(preferred) || !ids.length)) list.push(preferred);
-  for (const id of ok.sort((a, b) => score(b) - score(a))) if (!list.includes(id) && list.length < 5) list.push(id);
-  return list.length ? list : [preferred || 'gemini-2.5-flash'];
-}
-function apiError(status, txt) {
-  let msg = txt, delay = 0; try { const j = JSON.parse(txt).error || {}; msg = j.message || txt; const ri = (j.details || []).find((d) => /RetryInfo/.test(d['@type'] || '')); if (ri) delay = parseFloat(ri.retryDelay) || 0; } catch {}
-  const e = new Error(`HTTP ${status}: ${String(msg).slice(0, 240)}`); e.status = status; e.retryDelay = delay; return e;
-}
-// one call: system + user text → parsed JSON
-export async function generate({ key, model, system, user, temperature = 0.9, json = true }) {
-  const body = { contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: { temperature, ...(json ? { responseMimeType: 'application/json' } : {}) } };
-  if (system) body.systemInstruction = { parts: [{ text: system }] };
-  const r = await fetch(`${API}/models/${encodeURIComponent(model)}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) });
-  const txt = await r.text(); if (!r.ok) throw apiError(r.status, txt);
-  const j = JSON.parse(txt); const c = j.candidates?.[0];
-  const text = (c?.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || '').join('');
-  if (!text) { const e = new Error(`empty reply (${c?.finishReason || j.promptFeedback?.blockReason || 'no candidates'})`); e.status = 'empty'; throw e; }
-  return json ? parseJSON(text) : text;
-}
-
-const WAITS = (process.env.AV_GEMINI_WAITS || '5,10,20,40').split(',').map(Number); // seconds between retries on the same model
-const sleep = (s) => new Promise((ok) => setTimeout(ok, s * 1000));
-const short = (e) => (e.status === 503 ? 'busy (503)' : e.status === 429 ? 'rate limit (429)' : e.status === 404 ? 'not available (404)' : e.status === 400 ? 'rejected (400)' : e.status === 500 ? 'server error (500)' : e.status === 'empty' ? e.message : e.status ? `HTTP ${e.status}` : /JSON/i.test(e.message) ? 'bad JSON reply' : 'network error');
-async function gemini(messages, { models, key, temperature = 0.9, onLog = () => {} }) {
-  const system = messages.find((m) => m.role === 'system')?.content, user = messages.filter((m) => m.role !== 'system').map((m) => m.content).join('\n\n');
-  const tried = [];
-  for (const [mi, m] of [...models].entries()) {
-    let fails = 0, lastErr = null, jsonMode = true;
-    for (let i = 0; i <= WAITS.length; i++) {
-      try {
-        const out = await generate({ key, model: m, system, user, temperature, json: jsonMode });
-        const val = typeof out === 'string' ? parseJSON(out) : out;
-        if (mi > 0) { models.splice(models.indexOf(m), 1); models.unshift(m); onLog(`Using ${m} for the rest of this story`); }
-        return val;
-      } catch (e) {
-        lastErr = e; fails++;
-        if (e.status === 401 || e.status === 403 || (e.status === 400 && /API key/i.test(e.message))) throw friendly(e);
-        if (e.status === 429 && /quota|billing/i.test(e.message) && !/per minute|perminute/i.test(e.message)) { e.quota = true; break; } // daily quota / billing: retrying only burns time
-        if (e.status === 400 && jsonMode && /mime|json/i.test(e.message)) { jsonMode = false; i--; continue; }
-        if (e.status === 404 || e.status === 400) break;
-        if (i < WAITS.length) { const w = Math.min(60, Math.max(WAITS[i], e.retryDelay || 0)); onLog(`Gemini ${m}: ${short(e)}, retrying in ${Math.round(w)}s (${i + 1}/${WAITS.length})…`); await sleep(w); }
-      }
-    }
-    tried.push(`${m}: ${short(lastErr)}${fails > 1 ? ` ×${fails}` : ''} — ${String(lastErr?.message || '').replace(/^HTTP \d+: /, '').slice(0, 120)}`);
-    if (mi < models.length - 1) onLog(`Gemini ${m} failed (${short(lastErr)}), switching to ${models[mi + 1]}…`);
-  }
-  if (tried.length && tried.every((t) => /quota|billing/i.test(t))) { const q = new Error('Your Gemini API key has no quota left (429: quota exceeded on every model). The free quota resets daily (about 1:30 PM India time), or enable billing for this key in Google AI Studio. Right now use New Video → Story source → "Paste from Gemini app".'); q.retryable = false; q.quota = true; throw q; }
-  const busy = tried.every((t) => /busy|rate limit|network|server error|HTTP 5/.test(t));
-  const err = new Error((busy ? 'Gemini is busy right now. ' : 'Gemini could not write the story. ') + 'Tried: ' + tried.join(' · '));
-  err.retryable = busy; throw err;
-}
-function friendly(e) {
-  const s = e?.status;
-  const msg = s === 401 || s === 403 || /API key/i.test(e?.message || '') ? 'Gemini rejected the API key. Check it in Settings → Test.' : 'Gemini request failed: ' + (e?.message || e);
-  const out = new Error(msg); out.status = s; return out;
-}
-function parseJSON(s) {
-  s = s.trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim();
-  try { return JSON.parse(s); } catch { const a = s.indexOf('{'), b = s.lastIndexOf('}'); return JSON.parse(s.slice(a, b + 1)); }
-}
+import { askJSON, parseJSON } from './ai.mjs';
 
 const SYSTEM = `You are a screenwriter for short animated 3D videos for an Indian audience.
 Dialogue is spoken by Hindi text-to-speech, so every line has three versions:
@@ -90,9 +12,17 @@ Dialogue is spoken by Hindi text-to-speech, so every line has three versions:
 Keep each line short (max ~14 words). Characters are Indian unless the user says otherwise.
 Return ONLY valid JSON, no markdown.`;
 
-export async function writeStory({ category, minutes, idea = '', language = 'hinglish', key, model = 'gemini-2.5-flash', actors = [], onLog = () => {}, onProgress = () => {} }) {
-  let ids = []; try { ids = await listModels(key); } catch (e) { if (/API key/.test(e.message)) throw e; }
-  const models = pickModels(ids, model); onLog(`Gemini models: ${models.join(', ')}`);
+export async function writeStory({ category, minutes, idea = '', chain = [], actors = [], onLog = () => {}, onProgress = () => {} }) {
+  // 1) whole story in ONE request (saves free quota: 1 request per video)
+  onProgress(0, 1, 'Writing the whole story (1 request)');
+  try {
+    const { value, used } = await askJSON(chain, { user: buildPastePrompt({ category, minutes, idea, actors }), onLog, validate: (j) => storyFromObject(j, minutes) });
+    onLog(`Story written by ${used.provider} · ${used.model}`); onProgress(1, 1, 'Story ready');
+    return { ...value, category, minutes };
+  } catch (e) { if (!e.cut) throw e; onLog('Story too long for one reply — writing it scene by scene…'); }
+  // 2) fallback for very long videos: outline, then each scene
+  const gemini = async (messages, o) => (await askJSON(chain, { system: messages.find((m) => m.role === 'system')?.content, user: messages.filter((m) => m.role !== 'system').map((m) => m.content).join('\n\n'), onLog: o.onLog })).value;
+  const key = null, models = null;
   const cat = CATEGORIES[category] || CATEGORIES.drama;
   const totalSec = Math.round(minutes * 60);
   const nScenes = Math.max(2, Math.min(18, Math.round(minutes * 1.6)));
@@ -200,12 +130,13 @@ Reply with ONLY this JSON (no other text):
    "beats":[{"type":"action","char":"id","action":"enter"},
             {"type":"line","char":"id","emotion":"neutral|happy|sad|angry|surprised|scared","hindi":"देवनागरी","hinglish":"Roman Hinglish","english":"English"}]}]}`;
 }
+export function storyFromObject(j, minutes = 1) {
+  const src = JSON.parse(JSON.stringify(j)); normalizeOutline(j, Math.round(minutes * 60));
+  j.scenes = j.scenes.map((sc, i) => ({ ...sc, beats: normalizeBeats(src.scenes?.[i]?.beats || [], j.characters, sc) }));
+  if (!j.scenes.some((sc) => sc.beats.some((b) => b.type === 'line'))) throw new Error('The story has no dialogue lines.');
+  return j;
+}
 export function parsePastedStory(text, minutes = 1) {
-  let j; try { j = parseJSON(String(text || '')); } catch { throw new Error('Could not read the pasted text as JSON. Copy Gemini\'s whole answer (the part between { and }).'); }
-  normalizeOutline(j, Math.round(minutes * 60));
-  const raw = (JSON.parse(JSON.stringify(j))); // normalizeOutline rebuilt scenes; take beats from the original order
-  const srcScenes = (parseJSON(String(text)).scenes || []);
-  j.scenes = j.scenes.map((sc, i) => ({ ...sc, beats: normalizeBeats(srcScenes[i]?.beats || [], j.characters, sc) }));
-  if (!j.scenes.some((sc) => sc.beats.some((b) => b.type === 'line'))) throw new Error('The pasted story has no dialogue lines.');
-  void raw; return j;
+  let j; try { j = parseJSON(String(text || '')); } catch { throw new Error('Could not read the pasted text as JSON. Copy the AI\'s whole answer (the part between { and }).'); }
+  return storyFromObject(j, minutes);
 }
