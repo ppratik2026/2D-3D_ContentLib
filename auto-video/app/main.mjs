@@ -111,7 +111,12 @@ const H = {
   'settings:get': () => publicSettings(),
   'settings:set': (s) => { const cur = readSettings(); if (s.key !== undefined) setKey(s.key); const next = readSettings(); for (const k of ['model', 'renderer', 'concurrency']) if (s[k] !== undefined) next[k] = s[k]; writeSettings(next); void cur; return publicSettings(); },
   'settings:testKey': async () => { const k = getKey(); if (!k) return { ok: false, msg: 'No key saved' };
-    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models', { headers: { Authorization: `Bearer ${k}` } }); return r.ok ? { ok: true, msg: 'Key works ✓' } : { ok: false, msg: `Gemini rejected the key (${r.status}): ${(await r.text()).slice(0, 160)}` }; },
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models', { headers: { Authorization: `Bearer ${k}` } });
+    if (!r.ok) return { ok: false, msg: `Gemini rejected the key (${r.status}): ${(await r.text()).slice(0, 160)}` };
+    const ids = ((await r.json()).data || []).map((m) => String(m.id).replace(/^models\//, '')); const model = readSettings().model;
+    if (ids.includes(model)) return { ok: true, msg: `Key works ✓ · model ${model} available ✓` };
+    const flash = ids.filter((x) => /flash/.test(x) && !/(tts|image|audio|live|embedding)/.test(x)).slice(0, 12);
+    return { ok: false, msg: `Key works ✓ · but model "${model}" was not found (the app will fall back to gemini-2.5-flash). Available: ${flash.join(', ')}` }; },
   'setup:status': () => setupStatus(),
   'setup:run': async (_o, e) => runSetup((p) => e.sender.send('setup:progress', p)),
   'queue:get': () => queueView(),
