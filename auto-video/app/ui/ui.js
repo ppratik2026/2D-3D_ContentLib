@@ -26,10 +26,20 @@ async function est() {
   $('#estNote').textContent = e.measured ? 'Based on the real speed of this PC.' : 'Rough estimate — it becomes exact after the first video on this PC.';
   $('#estSum').textContent = n > 1 ? `${n} videos ≈ ${fmt(e.total * n)} (one after another)` : '';
 }
+const src = () => document.querySelector('input[name=src]:checked').value;
+document.querySelectorAll('input[name=src]').forEach((r) => (r.onchange = () => { $('#pasteBox').hidden = src() !== 'paste'; $('#demo').checked = src() === 'demo'; $('#keyWarn').hidden = src() !== 'api' || S?.hasKey; }));
+$('#copyPrompt').onclick = async () => { const p = await api.call('story:prompt', { category: cat, minutes: $('#min').value, idea: $('#idea').value, style: $('#style').value });
+  try { await navigator.clipboard.writeText(p); $('#copyMsg').textContent = 'Copied ✓ — now paste it in the Gemini app'; } catch { $('#pasted').value = p; $('#copyMsg').textContent = 'Prompt placed in the box below — copy it from there'; } };
+let pasteOk = false;
+$('#pasted').oninput = async () => { const t = $('#pasted').value.trim(); if (!t) { $('#pasteMsg').textContent = ''; pasteOk = false; return; }
+  const r = await api.call('story:parse', { text: t, minutes: $('#min').value }); pasteOk = r.ok;
+  $('#pasteMsg').className = 'small ' + (r.ok ? '' : 'warn'); $('#pasteMsg').textContent = r.ok ? `✓ Story read: "${r.title}" · ${r.scenes} scenes · ${r.lines} lines · ${r.chars}` : r.msg; };
 async function add(start) {
-  const o = { category: cat, idea: $('#idea').value, minutes: $('#min').value, count: $('#count').value, style: $('#style').value, look: $('#look').value, subs: $('#subs').value, demo: $('#demo').checked, start };
-  if (!o.demo && !S?.hasKey) { $('#keyWarn').hidden = false; return; }
-  renderQueue(await api.call('queue:add', o)); $('[data-tab=queue]').click();
+  const mode = src();
+  const o = { category: cat, idea: $('#idea').value, minutes: $('#min').value, count: $('#count').value, style: $('#style').value, look: $('#look').value, subs: $('#subs').value, demo: mode === 'demo', start };
+  if (mode === 'paste') { if (!pasteOk) { $('#pasteMsg').className = 'small warn'; $('#pasteMsg').textContent = 'Paste Gemini\'s answer first.'; return; } o.pasted = $('#pasted').value; }
+  if (mode === 'api' && !S?.hasKey) { $('#keyWarn').hidden = false; return; }
+  renderQueue(await api.call('queue:add', o)); if (mode === 'paste') { $('#pasted').value = ''; $('#pasteMsg').textContent = ''; pasteOk = false; } $('[data-tab=queue]').click();
 }
 $('#addQ').onclick = () => add(false); $('#addStart').onclick = () => add(true);
 
@@ -112,7 +122,7 @@ dz.ondrop = async (e) => { e.preventDefault(); dz.classList.remove('drop'); cons
 
 // ---------- settings ----------
 async function loadSettings() { S = await api.call('settings:get'); $('#model').value = S.model; $('#conc').value = S.concurrency; $('#dataDir').textContent = S.dataDir;
-  $$('input[name=renderer]').forEach((r) => (r.checked = r.value === S.renderer)); $('#key').placeholder = S.hasKey ? `Saved: ${S.keyHint}` : 'AIza...'; $('#keyWarn').hidden = S.hasKey; }
+  $$('input[name=renderer]').forEach((r) => (r.checked = r.value === S.renderer)); $('#key').placeholder = S.hasKey ? `Saved: ${S.keyHint}` : 'AIza...'; $('#keyWarn').hidden = S.hasKey || src() !== 'api'; }
 $('#keySave').onclick = async () => { S = await api.call('settings:set', { key: $('#key').value }); $('#key').value = ''; $('#keyMsg').textContent = S.hasKey ? 'Saved ✓' : 'Key removed'; loadSettings(); };
 $('#keyTest').onclick = async () => { $('#keyMsg').textContent = 'Checking…'; const r = await api.call('settings:testKey'); $('#keyMsg').textContent = r.msg; $('#keyMsg').className = 'small ' + (r.ok ? '' : 'warn'); };
 $('#model').onchange = () => api.call('settings:set', { model: $('#model').value.trim() || 'gemini-2.5-flash' });

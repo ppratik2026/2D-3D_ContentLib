@@ -2,58 +2,73 @@
 // Uses Gemini's OpenAI-compatible endpoint with the key as a Bearer token.
 import { CATEGORIES, LOCATIONS, ACTIONS, TIMES_OF_DAY } from './config.mjs';
 
-const BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-
-// Models are discovered live from the key (Google retires old models often), newest flash first.
-const SKIP = /(tts|image|audio|live|embedding|vision|aqa|native|computer|robotics|veo|imagen|learnlm|gemma|nano|banana)/i;
+// Google's native Gemini REST API (key in the x-goog-api-key header).
+const API = 'https://generativelanguage.googleapis.com/v1beta';
+const SKIP = /(tts|image|audio|live|embedding|vision|aqa|native|computer|robotics|veo|imagen|learnlm|gemma|nano|banana|thinking-exp)/i;
 let modelCache = null;
 export async function listModels(key) {
   if (modelCache && modelCache.key === key && Date.now() - modelCache.at < 10 * 60e3) return modelCache.ids;
-  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models', { headers: { Authorization: `Bearer ${key}` } });
-  if (!r.ok) { const e = new Error(`Gemini HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`); e.status = r.status; throw friendly(e); }
-  const ids = ((await r.json()).data || []).map((m) => String(m.id).replace(/^models\//, ''));
+  const ids = []; let page = '';
+  for (let k = 0; k < 5; k++) {
+    const r = await fetch(`${API}/models?pageSize=200${page ? '&pageToken=' + page : ''}`, { headers: { 'x-goog-api-key': key } });
+    const txt = await r.text(); if (!r.ok) throw apiError(r.status, txt);
+    const j = JSON.parse(txt); for (const m of j.models || []) if ((m.supportedGenerationMethods || []).includes('generateContent')) ids.push(String(m.name).replace(/^models\//, ''));
+    if (!j.nextPageToken) break; page = j.nextPageToken;
+  }
   modelCache = { key, at: Date.now(), ids }; return ids;
 }
 const ver = (id) => { const m = id.match(/gemini-(\d+(?:\.\d+)?)/); return m ? parseFloat(m[1]) : 0; };
 export function pickModels(ids, preferred) {
   const ok = ids.filter((id) => /^gemini-/.test(id) && !SKIP.test(id));
-  const score = (id) => ver(id) * 10 + (/flash-lite/.test(id) ? 2 : /flash/.test(id) ? 3 : /pro/.test(id) ? 1 : 0) - (/preview|exp/.test(id) ? 0.5 : 0);
+  const score = (id) => ver(id) * 10 + (/flash-lite/.test(id) ? 2 : /flash/.test(id) ? 3 : /pro/.test(id) ? 1 : 0) - (/preview|exp/.test(id) ? 0.5 : 0) - (/-\d{3}$|-\d{2}-\d{4}/.test(id) ? 0.2 : 0);
   const list = []; if (preferred && (ids.includes(preferred) || !ids.length)) list.push(preferred);
-  for (const id of ok.sort((a, b) => score(b) - score(a))) if (!list.includes(id) && list.length < 4) list.push(id);
+  for (const id of ok.sort((a, b) => score(b) - score(a))) if (!list.includes(id) && list.length < 5) list.push(id);
   return list.length ? list : [preferred || 'gemini-2.5-flash'];
+}
+function apiError(status, txt) {
+  let msg = txt, delay = 0; try { const j = JSON.parse(txt).error || {}; msg = j.message || txt; const ri = (j.details || []).find((d) => /RetryInfo/.test(d['@type'] || '')); if (ri) delay = parseFloat(ri.retryDelay) || 0; } catch {}
+  const e = new Error(`HTTP ${status}: ${String(msg).slice(0, 240)}`); e.status = status; e.retryDelay = delay; return e;
+}
+// one call: system + user text → parsed JSON
+export async function generate({ key, model, system, user, temperature = 0.9, json = true }) {
+  const body = { contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: { temperature, ...(json ? { responseMimeType: 'application/json' } : {}) } };
+  if (system) body.systemInstruction = { parts: [{ text: system }] };
+  const r = await fetch(`${API}/models/${encodeURIComponent(model)}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) });
+  const txt = await r.text(); if (!r.ok) throw apiError(r.status, txt);
+  const j = JSON.parse(txt); const c = j.candidates?.[0];
+  const text = (c?.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || '').join('');
+  if (!text) { const e = new Error(`empty reply (${c?.finishReason || j.promptFeedback?.blockReason || 'no candidates'})`); e.status = 'empty'; throw e; }
+  return json ? parseJSON(text) : text;
 }
 
 const WAITS = (process.env.AV_GEMINI_WAITS || '5,10,20,40').split(',').map(Number); // seconds between retries on the same model
 const sleep = (s) => new Promise((ok) => setTimeout(ok, s * 1000));
-const short = (e) => (e.status === 503 ? 'busy (503)' : e.status === 429 ? 'rate limit (429)' : e.status === 404 ? 'not available (404)' : e.status === 400 ? 'rejected (400)' : e.status ? `HTTP ${e.status}` : /JSON/i.test(e.message) ? 'bad JSON reply' : 'network error');
+const short = (e) => (e.status === 503 ? 'busy (503)' : e.status === 429 ? 'rate limit (429)' : e.status === 404 ? 'not available (404)' : e.status === 400 ? 'rejected (400)' : e.status === 500 ? 'server error (500)' : e.status === 'empty' ? e.message : e.status ? `HTTP ${e.status}` : /JSON/i.test(e.message) ? 'bad JSON reply' : 'network error');
 async function gemini(messages, { models, key, temperature = 0.9, onLog = () => {} }) {
-  const tried = []; let retryable = true;
+  const system = messages.find((m) => m.role === 'system')?.content, user = messages.filter((m) => m.role !== 'system').map((m) => m.content).join('\n\n');
+  const tried = [];
   for (const [mi, m] of [...models].entries()) {
-    let jsonMode = true, fails = 0, lastErr = null;
+    let fails = 0, lastErr = null, jsonMode = true;
     for (let i = 0; i <= WAITS.length; i++) {
       try {
-        const body = { model: m, messages, temperature }; if (jsonMode) body.response_format = { type: 'json_object' };
-        const r = await fetch(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify(body) });
-        const txt = await r.text();
-        if (!r.ok) { const e = new Error(`HTTP ${r.status}: ${txt.slice(0, 200)}`); e.status = r.status; throw e; }
-        const content = JSON.parse(txt).choices?.[0]?.message?.content || '';
-        const out = parseJSON(content);
-        if (mi > 0) { models.splice(mi, 1); models.unshift(m); onLog(`Using ${m} for the rest of this story`); } // stick to the model that works
-        return out;
+        const out = await generate({ key, model: m, system, user, temperature, json: jsonMode });
+        const val = typeof out === 'string' ? parseJSON(out) : out;
+        if (mi > 0) { models.splice(models.indexOf(m), 1); models.unshift(m); onLog(`Using ${m} for the rest of this story`); }
+        return val;
       } catch (e) {
         lastErr = e; fails++;
         if (e.status === 401 || e.status === 403 || (e.status === 400 && /API key/i.test(e.message))) throw friendly(e);
-        if (e.status === 400 && jsonMode && /response_format|json/i.test(e.message)) { jsonMode = false; i--; continue; } // model without JSON mode
-        if (e.status === 404 || e.status === 400) { retryable = retryable && false; break; }
-        if (i < WAITS.length && !(e.status === 429 && i >= 2)) { onLog(`Gemini ${m}: ${short(e)}, retrying in ${WAITS[i]}s (${i + 1}/${WAITS.length})…`); await sleep(WAITS[i]); }
+        if (e.status === 400 && jsonMode && /mime|json/i.test(e.message)) { jsonMode = false; i--; continue; }
+        if (e.status === 404 || e.status === 400) break;
+        if (i < WAITS.length) { const w = Math.min(60, Math.max(WAITS[i], e.retryDelay || 0)); onLog(`Gemini ${m}: ${short(e)}, retrying in ${Math.round(w)}s (${i + 1}/${WAITS.length})…`); await sleep(w); }
       }
     }
-    tried.push(`${m}: ${short(lastErr)}${fails > 1 ? ` ×${fails}` : ''}`);
+    tried.push(`${m}: ${short(lastErr)}${fails > 1 ? ` ×${fails}` : ''} — ${String(lastErr?.message || '').replace(/^HTTP \d+: /, '').slice(0, 120)}`);
     if (mi < models.length - 1) onLog(`Gemini ${m} failed (${short(lastErr)}), switching to ${models[mi + 1]}…`);
   }
-  const busy = tried.every((t) => /busy|rate limit|network|HTTP 5/.test(t));
+  const busy = tried.every((t) => /busy|rate limit|network|server error|HTTP 5/.test(t));
   const err = new Error((busy ? 'Gemini is busy right now. ' : 'Gemini could not write the story. ') + 'Tried: ' + tried.join(' · '));
-  err.retryable = busy; void retryable; throw err;
+  err.retryable = busy; throw err;
 }
 function friendly(e) {
   const s = e?.status;
@@ -95,7 +110,7 @@ JSON shape:
  "scenes":[{"location":"one key from the list","time_of_day":"${TIMES_OF_DAY.join('|')}","present":["character ids"],"summary":"what happens","seconds":number}]}
 The scene seconds must add up to about ${totalSec}.` }], { key, models, onLog });
   normalizeOutline(outline, totalSec); let doneScenes = 0; onProgress(1, outline.scenes.length + 1, 'Outline ready');
-  // Step 2: beats for each scene (3 in parallel)
+  // Step 2: beats for each scene
   const out = { ...outline, category, minutes, scenes: [] };
   const charList = outline.characters.map((c) => `${c.id} (${c.name}, ${c.gender}, ${c.age}, ${c.role})`).join('; ');
   const jobs = outline.scenes.map((sc, i) => async () => {
@@ -117,7 +132,7 @@ JSON shape: {"beats":[{"type":"action","char":"id","action":"one allowed action"
     const scene = { ...sc, beats: normalizeBeats(res.beats || [], outline.characters, sc) };
     out.scenes[i] = scene; doneScenes++; onProgress(1 + doneScenes, outline.scenes.length + 1, `Scene ${doneScenes}/${outline.scenes.length} dialogue`);
   });
-  await runPool(jobs, 3);
+  await runPool(jobs, 1); // one at a time: free keys allow only a few requests per minute
   return out;
 }
 
@@ -158,4 +173,37 @@ export function normalizeBeats(beats, chars, sc) {
   // anyone who speaks must be in the scene
   for (const b of out) if (!sc.present.includes(b.char) && sc.present.length < 4 && !out.some((x) => x.type === 'action' && x.action === 'enter' && x.char === b.char)) sc.present.push(b.char);
   return out;
+}
+
+// ---------- "Paste from Gemini app" mode: one prompt → whole story JSON (works with the Gemini app subscription, no API) ----------
+export function buildPastePrompt({ category, minutes, idea = '', actors = [] }) {
+  const cat = CATEGORIES[category] || CATEGORIES.drama; const totalSec = Math.round(minutes * 60);
+  const nScenes = Math.max(2, Math.min(18, Math.round(minutes * 1.6))); const lines = Math.max(6, Math.round(totalSec / 4.2));
+  const locs = Object.entries(LOCATIONS).map(([k, v]) => `- ${k}: ${v}`).join('\n');
+  const actorList = actors.map((a) => `- ${a.id}: ${a.gender}, ${a.age}${a.tags?.length ? ', ' + a.tags.join('/') : ''}`).join('\n');
+  return `${SYSTEM}
+
+Write ${cat.hint}. Category: ${cat.label}. Total length about ${totalSec} seconds (${minutes} min): about ${nScenes} scenes and about ${lines} dialogue lines in total.
+${idea ? `Idea / title: ${idea}` : 'Invent an original title and idea.'}
+Use 2 to 5 characters.${actorList ? ` Each character is played by one of these 3D actors (write its id in "model"):\n${actorList}` : ''}
+Every scene uses one of these locations (write the key):
+${locs}
+Between dialogue lines add simple actions, only these words: ${ACTIONS.join(', ')}.
+("enter"/"exit"/"run_exit" = comes in / leaves; "sit"/"stand"; "walk_to" needs "target" = another character id.)
+
+Reply with ONLY this JSON (no other text):
+{"title":"Hinglish title","title_hindi":"हिंदी शीर्षक","logline":"one line","moral":"last message or empty",
+ "characters":[{"id":"short_id","name":"Indian name","gender":"male|female","age":"child|young|adult|old","role":"role","top_color":"#hex","bottom_color":"#hex","hair_color":"#hex","personality":"few words","model":"actor id"}],
+ "scenes":[{"location":"key","time_of_day":"${TIMES_OF_DAY.join('|')}","present":["character ids at the start"],"summary":"what happens","seconds":30,
+   "beats":[{"type":"action","char":"id","action":"enter"},
+            {"type":"line","char":"id","emotion":"neutral|happy|sad|angry|surprised|scared","hindi":"देवनागरी","hinglish":"Roman Hinglish","english":"English"}]}]}`;
+}
+export function parsePastedStory(text, minutes = 1) {
+  let j; try { j = parseJSON(String(text || '')); } catch { throw new Error('Could not read the pasted text as JSON. Copy Gemini\'s whole answer (the part between { and }).'); }
+  normalizeOutline(j, Math.round(minutes * 60));
+  const raw = (JSON.parse(JSON.stringify(j))); // normalizeOutline rebuilt scenes; take beats from the original order
+  const srcScenes = (parseJSON(String(text)).scenes || []);
+  j.scenes = j.scenes.map((sc, i) => ({ ...sc, beats: normalizeBeats(srcScenes[i]?.beats || [], j.characters, sc) }));
+  if (!j.scenes.some((sc) => sc.beats.some((b) => b.type === 'line'))) throw new Error('The pasted story has no dialogue lines.');
+  void raw; return j;
 }

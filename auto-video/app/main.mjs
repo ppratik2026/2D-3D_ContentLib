@@ -146,17 +146,23 @@ const H = {
   'settings:get': () => publicSettings(),
   'settings:set': (s) => { const cur = readSettings(); if (s.key !== undefined) setKey(s.key); const next = readSettings(); for (const k of ['model', 'renderer', 'concurrency']) if (s[k] !== undefined) next[k] = s[k]; writeSettings(next); void cur; return publicSettings(); },
   'settings:testKey': async () => { const k = getKey(); if (!k) return { ok: false, msg: 'No key saved' };
-    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models', { headers: { Authorization: `Bearer ${k}` } });
-    if (!r.ok) return { ok: false, msg: `Gemini rejected the key (${r.status}): ${(await r.text()).slice(0, 160)}` };
-    const ids = ((await r.json()).data || []).map((m) => String(m.id).replace(/^models\//, '')); const model = readSettings().model;
-    if (ids.includes(model)) return { ok: true, msg: `Key works ✓ · model ${model} available ✓` };
-    const flash = ids.filter((x) => /flash/.test(x) && !/(tts|image|audio|live|embedding)/.test(x)).slice(0, 12);
-    return { ok: false, msg: `Key works ✓ · but model "${model}" was not found (the app will fall back to gemini-2.5-flash). Available: ${flash.join(', ')}` }; },
+    const story = await import('../pipeline/story.mjs'); const model = readSettings().model; let ids;
+    try { ids = await story.listModels(k); } catch (e) { return { ok: false, msg: `Gemini rejected the key: ${e.message}` }; }
+    const avail = ids.includes(model); const list = story.pickModels(ids, model);
+    const results = [];
+    for (const m of (avail ? [model] : []).concat(list.filter((x) => x !== model)).slice(0, 3)) {
+      try { const r = await story.generate({ key: k, model: m, user: 'Reply with this JSON only: {"ok": true}', temperature: 0 }); results.push(`${m}: ✓ works`); if (r) break; }
+      catch (e) { results.push(`${m}: ✗ ${String(e.message).slice(0, 140)}`); } }
+    const ok = results.some((r) => r.includes('✓'));
+    return { ok, msg: `Key works ✓ · ${avail ? `model ${model} found` : `model "${model}" NOT found`} · Test: ${results.join(' | ')}${ok ? '' : ' → Gemini is not answering right now; use "Paste from Gemini app" on the New Video tab.'}` }; },
+  'story:prompt': async (o) => (await import('../pipeline/story.mjs')).buildPastePrompt({ category: o.category, minutes: Number(o.minutes) || 1, idea: o.idea || '', actors: lib.actorsFor(o.style || 'toon').map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })) }),
+  'story:parse': async (o) => { try { const st = (await import('../pipeline/story.mjs')).parsePastedStory(o.text, Number(o.minutes) || 1); return { ok: true, title: st.title, scenes: st.scenes.length, lines: st.scenes.reduce((n, sc) => n + sc.beats.filter((b) => b.type === 'line').length, 0), chars: st.characters.map((c) => c.name).join(', ') }; } catch (e) { return { ok: false, msg: e.message }; } },
   'setup:status': () => setupStatus(),
   'setup:run': async (_o, e) => runSetup((p) => e.sender.send('setup:progress', p)),
   'queue:get': () => queueView(),
-  'queue:add': (o) => { const n = Math.max(1, Math.min(20, Number(o.count) || 1)); const ideas = String(o.idea || '').split('\n').map((x) => x.trim()).filter(Boolean);
-    for (let i = 0; i < n; i++) { const opts = { category: o.category, idea: ideas[i] ?? (n > 1 ? '' : o.idea || ''), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs, demo: !!o.demo };
+  'queue:add': async (o) => { const n = Math.max(1, Math.min(20, Number(o.count) || 1)); const ideas = String(o.idea || '').split('\n').map((x) => x.trim()).filter(Boolean);
+    let storyJson = null; if (o.pasted) { storyJson = (await import('../pipeline/story.mjs')).parsePastedStory(o.pasted, Number(o.minutes) || 1); }
+    for (let i = 0; i < (storyJson ? 1 : n); i++) { const opts = { category: o.category, idea: storyJson ? storyJson.title : ideas[i] ?? (n > 1 ? '' : o.idea || ''), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs, demo: !!o.demo, storyJson };
       const est = estimate({ style: opts.style, minutes: opts.minutes, renderer: readSettings().renderer });
       queue.push({ id: newJobId(o.category) + (n > 1 ? `_${i + 1}` : ''), opts, status: 'queued', progress: 0, estimate: est, created: Date.now(), msg: 'Queued', session: SESSION }); }
     if (o.start) autoRun = true; broadcast(true); pump(); return queueView(); },
@@ -193,6 +199,9 @@ function createWindow() {
   win.__ui = true; win.loadURL('av://app/app/ui/index.html');
   if (shots > 0) win.webContents.once('did-finish-load', async () => { // dev: screenshots of every tab
     const dir = process.argv[shots + 1]; const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); await wait(2500);
+    if (process.argv.includes('--paste-ui')) { const demo = fs.readFileSync(path.join(APP_DIR, 'pipeline', 'demo-story.json'), 'utf8');
+      await win.webContents.executeJavaScript(`document.querySelector('input[name=src][value=paste]').click(); const t=document.querySelector('#pasted'); t.value = ${JSON.stringify('Sure! Here is the story:\n' + demo)}; t.dispatchEvent(new Event('input'));`);
+      await wait(2500); fs.writeFileSync(path.join(dir, 'paste_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
     if (process.argv.includes('--queue-demo')) { await H['queue:add']({ category: 'romance', minutes: 1, count: 2, style: 'toon', look: 'auto', subs: 'auto', demo: true, start: true });
       await win.webContents.executeJavaScript(`document.querySelector('[data-tab=queue]').click()`);
       for (const [i, t] of [[1, 25000], [2, 60000]]) { await wait(t); fs.writeFileSync(path.join(dir, `queue_${i}.png`), (await win.webContents.capturePage()).toPNG()); }

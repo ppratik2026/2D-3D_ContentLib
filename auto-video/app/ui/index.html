@@ -32,7 +32,15 @@
           <div><h3>5. Look</h3><select id="look"></select></div>
           <div><h3>6. Subtitles</h3><select id="subs"></select></div>
         </div>
-        <label class="check"><input type="checkbox" id="demo"> Demo story (test without Gemini)</label>
+        <h3>7. Story source</h3>
+        <div class="row src"><label class="check"><input type="radio" name="src" value="api" checked> Gemini API (automatic)</label><label class="check"><input type="radio" name="src" value="paste"> Paste from Gemini app</label><label class="check"><input type="radio" name="src" value="demo"> Demo story (test)</label></div>
+        <div id="pasteBox" hidden>
+          <div class="muted small">1. Click <b>Copy prompt</b> → 2. paste it in the Gemini app (gemini.google.com) → 3. copy Gemini's whole answer → 4. paste it below.</div>
+          <div class="btns"><button id="copyPrompt" class="ghost" type="button">Copy prompt</button><span id="copyMsg" class="small muted"></span></div>
+          <textarea id="pasted" rows="6" placeholder="Paste Gemini's answer (JSON) here"></textarea>
+          <div id="pasteMsg" class="small"></div>
+        </div>
+        <input type="checkbox" id="demo" hidden>
       </div>
       <div class="card est">
         <div class="muted">Estimated time per video (this PC)</div>

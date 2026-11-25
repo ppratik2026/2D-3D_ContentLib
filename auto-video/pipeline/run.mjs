@@ -37,7 +37,8 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
 
   // 1. story
   let story;
-  if (opts.demo) { story = JSON.parse(fs.readFileSync(path.join(ROOT, 'pipeline', 'demo-story.json'), 'utf8')); for (const sc of story.scenes) sc.beats = normalizeBeats(sc.beats, story.characters, sc); }
+  if (opts.storyJson) { story = JSON.parse(JSON.stringify(opts.storyJson)); stage('story', 1, 1, 'Pasted story'); }
+  else if (opts.demo) { story = JSON.parse(fs.readFileSync(path.join(ROOT, 'pipeline', 'demo-story.json'), 'utf8')); for (const sc of story.scenes) sc.beats = normalizeBeats(sc.beats, story.characters, sc); }
   else {
     const key = opts.key || process.env.GEMINI_API_KEY; if (!key) throw new Error('Gemini API key missing. Add it in Settings.');
     story = await writeStory({ category, minutes, idea: opts.idea || '', key, model: opts.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
