@@ -1,16 +1,18 @@
 # Auto Video Studio
 
-A Windows desktop app. Pick a **category**, **length** and **style**; Gemini writes the story, characters and Hindi/Hinglish dialogue; the app makes the voices, music, sound effects and subtitles, renders the 3D animation and saves a finished MP4. Videos go into a **queue** and are made one after another, so a PC can work through 5–10 videos (for example overnight).
+A Windows desktop app. Pick a **category**, **length** and **style**; Gemini writes the story, characters and Hindi/Hinglish dialogue; the app makes the voices, music, sound effects and subtitles, renders the animation (2D Cartoon Stage on painted backgrounds, or 3D toon / anime / realistic) and saves a finished MP4. Stories can be 0.5–20 minutes with up to 12 characters, each with their own voice. Videos go into a **queue** and are made one after another, so a PC can work through 5–10 videos (for example overnight).
 
-Everything except the Gemini story step runs offline on the PC, without a graphics card.
+Everything except the story step (Gemini, Groq, OpenRouter, Mistral, Cerebras, a local server, or paste from the Gemini app) runs offline on the PC, without a graphics card.
 
 ## For the team (Windows)
 
 1. Download **AutoVideoStudio-Setup.exe** (GitHub → Actions → "Build Windows installer" → artifact), or the portable ZIP. With the ZIP: unzip it anywhere and run `Auto Video Studio.exe`; it puts a shortcut on the Desktop.
-2. On first start the app downloads the 3D models, Piper and three Hindi voices (~300 MB, once).
-3. **Settings** → paste your own Gemini key (free: https://aistudio.google.com/apikey) → **Test**. The key is stored encrypted on that PC only.
-4. **Naya Video** → category, idea (one per line for several videos), minutes, style, look, subtitles → **Daalo aur shuru karo**.
-5. **Queue** shows progress, time left and the finish time. **Library** plays the finished videos.
+2. On first start the app downloads the 3D models, the Piper + Kokoro voice engines and the Hindi voices (~400 MB, once).
+3. **Settings → Story AI** → pick a provider, paste your own key → **Test**. Keys are stored encrypted on that PC only. No key? Use **Story source → Paste from Gemini app**.
+4. **Backgrounds** → import empty painted scenes for the 2D Cartoon Stage (prompts: [docs/BACKGROUND_PROMPTS.md](docs/BACKGROUND_PROMPTS.md)).
+5. **Characters** → import your VRoid characters ([docs/VROID_GUIDE.md](docs/VROID_GUIDE.md)) and give each one a fixed voice.
+6. **New Video** → category, idea (one per line for several videos), minutes, characters, style, look, subtitles → **Add & start**.
+7. **Queue** shows progress, time left and the finish time. **Library** plays the finished videos.
 
 Files: `Documents\AutoVideo\Videos\<date>_<category>_<title>\` → `final.mp4`, `subtitles.srt`, `story.json`, `timeline.json`.
 
@@ -18,11 +20,18 @@ Files: `Documents\AutoVideo\Videos\<date>_<category>_<title>\` → `final.mp4`, 
 
 | Screen | What it does |
 |---|---|
-| Naya Video | Category, idea, minutes, number of videos, style (toon / anime / realistic), look (film, old film, noir, dreamy, horror, vivid), subtitles (classic, YouTube, karaoke, cinematic, Hinglish+English, Hindi). Shows the time estimate for this PC. |
-| Queue | Videos made one after another: progress, time left, finish time, start/pause, cancel, retry, reorder. Survives a restart. |
+| New Video | Category, idea, minutes (up to 20), number of videos, number of characters (up to 12), style (2D Cartoon Stage, toon, anime, realistic), look, subtitles, story source. Shows the time estimate for this PC. |
+| Queue | Videos made one after another with step-by-step progress (story → voices → sound → render → save), time left, finish time, start/pause, cancel, retry, reorder. Survives a restart. |
 | Library | All finished videos: play, open folder, delete. |
-| Characters | Built-in characters plus your own `.vrm` / `.glb` / `.gltf` / `.fbx` (drag and drop). 3D preview with a walk test, lip-sync check, and tags (gender, age, role) that Gemini uses to cast the story. |
-| Settings | Gemini key and model, renderer (Chrome + WebCodecs + ffmpeg, or Remotion), data folder. |
+| Characters | Built-in characters plus your own `.vrm` / `.glb` / `.gltf` / `.fbx` (drag and drop). 3D preview with a walk test, lip-sync check, tags (gender, age, role) that the AI uses to cast the story, and a fixed voice with ▶ Play. |
+| Backgrounds | Painted backgrounds for the 2D Cartoon Stage. Set place / time / tags, drag the ground lines (front and back row), character height and seats. The AI picks a background for every scene. |
+| Settings | Story AI provider / key / model with fallback order, renderer (Chrome + WebCodecs + ffmpeg, or Remotion), updates, data folder. |
+
+## 2D Cartoon Stage, voices and effects
+
+- **Stage:** each scene uses a background from the library. Characters (toon-shaded 3D, so they walk, sit and lip-sync) stand on the ground lines, enter and exit from the sides, and the camera cuts between wide, two-shot and speaker close-ups.
+- **Voices:** 20 Hindi voices (Piper + Kokoro-82M, with pitch/speed variants): men, women, old people, kids, a deep inspector voice and a heavy villain voice. Each character keeps one voice for the whole video; characters with a fixed voice in the Characters tab always use it.
+- **Effects:** the story AI chooses weather per scene: rain, storm (lightning flashes + thunder), fog or wind, plus camera shake on shocks. Sound: music by mood, ambience by place (village birds, city traffic, night crickets, jungle), rain/wind loops, thunder, heartbeat in horror/crime scenes, dog barks and owls at night.
 
 ## Renderers
 

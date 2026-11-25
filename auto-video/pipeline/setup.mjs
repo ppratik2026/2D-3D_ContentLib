@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { ASSETS, BIN, VOICES_DIR } from './paths.mjs';
+const KOKORO = 'https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/';
 
 const T = 'https://raw.githubusercontent.com/mrdoob/three.js/r170/examples/';
 export const MODEL_FILES = [
@@ -26,9 +27,12 @@ function plan() {
   const items = MODEL_FILES.map(([u, f]) => ({ url: u, file: path.join(ASSETS, f), label: f }));
   if (PIPER_FILE) items.push({ url: PIPER + PIPER_FILE, file: path.join(BIN, PIPER_FILE), label: 'Piper TTS', unpack: true });
   for (const v of VOICE_NAMES) { const n = `hi_IN-${v}-medium`; items.push({ url: `${HF}${v}/medium/${n}.onnx.json`, file: path.join(VOICES_DIR, n + '.onnx.json'), label: n + ' (info)' }, { url: `${HF}${v}/medium/${n}.onnx`, file: path.join(VOICES_DIR, n + '.onnx'), label: 'Hindi voice: ' + v }); }
+  fs.mkdirSync(path.join(VOICES_DIR, 'kokoro'), { recursive: true });
+  for (const [f, rel] of [['model_quantized.onnx', 'onnx/model_quantized.onnx'], ['tokenizer.json', 'tokenizer.json'], ...['hf_alpha', 'hf_beta', 'hm_omega', 'hm_psi'].map((v) => [v + '.bin', `voices/${v}.bin`])])
+    items.push({ url: KOKORO + rel, file: path.join(VOICES_DIR, 'kokoro', f), label: f === 'model_quantized.onnx' ? 'Kokoro voice model' : 'Kokoro: ' + f });
   return items;
 }
-const have = (f) => fs.existsSync(f) && fs.statSync(f).size > 1000;
+const have = (f) => fs.existsSync(f) && fs.statSync(f).size > (f.endsWith('.json') ? 100 : 1000);
 export function setupStatus() { const items = plan(); const missing = items.filter((i) => !have(i.file) && !(i.unpack && fs.existsSync(piperExe()))); return { done: missing.length === 0, missing: missing.map((i) => i.label), total: items.length }; }
 
 async function download(url, file, onBytes) {

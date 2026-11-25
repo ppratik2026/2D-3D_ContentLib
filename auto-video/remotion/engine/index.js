@@ -12,7 +12,9 @@ const sm = (a, b, t) => { const x = Math.min(1, Math.max(0, (t - a) / (b - a)));
 const SEATED_DEFAULT = new Set(['cafe', 'home', 'office', 'police', 'classroom', 'park']);
 const LOC_BOUNDS = { cafe: [5.6, 4.6], home: [5.1, 4.1], office: [5.6, 4.6], police: [5.6, 4.6], classroom: [5.6, 4.6] };
 
+import { createStageEngine } from './stage.js';
 export async function createEngine({ canvas, width, height, tl, url }) {
+  if (tl.mode === 'stage') return createStageEngine({ canvas, width, height, tl, url });
   const style = tl.style; const realistic = style === 'realistic';
   const perf = tl.perf || {};
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: perf.aa !== false, preserveDrawingBuffer: true });

@@ -15,7 +15,7 @@ export function buildTimeline(story, opts) {
     const start = t; const events = []; const present = [...sc.present];
     const enterers = new Set(sc.beats.filter((b) => b.type === 'action' && b.action === 'enter').map((b) => b.char));
     const initial = present.filter((c) => !enterers.has(c));
-    const all = [...new Set([...present, ...enterers, ...sc.beats.map((b) => b.char)])].slice(0, 4);
+    const all = [...new Set([...present, ...enterers, ...sc.beats.map((b) => b.char)])].slice(0, 6);
     cues.push({ t: start, kind: 'scene', location: sc.location });
     t += si === 0 ? 1.8 : 1.4; // establishing shot
     shots.push({ t0: start, t1: t, type: 'wide' });
@@ -36,7 +36,7 @@ export function buildTimeline(story, opts) {
         events.push({ kind: 'gesture', name: b.action, char: b.char, d: 1.6, overlap: true });
       }
     }
-    scenes.push({ index: si, location: sc.location, time_of_day: sc.time_of_day, summary: sc.summary, initial, cast: all, start, _events: events });
+    scenes.push({ index: si, location: sc.location, background: sc.background || '', weather: sc.weather || 'none', time_of_day: sc.time_of_day, summary: sc.summary, initial, cast: all, start, _events: events });
   });
   return { story, style, look, subs, scenes, lines, shots, cues, _tStart: t };
 }
@@ -66,6 +66,8 @@ export function finalize(tl) {
   }
   tl.end = t + END; tl.duration = tl.end;
   tl.durationInFrames = Math.ceil(tl.duration * FPS);
+  // weather cues: thunder every 7–14 s in storm scenes (deterministic)
+  for (const sc of tl.scenes) if (sc.weather === 'storm') { let k = sc.index * 7 + 3; for (let x = sc.start + 2.5; x < sc.end - 1; x += 7 + ((k = (k * 13 + 5) % 17) % 8)) cues.push({ t: x, kind: 'thunder' }); }
   tl.cues = cues;
   // merge / clean shots: later shot wins; drop very short speaker shots
   shots.sort((a, b) => a.t0 - b.t0);

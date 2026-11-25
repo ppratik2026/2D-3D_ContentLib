@@ -29,4 +29,5 @@ async function show(canvas, char) {
   loop();
   return { ok: true, lipSync: a.hasLipSync, rig: a.vrm ? 'VRM' : 'Humanoid' };
 }
-window.AVPreview = { show };
+function stop() { if (cur) { cur.stop = true; try { cur.renderer.dispose(); } catch {} cur = null; } }
+window.AVPreview = { show, stop };

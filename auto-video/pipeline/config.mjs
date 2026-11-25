@@ -21,6 +21,7 @@ export const CATEGORIES = {
 // Visual styles. `secPerFrame` = measured render time per frame on a 4-core CPU with no GPU (software WebGL).
 // `npm run bench` re-measures these on your PC and stores them in bench.json.
 export const STYLES = {
+  cartoon2d: { label: '2D Cartoon Stage (painted backgrounds)', chars: 'any', world: 'stage', secPerFrame: 0.12 },
   toon:      { label: 'Toon 3D (fastest)',          chars: 'vrm', world: 'toon',      secPerFrame: 0.40 },
   anime:     { label: 'Anime 3D',                   chars: 'vrm', world: 'anime',     secPerFrame: 0.60 },
   realistic: { label: 'Realistic 3D',               chars: 'glb', world: 'realistic', secPerFrame: 0.53 },

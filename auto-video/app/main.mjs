@@ -20,6 +20,8 @@ const { estimate, fmt } = await import('../pipeline/estimate.mjs');
 const { makeVideo, newJobId } = await import('../pipeline/run.mjs');
 const { setupStatus, runSetup } = await import('../pipeline/setup.mjs');
 const lib = await import('../pipeline/library.mjs');
+const bgs = await import('../pipeline/backgrounds.mjs');
+const tts = await import('../pipeline/tts.mjs');
 const ffmpegPath = (await import('ffmpeg-static')).default;
 const { autoUpdater } = (await import('electron-updater')).default;
 
@@ -124,7 +126,7 @@ ipcMain.handle('render:chunk', (e, pos, data) => sessions.get(e.sender.id)?.chun
 ipcMain.on('render:progress', (e, f, n, secs) => sessions.get(e.sender.id)?.progress(f, n, secs));
 ipcMain.on('render:done', (e, info) => sessions.get(e.sender.id)?.done(info));
 ipcMain.on('render:fail', (e, msg) => sessions.get(e.sender.id)?.fail(msg));
-function chromeRender({ tl, mixFile, out, onProgress, onSave = () => {}, signal }) {
+function chromeRender({ tl, mixFile, out, onProgress, onSave = () => {}, signal, only = null }) {
   return new Promise((resolve, reject) => {
     const win = new BrowserWindow({ show: false, width: 1280, height: 720, webPreferences: { preload: path.join(APP_DIR, 'app', 'render', 'preload.cjs'), backgroundThrottling: false } });
     const id = win.webContents.id; const tmp = out + '.video.mp4'; const fd = fs.openSync(tmp, 'w'); let finished = false;
@@ -133,11 +135,11 @@ function chromeRender({ tl, mixFile, out, onProgress, onSave = () => {}, signal 
     win.webContents.on('render-process-gone', (_e, d) => end(new Error('Renderer crashed: ' + d.reason)));
     win.webContents.on('console-message', (_e, level, msg) => { if (level >= 2) console.log('[render]', msg); });
     sessions.set(id, {
-      ready: () => win.webContents.send('render:job', { tl }),
+      ready: () => win.webContents.send('render:job', { tl, only }),
       chunk: (pos, data) => { const b = Buffer.from(data.buffer || data, data.byteOffset || 0, data.byteLength); fs.writeSync(fd, b, 0, b.length, pos); },
       progress: (f, n, secs) => onProgress(f / n, f, secs),
       fail: (msg) => end(new Error(msg)),
-      done: async (info) => { try { fs.closeSync(fd); } catch {} onSave();
+      done: async (info) => { if (only) return end(null, info); try { fs.closeSync(fd); } catch {} onSave();
         try { await ffmpeg(['-y', '-i', tmp, '-i', mixFile, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out]); fs.rmSync(tmp, { force: true }); end(null, info); }
         catch (e) { end(e); } },
     });
@@ -184,14 +186,14 @@ const H = {
     let model = c.model; if (!model) { try { model = ai.defaultModel(name, await ai.listModels({ provider: name, key: k, baseUrl: c.baseUrl })); } catch (e) { return { ok: false, msg: 'Key rejected: ' + e.message }; } }
     try { const t = await ai.chat({ provider: name, key: k, model, baseUrl: c.baseUrl }, { user: 'Reply with this JSON only: {"ok": true}', temperature: 0, maxTokens: 50 }); ai.parseJSON(t); return { ok: true, msg: `✓ ${model} works` }; }
     catch (e) { const q = e.status === 429 && /quota|billing|credit/i.test(e.message); return { ok: false, msg: `✗ ${model}: ${e.message.replace(/For more information.*$/, '').slice(0, 220)}${q ? ' → no quota left on this key today; pick another provider/model or wait for the reset.' : ''}` }; } },
-  'story:prompt': async (o) => (await import('../pipeline/story.mjs')).buildPastePrompt({ category: o.category, minutes: Number(o.minutes) || 1, idea: o.idea || '', actors: lib.actorsFor(o.style || 'toon').map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })) }),
+  'story:prompt': async (o) => (await import('../pipeline/story.mjs')).buildPastePrompt({ category: o.category, minutes: Number(o.minutes) || 1, idea: o.idea || '', chars: o.chars || 'auto', backgrounds: o.style === 'cartoon2d' ? bgs.listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags })) : [], actors: lib.actorsFor(o.style === 'cartoon2d' ? 'toon' : o.style || 'toon').map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })) }),
   'story:parse': async (o) => { try { const st = (await import('../pipeline/story.mjs')).parsePastedStory(o.text, Number(o.minutes) || 1); return { ok: true, title: st.title, scenes: st.scenes.length, lines: st.scenes.reduce((n, sc) => n + sc.beats.filter((b) => b.type === 'line').length, 0), chars: st.characters.map((c) => c.name).join(', ') }; } catch (e) { return { ok: false, msg: e.message }; } },
   'setup:status': () => setupStatus(),
   'setup:run': async (_o, e) => runSetup((p) => e.sender.send('setup:progress', p)),
   'queue:get': () => queueView(),
   'queue:add': async (o) => { const n = Math.max(1, Math.min(20, Number(o.count) || 1)); const ideas = String(o.idea || '').split('\n').map((x) => x.trim()).filter(Boolean);
     let storyJson = null; if (o.pasted) { storyJson = (await import('../pipeline/story.mjs')).parsePastedStory(o.pasted, Number(o.minutes) || 1); }
-    for (let i = 0; i < (storyJson ? 1 : n); i++) { const opts = { category: o.category, idea: storyJson ? storyJson.title : ideas[i] ?? (n > 1 ? '' : o.idea || ''), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs, demo: !!o.demo, storyJson, storyAI: o.storyAI || 'auto' };
+    for (let i = 0; i < (storyJson ? 1 : n); i++) { const opts = { category: o.category, idea: storyJson ? storyJson.title : ideas[i] ?? (n > 1 ? '' : o.idea || ''), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs, demo: !!o.demo, storyJson, storyAI: o.storyAI || 'auto', chars: o.chars || 'auto' };
       const est = estimate({ style: opts.style, minutes: opts.minutes, renderer: readSettings().renderer });
       queue.push({ id: newJobId(o.category) + (n > 1 ? `_${i + 1}` : ''), opts, status: 'queued', progress: 0, estimate: est, created: Date.now(), msg: 'Queued', session: SESSION }); }
     if (o.start) autoRun = true; broadcast(true); pump(); return queueView(); },
@@ -212,6 +214,14 @@ const H = {
   'chars:update': ({ id, patch }) => lib.updateCharacter(id, patch),
   'chars:delete': (id) => lib.deleteCharacter(id),
   'chars:openFolder': () => shell.openPath(CHARS),
+  'bg:list': () => ({ places: bgs.PLACES, list: bgs.listBackgrounds().map((b) => ({ ...b, url: 'av://data/' + b.file.split('/').map(encodeURIComponent).join('/') })) }),
+  'bg:import': async (_o, e) => { const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), { properties: ['openFile', 'multiSelections'], filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }] }); return r.canceled ? [] : r.filePaths.map((f) => bgs.importBackground(f)); },
+  'bg:importPaths': (paths) => paths.map((f) => bgs.importBackground(f)),
+  'bg:update': ({ id, patch }) => bgs.updateBackground(id, patch),
+  'bg:delete': (id) => bgs.deleteBackground(id),
+  'bg:openFolder': () => shell.openPath(bgs.BG_DIR),
+  'voice:list': () => tts.availableVoices(),
+  'voice:sample': async (id) => { const dir = path.join(PUBLIC, 'tmp'); fs.mkdirSync(dir, { recursive: true }); const f = path.join(dir, `voice_${id}.wav`); if (!fs.existsSync(f)) await tts.sampleVoice(id, null, f); return `av://data/tmp/voice_${id}.wav?${Date.now()}`; },
   'open:data': () => shell.openPath(process.env.AUTOVIDEO_DATA),
   'update:get': () => upd,
   'update:check': () => checkUpdates(),
@@ -223,9 +233,9 @@ for (const [ch, fn] of Object.entries(H)) ipcMain.handle(ch, (e, arg) => fn(arg,
 
 function createWindow() {
   const shots = process.argv.indexOf('--screens');
-  const win = new BrowserWindow({ ...(shots > 0 ? { show: false } : {}), width: 1280, height: 860, minWidth: 980, minHeight: 640, title: 'Auto Video Studio', backgroundColor: '#0f1117', autoHideMenuBar: true,
+  const win = new BrowserWindow({ width: 1280, height: 860, minWidth: 980, minHeight: 640, title: 'Auto Video Studio', backgroundColor: '#0f1117', autoHideMenuBar: true,
     webPreferences: { preload: path.join(APP_DIR, 'app', 'ui', 'preload.cjs') } });
-  win.__ui = true; win.loadURL('av://app/app/ui/index.html');
+  win.__ui = true; win.loadURL('av://app/app/ui/index.html'); win.webContents.on('console-message', (_e, level, msg, line, src) => { if (level >= 2) console.log('[ui]', msg, src, line); });
   if (shots > 0) win.webContents.once('did-finish-load', async () => { // dev: screenshots of every tab
     const dir = process.argv[shots + 1]; const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); await wait(2500);
     if (process.argv.includes('--paste-ui')) { const demo = fs.readFileSync(path.join(APP_DIR, 'pipeline', 'demo-story.json'), 'utf8');
@@ -239,7 +249,7 @@ function createWindow() {
     if (only) { await win.webContents.executeJavaScript(`document.querySelector('[data-tab=chars]').click()`); await wait(6000);
       for (const id of process.argv[process.argv.indexOf('--chars-only') + 1].split(',')) { await win.webContents.executeJavaScript(`document.querySelector('.ch[data-id=${id}]').click()`); await wait(14000);
         fs.writeFileSync(path.join(dir, `char_${id}.png`), (await win.webContents.capturePage()).toPNG()); } return app.quit(); }
-    for (const tab of ['new', 'queue', 'library', 'chars', 'settings']) { await win.webContents.executeJavaScript(`document.querySelector('[data-tab=${tab}]').click()`); await wait(tab === 'chars' ? 15000 : 1500);
+    for (const tab of ['new', 'queue', 'library', 'chars', 'bgs', 'settings']) { console.log('TAB', tab, await win.webContents.executeJavaScript(`(() => { try { document.querySelector('[data-tab=${tab}]').click(); return document.querySelector('#tab-' + '${tab}')?.className; } catch (e) { return 'ERR ' + e.message; } })()`)); await wait(tab === 'chars' ? 15000 : 1500);
       fs.writeFileSync(path.join(dir, `ui_${tab}.png`), (await win.webContents.capturePage()).toPNG()); }
     app.quit(); });
 }
@@ -248,11 +258,14 @@ app.whenReady().then(() => {
   serve();
   // Windows portable build: make a Desktop shortcut once
   try { const s = readSettings(); if (process.platform === 'win32' && app.isPackaged && !s.shortcutDone) { shell.writeShortcutLink(path.join(app.getPath('desktop'), 'Auto Video Studio.lnk'), { target: process.execPath, description: 'Auto Video Studio' }); s.shortcutDone = true; writeSettings(s); } } catch {}
+  if (process.argv.includes('--frames')) { // dev: node … --frames timeline.json 300,900 outDir
+    const i = process.argv.indexOf('--frames'); const tl = JSON.parse(fs.readFileSync(process.argv[i + 1], 'utf8')); const only = process.argv[i + 2].split(',').map(Number); const dir = process.argv[i + 3];
+    return chromeRender({ tl, mixFile: null, out: path.join(dir, 'x.mp4'), onProgress: () => {}, only }).then((r) => { r.shots.forEach((d, k) => fs.writeFileSync(path.join(dir, `f_${only[k]}.jpg`), Buffer.from(d.split(',')[1], 'base64'))); app.quit(); }).catch((e) => { console.error(e); app.quit(); }); }
   if (process.argv.includes('--demo-test')) return demoTest();
   createWindow();
   if (app.isPackaged && !isZip()) setTimeout(checkUpdates, 8000);
 });
-app.on('window-all-closed', () => { if (!process.argv.includes('--demo-test')) app.quit(); });
+app.on('window-all-closed', () => { if (!process.argv.includes('--demo-test') && !process.argv.includes('--frames')) app.quit(); });
 
 // headless self-test: node_modules/.bin/electron . --demo-test [--style toon]
 async function demoTest() {

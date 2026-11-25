@@ -6,7 +6,7 @@ const clock = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '
 
 // ---------- tabs ----------
 $('#tabs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; $$('#tabs button').forEach((x) => x.classList.toggle('on', x === b)); $$('.tab').forEach((t) => t.classList.toggle('on', t.id === 'tab-' + b.dataset.tab));
-  if (b.dataset.tab === 'library') loadLibrary(); if (b.dataset.tab === 'chars') loadChars(); if (b.dataset.tab === 'settings') loadSettings(); };
+  if (b.dataset.tab === 'library') loadLibrary(); if (b.dataset.tab === 'chars') loadChars(); else window.AVPreview?.stop(); if (b.dataset.tab === 'bgs') loadBgs(); if (b.dataset.tab === 'settings') loadSettings(); };
 
 // ---------- new video ----------
 const fill = (sel, obj, auto) => { sel.innerHTML = (auto ? '<option value="auto">Auto (based on category)</option>' : '') + Object.entries(obj).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join(''); };
@@ -28,7 +28,7 @@ async function est() {
 }
 const src = () => { const v = $('#storySrc').value || 'auto'; return v === 'paste' || v === 'demo' ? v : 'api'; };
 $('#storySrc').onchange = () => { $('#pasteBox').hidden = src() !== 'paste'; $('#demo').checked = src() === 'demo'; $('#keyWarn').hidden = src() !== 'api' || S?.hasKey; };
-$('#copyPrompt').onclick = async () => { const p = await api.call('story:prompt', { category: cat, minutes: $('#min').value, idea: $('#idea').value, style: $('#style').value });
+$('#copyPrompt').onclick = async () => { const p = await api.call('story:prompt', { category: cat, minutes: $('#min').value, idea: $('#idea').value, style: $('#style').value, chars: $('#chars').value });
   try { await navigator.clipboard.writeText(p); $('#copyMsg').textContent = 'Copied ✓ — now paste it in the Gemini app'; } catch { $('#pasted').value = p; $('#copyMsg').textContent = 'Prompt placed in the box below — copy it from there'; } };
 let pasteOk = false;
 $('#pasted').oninput = async () => { const t = $('#pasted').value.trim(); if (!t) { $('#pasteMsg').textContent = ''; pasteOk = false; return; }
@@ -36,7 +36,7 @@ $('#pasted').oninput = async () => { const t = $('#pasted').value.trim(); if (!t
   $('#pasteMsg').className = 'small ' + (r.ok ? '' : 'warn'); $('#pasteMsg').textContent = r.ok ? `✓ Story read: "${r.title}" · ${r.scenes} scenes · ${r.lines} lines · ${r.chars}` : r.msg; };
 async function add(start) {
   const mode = src();
-  const o = { category: cat, idea: $('#idea').value, minutes: $('#min').value, count: $('#count').value, style: $('#style').value, look: $('#look').value, subs: $('#subs').value, demo: mode === 'demo', storyAI: mode === 'api' ? $('#storySrc').value : null, start };
+  const o = { category: cat, idea: $('#idea').value, minutes: $('#min').value, count: $('#count').value, style: $('#style').value, look: $('#look').value, subs: $('#subs').value, chars: $('#chars').value, demo: mode === 'demo', storyAI: mode === 'api' ? $('#storySrc').value : null, start };
   if (mode === 'paste') { if (!pasteOk) { $('#pasteMsg').className = 'small warn'; $('#pasteMsg').textContent = 'Paste Gemini\'s answer first.'; return; } o.pasted = $('#pasted').value; }
   if (mode === 'api' && !S?.hasKey) { $('#keyWarn').hidden = false; return; }
   renderQueue(await api.call('queue:add', o)); if (mode === 'paste') { $('#pasted').value = ''; $('#pasteMsg').textContent = ''; pasteOk = false; } $('[data-tab=queue]').click();
@@ -103,22 +103,70 @@ async function loadChars() { chars = await api.call('chars:list');
   $('#chList').innerHTML = chars.map((c) => `<div class="ch${sel === c.id ? ' on' : ''}" data-id="${c.id}"><div class="t">${esc(c.name)}</div><div class="tags">${c.gender === 'female' ? 'Female' : 'Male'} · ${esc(c.age)} · ${esc((c.styles || []).join('/'))}</div>
     <div class="tags">${esc((c.tags || []).join(', '))}${c.builtin ? ' · built-in' : ''}</div></div>`).join('');
   if (!sel && chars[0]) pick(chars[0].id); }
+let VOICES = null; const audio = new Audio();
+async function fillVoices(c) { VOICES ||= await api.call('voice:list'); const v = document.querySelector('#chForm [name=voice]');
+  v.innerHTML = '<option value="">Auto (by gender / age)</option>' + VOICES.map((x) => `<option value="${x.id}">${esc(x.label)}</option>`).join(''); v.value = c.voice || ''; }
+$('#chPlay').onclick = async () => { const c = chars.find((y) => y.id === sel); const v = document.querySelector('#chForm [name=voice]').value || (VOICES || []).find((x) => c && x.gender === c.gender && x.age === c.age)?.id || (VOICES || []).find((x) => c && x.gender === c.gender)?.id;
+  if (!v) return; $('#chPlay').textContent = '…'; try { audio.src = await api.call('voice:sample', v); await audio.play(); } finally { $('#chPlay').textContent = '▶ Play'; } };
 async function pick(id) { sel = id; const c = chars.find((x) => x.id === id); $$('.ch').forEach((x) => x.classList.toggle('on', x.dataset.id === id)); if (!c) return;
   const f = $('#chForm'); f.name.value = c.name; f.gender.value = c.gender; f.age.value = c.age; f.tags.value = (c.tags || []).join(', ');
   for (const s of ['toon', 'anime', 'realistic']) f['st_' + s].checked = (c.styles || []).includes(s);
-  [...f.elements].forEach((el) => (el.disabled = !!c.builtin)); $('#chDelete').hidden = !!c.builtin;
+  await fillVoices(c);
+  [...f.elements].forEach((el) => (el.disabled = !!c.builtin && el.name !== 'voice' && el.type !== 'submit')); $('#chDelete').hidden = !!c.builtin;
   $('#chInfo').textContent = 'Loading…';
   const r = await window.AVPreview.show($('#chCanvas'), c);
   $('#chInfo').innerHTML = r.ok ? `✓ Works · ${r.rig || ''} · lip-sync: ${r.lipSync ? 'yes' : 'no (head moves only)'}${c.builtin ? ' · built-in (read-only)' : ''}` : `<span class="warn">✗ ${esc(r.error)}</span>`; }
 $('#chList').onclick = (e) => { const d = e.target.closest('.ch'); if (d) pick(d.dataset.id); };
 $('#chForm').onsubmit = async (e) => { e.preventDefault(); const f = e.target; const styles = ['toon', 'anime', 'realistic'].filter((s) => f['st_' + s].checked);
-  await api.call('chars:update', { id: sel, patch: { name: f.name.value, gender: f.gender.value, age: f.age.value, tags: f.tags.value.split(',').map((x) => x.trim()).filter(Boolean), styles } }); loadChars(); };
+  const c = chars.find((x) => x.id === sel); await api.call('chars:update', { id: sel, patch: c.builtin ? { voice: f.voice.value } : { name: f.name.value, gender: f.gender.value, age: f.age.value, tags: f.tags.value.split(',').map((x) => x.trim()).filter(Boolean), styles, voice: f.voice.value } }); loadChars(); };
 $('#chDelete').onclick = async () => { if (confirm('Delete this character?')) { await api.call('chars:delete', sel); sel = null; loadChars(); } };
 $('#chImport').onclick = async () => { const r = await api.call('chars:import', {}); if (r.length) { sel = r[0].id; loadChars(); } };
 $('#chFolder').onclick = () => api.call('chars:openFolder');
 const dz = $('#tab-chars'); dz.ondragover = (e) => { e.preventDefault(); dz.classList.add('drop'); }; dz.ondragleave = () => dz.classList.remove('drop');
 dz.ondrop = async (e) => { e.preventDefault(); dz.classList.remove('drop'); const paths = [...e.dataTransfer.files].map((f) => api.pathOf(f)).filter((p) => /\.(vrm|glb|gltf|fbx)$/i.test(p));
   if (paths.length) { const r = await api.call('chars:importPaths', paths); sel = r[0]?.id; loadChars(); } };
+
+// ---------- backgrounds ----------
+let BG = { list: [], places: {} }, bsel = null, seatMode = false;
+async function loadBgs() {
+  BG = await api.call('bg:list');
+  $('#bgList').innerHTML = BG.list.length ? BG.list.map((b) => `<div class="bgc${bsel === b.id ? ' on' : ''}" data-id="${b.id}"><img src="${b.url}" loading="lazy"><div class="t">${esc(b.name)}</div><div class="tags">${esc((BG.places[b.place] || b.place || '').split(' (')[0])} · ${esc(b.time)}${b.tags?.length ? ' · ' + esc(b.tags.join(', ')) : ''}</div></div>`).join('')
+    : '<div class="muted">No backgrounds yet. Import empty painted scenes (see the prompts file).</div>';
+  $('#bgForm').place.innerHTML = Object.entries(BG.places).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
+  $('#bgPanel').hidden = !BG.list.length; if (BG.list.length) bpick(BG.list.find((b) => b.id === bsel) ? bsel : BG.list[0].id);
+}
+const curBg = () => BG.list.find((b) => b.id === bsel);
+function drawBg() {
+  const b = curBg(); if (!b) return; $('#bgNear').style.top = b.groundNear * 100 + '%'; $('#bgFar').style.top = b.groundFar * 100 + '%'; $('#bgH').value = b.heightNear;
+  const farScale = Math.max(0.45, 1 - (b.groundNear - b.groundFar) * 1.9); const ih = $('#bgImg').clientHeight || 300;
+  $('#bgFigs').innerHTML = [[0.3, b.groundNear, 1], [0.7, b.groundFar, farScale]].map(([x, y, k]) => `<div class="fig" style="left:${x * 100}%;top:${y * 100}%"><div style="height:${b.heightNear * k * ih}px;width:${b.heightNear * k * ih * 0.32}px"></div></div>`).join('');
+  $('#bgSeats').innerHTML = (b.seats || []).map((p) => `<div class="seat" style="left:${p.x * 100}%;top:${p.y * 100}%"></div>`).join('');
+}
+function bpick(id) {
+  bsel = id; const b = curBg(); $$('.bgc').forEach((x) => x.classList.toggle('on', x.dataset.id === id)); $('#bgImg').src = b.url; $('#bgImg').onload = drawBg;
+  const f = $('#bgForm'); f.name.value = b.name; f.place.value = b.place || 'other'; f.time.value = b.time || 'day'; f.tags.value = (b.tags || []).join(', '); f.indoor.checked = !!b.indoor; drawBg();
+}
+$('#bgList').onclick = (e) => { const d = e.target.closest('.bgc'); if (d) bpick(d.dataset.id); };
+const bgSave = (patch) => { const b = curBg(); Object.assign(b, patch); drawBg(); return api.call('bg:update', { id: b.id, patch }); };
+for (const [el, key] of [['#bgNear', 'groundNear'], ['#bgFar', 'groundFar']]) $(el).onpointerdown = (e) => {
+  e.preventDefault(); const box = $('#bgEdit').getBoundingClientRect();
+  const mv = (ev) => { const y = Math.min(0.99, Math.max(0.3, (ev.clientY - box.top) / box.height)); const b = curBg(); b[key] = +y.toFixed(3); if (b.groundFar > b.groundNear - 0.02) b.groundFar = +(b.groundNear - 0.02).toFixed(3); drawBg(); };
+  const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); const b = curBg(); bgSave({ groundNear: b.groundNear, groundFar: b.groundFar }); };
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+};
+$('#bgH').oninput = () => { curBg().heightNear = +$('#bgH').value; drawBg(); }; $('#bgH').onchange = () => bgSave({ heightNear: +$('#bgH').value });
+$('#bgSeat').onclick = () => { seatMode = true; $('#bgSeat').textContent = 'Click on the image…'; };
+$('#bgClearSeats').onclick = () => bgSave({ seats: [] });
+$('#bgEdit').onclick = (e) => {
+  if (!seatMode || e.target.closest('.gline')) return; const box = $('#bgImg').getBoundingClientRect(); const b = curBg();
+  bgSave({ seats: [...(b.seats || []), { x: +((e.clientX - box.left) / box.width).toFixed(3), y: +((e.clientY - box.top) / box.height).toFixed(3) }] }); seatMode = false; $('#bgSeat').textContent = 'Add seat';
+};
+$('#bgForm').onsubmit = async (e) => { e.preventDefault(); const f = e.target; await bgSave({ name: f.name.value, place: f.place.value, time: f.time.value, indoor: f.indoor.checked, tags: f.tags.value.split(',').map((x) => x.trim()).filter(Boolean) }); loadBgs(); };
+$('#bgDelete').onclick = async () => { if (confirm('Delete this background?')) { await api.call('bg:delete', bsel); bsel = null; loadBgs(); } };
+$('#bgImport').onclick = async () => { const r = await api.call('bg:import'); if (r.length) { bsel = r[0].id; loadBgs(); } };
+$('#bgFolder').onclick = () => api.call('bg:openFolder');
+const bz = $('#tab-bgs'); bz.ondragover = (e) => { e.preventDefault(); bz.classList.add('drop'); }; bz.ondragleave = () => bz.classList.remove('drop');
+bz.ondrop = async (e) => { e.preventDefault(); bz.classList.remove('drop'); const paths = [...e.dataTransfer.files].map((f) => api.pathOf(f)).filter((p) => /\.(jpe?g|png|webp)$/i.test(p)); if (paths.length) { const r = await api.call('bg:importPaths', paths); bsel = r[0]?.id; loadBgs(); } };
 
 // ---------- settings ----------
 async function loadSettings() { S = await api.call('settings:get'); $('#conc').value = S.concurrency; $('#dataDir').textContent = S.dataDir;

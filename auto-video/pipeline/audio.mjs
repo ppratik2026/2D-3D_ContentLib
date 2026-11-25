@@ -87,6 +87,24 @@ function ambience(loc, tod, dur) {
   else if (loc === 'alley') { lowpass(w, 0.008); for (let i = 0; i < n; i++) o[i] = w[i] * 2.5; for (let t = 3; t < dur; t += 6 + rnd() * 8) add(o, tone(900, 0.25, { decay: 15 }), t, 0.03); }
   return o;
 }
+// weather and creature sounds
+function rainLoop(dur, heavy) { const n = Math.ceil(dur * SR), o = new Float32Array(n); let a = 0, b = 0; for (let i = 0; i < n; i++) { const w = noise(); a += 0.25 * (w - a); b += 0.02 * (w - b); o[i] = (w - a) * 0.5 + (a - b) * 0.8; if (rnd() < (heavy ? 0.004 : 0.002)) o[i] += noise() * 1.5; } for (let i = 0; i < n; i++) o[i] *= Math.min(1, i / SR / 0.8, (n - i) / SR / 0.8); return o; }
+function thunder() { const n = Math.floor(4 * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) { const t = i / SR; o[i] = noise() * (t < 0.08 ? 1.2 : Math.exp(-(t - 0.08) * 1.3) * (0.7 + 0.3 * Math.sin(t * 9))); } return lowpass(lowpass(o, 0.04), 0.08); }
+function windLoop(dur) { const n = Math.ceil(dur * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) o[i] = noise(); lowpass(o, 0.015); for (let i = 0; i < n; i++) { const t = i / SR; o[i] *= 3 * (0.5 + 0.5 * Math.sin(t * 0.7) * Math.sin(t * 0.23 + 1)); } return o; }
+function bark() { const o = new Float32Array(Math.floor(0.5 * SR)); for (const s of [0, 0.22]) add(o, tone(420 + rnd() * 80, 0.16, { type: 'saw', attack: 0.005, decay: 14, detune: 0.03 }), s, 0.6); return lowpass(o, 0.25); }
+function owl() { const o = new Float32Array(Math.floor(1.6 * SR)); for (const [s, d] of [[0, 0.35], [0.5, 0.25], [0.8, 0.6]]) add(o, tone(380, d, { attack: 0.05, decay: 2 }), s, 0.5); return o; }
+function heartbeat() { const o = new Float32Array(Math.floor(1.6 * SR)); for (const s of [0, 0.28, 0.8, 1.08]) add(o, tone(55, 0.25, { attack: 0.005, decay: 18, harm: 0.8 }), s, 0.9); return o; }
+function crickets(dur) { const o = new Float32Array(Math.ceil(dur * SR)); for (let t = 0; t < dur; t += 0.7 + rnd() * 0.5) for (let k = 0; k < 4; k++) add(o, tone(4300 + rnd() * 300, 0.04, { decay: 50 }), t + k * 0.06, 0.03); return o; }
+function birds(dur) { const o = new Float32Array(Math.ceil(dur * SR)); for (let t = 1; t < dur; t += 2 + rnd() * 4) for (let k = 0; k < 3; k++) add(o, tone(2600 + rnd() * 1800, 0.12, { decay: 25 }), t + k * 0.13, 0.03); return o; }
+const PLACE_AMB = { village_street: 'village', village_house_out: 'village', field: 'village', temple: 'village', river: 'village', forest: 'forest', haunted: 'haunted', graveyard: 'haunted', road_night: 'haunted',
+  market: 'street', city_street: 'street', railway: 'street', house_inside: 'home', rich_house: 'home', police: 'office', office: 'office', school: 'office', hospital: 'office', cafe: 'cafe', palace: 'office' };
+function stageAmbience(kind, night, dur) {
+  const n = Math.ceil(dur * SR), o = new Float32Array(n); const w = new Float32Array(n); for (let i = 0; i < n; i++) w[i] = noise();
+  if (kind === 'village' || kind === 'forest' || kind === 'haunted') { lowpass(w, 0.02); for (let i = 0; i < n; i++) o[i] = w[i] * (kind === 'haunted' ? 2.2 : 1.2);
+    if (night) { add(o, crickets(dur), 0, 1); for (let t = 4 + rnd() * 6; t < dur; t += 9 + rnd() * 12) add(o, kind === 'village' ? bark() : owl(), t, kind === 'village' ? 0.35 : 0.4); } else add(o, birds(dur), 0, 1); return o; }
+  return ambience(kind === 'cafe' ? 'cafe' : kind === 'office' ? 'office' : kind === 'home' ? 'home' : 'street', night ? 'night' : 'day', dur);
+}
+
 function step(g = 1) { const n = Math.floor(0.09 * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) { const t = i / SR; o[i] = (noise() * Math.exp(-t * 60) * 0.6 + Math.sin(2 * Math.PI * 95 * t) * Math.exp(-t * 40)) * g; } return lowpass(o, 0.3); }
 function door() { const n = Math.floor(0.7 * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) { const t = i / SR; o[i] = Math.sin(2 * Math.PI * (300 + 200 * Math.sin(t * 9)) * t) * Math.exp(-t * 5) * 0.15 + (t > 0.5 ? noise() * Math.exp(-(t - 0.5) * 30) : 0); } return lowpass(o, 0.2); }
 function whoosh() { const n = Math.floor(0.8 * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) o[i] = noise() * Math.sin(Math.PI * i / n) ** 2; return lowpass(o, 0.06); }
@@ -107,7 +125,14 @@ export function mixAll(tl, mood, outFile) {
   const music = makeMusic(mood, dur);
   for (let i = 0; i < n; i++) { const t = i / SR; const fade = Math.min(1, t / 1.5, (dur - t) / 2.5); mix[i] += music[i] * duck[i] * fade * 0.8; }
   // ambience per scene
-  for (const sc of tl.scenes) { const a = ambience(sc.location, sc.time_of_day, sc.end - sc.start + 0.6); for (let i = 0; i < a.length; i++) { const t = i / SR; a[i] *= 0.18 * Math.min(1, t / 0.6, (a.length / SR - t) / 0.6); } add(mix, a, sc.start - 0.3); }
+  for (const sc of tl.scenes) {
+    const d = sc.end - sc.start + 0.6; const fade = (x) => { for (let i = 0; i < x.length; i++) { const tt = i / SR; x[i] *= Math.min(1, tt / 0.6, (x.length / SR - tt) / 0.6); } return x; };
+    if (sc.weather === 'rain' || sc.weather === 'storm') add(mix, fade(rainLoop(d, sc.weather === 'storm')), sc.start - 0.3, sc.weather === 'storm' ? 0.22 : 0.16);
+    if (sc.weather === 'wind' || sc.weather === 'storm' || sc.weather === 'fog') add(mix, fade(windLoop(d)), sc.start - 0.3, sc.weather === 'fog' ? 0.08 : 0.12);
+    for (const e of sc.events || []) if (e.kind === 'gesture' && e.name === 'shock' && /horror|thriller|crime|mystery/.test(mood)) add(mix, heartbeat(), e.t0, 0.5);
+  }
+  for (const c of tl.cues) if (c.kind === 'thunder') add(mix, thunder(), c.t, 0.55);
+  for (const sc of tl.scenes) { const place = tl.backgrounds?.[sc.background]?.place; const a = place ? stageAmbience(PLACE_AMB[place] || 'street', sc.time_of_day === 'night', sc.end - sc.start + 0.6) : ambience(sc.location, sc.time_of_day, sc.end - sc.start + 0.6); for (let i = 0; i < a.length; i++) { const t = i / SR; a[i] *= 0.18 * Math.min(1, t / 0.6, (a.length / SR - t) / 0.6); } add(mix, a, sc.start - 0.3); }
   // effects
   add(mix, sting(), 0.2, 0.9);
   for (const c of tl.cues) {

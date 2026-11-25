@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Auto Video Studio</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' av:; script-src 'self' av:; style-src 'self' av: 'unsafe-inline'; img-src 'self' av: data: blob:; media-src av: blob:; connect-src av:; worker-src blob:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' av:; script-src 'self' av:; style-src 'self' av: 'unsafe-inline'; img-src 'self' av: data: blob:; media-src av: blob:; connect-src av: blob: data:; worker-src blob:">
 <link rel="stylesheet" href="ui.css">
 </head><body>
 <header>
@@ -11,6 +11,7 @@
     <button data-tab="queue">Queue <span id="qbadge" class="badge" hidden></span></button>
     <button data-tab="library">Library</button>
     <button data-tab="chars">Characters</button>
+    <button data-tab="bgs">Backgrounds</button>
     <button data-tab="settings">Settings</button>
   </nav>
   <div class="hdr-right"><span id="ver" class="muted small"></span><button id="updBtn" class="primary small-btn" hidden>Update available</button></div>
@@ -24,8 +25,9 @@
         <h3>2. Idea / title <small>(optional · one line = one video)</small></h3>
         <textarea id="idea" rows="3" placeholder="Leave empty and Gemini will invent an idea&#10;e.g. A theft in the village"></textarea>
         <div class="row">
-          <div><h3>3. Minutes</h3><div class="range"><input type="range" id="min" min="0.5" max="15" step="0.5" value="2"><b id="minv">2 min</b></div></div>
+          <div><h3>3. Minutes</h3><div class="range"><input type="range" id="min" min="0.5" max="20" step="0.5" value="2"><b id="minv">2 min</b></div></div>
           <div><h3>Number of videos</h3><input type="number" id="count" min="1" max="20" value="1"></div>
+          <div><h3>Characters</h3><select id="chars"><option value="auto">Auto (by length)</option><option value="2 to 3">2–3</option><option value="3 to 5">3–5</option><option value="5 to 8">5–8</option><option value="8 to 12">8–12</option></select></div>
         </div>
         <div class="row">
           <div><h3>4. Style</h3><select id="style"></select></div>
@@ -85,8 +87,33 @@
           <div class="row"><label>Gender<select name="gender"><option value="male">Male</option><option value="female">Female</option></select></label>
             <label>Age<select name="age"><option value="child">Child</option><option value="young">Young</option><option value="adult">Adult</option><option value="old">Old</option></select></label></div>
           <label>Tags / role <small>(comma separated: police, doctor, teacher, grandma, kurta…)</small><input name="tags"></label>
-          <div class="row styles"><label class="check"><input type="checkbox" name="st_toon"> Toon</label><label class="check"><input type="checkbox" name="st_anime"> Anime</label><label class="check"><input type="checkbox" name="st_realistic"> Realistic</label></div>
+          <label>Voice <small>(this character always speaks with it)</small><div class="row"><select name="voice"><option value="">Auto (by gender / age)</option></select><button type="button" id="chPlay" class="ghost">▶ Play</button></div></label>
+          <div class="row styles"><label class="check"><input type="checkbox" name="st_toon"> Toon / 2D</label><label class="check"><input type="checkbox" name="st_anime"> Anime</label><label class="check"><input type="checkbox" name="st_realistic"> Realistic</label></div>
           <div class="btns"><button type="submit" class="primary">Save</button><button type="button" id="chDelete" class="danger">Delete</button></div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- BACKGROUNDS -->
+  <section id="tab-bgs" class="tab">
+    <div class="grid2 chars">
+      <div>
+        <div class="card qhead"><div><b>Backgrounds for the 2D Cartoon Stage</b><div class="muted small">Empty painted scenes (no people), 16:9 · .jpg / .png / .webp. Drop files here.</div></div>
+          <div class="btns"><button id="bgImport" class="primary">+ Import</button><button id="bgFolder" class="ghost">Folder</button></div></div>
+        <div id="bgList" class="bggrid"></div>
+      </div>
+      <div class="card" id="bgPanel">
+        <div class="muted small">Drag the lines: <b style="color:#4cd486">green</b> = where feet stand in the front row, <b style="color:#6ab0ff">blue</b> = back row. The figures show the character size. Click <b>Add seat</b>, then click where a seated character's feet go (charpai, chair, bench).</div>
+        <div id="bgEdit"><img id="bgImg" alt=""><div id="bgNear" class="gline near"></div><div id="bgFar" class="gline far"></div><div id="bgFigs"></div><div id="bgSeats"></div></div>
+        <label>Character height (front row)<input type="range" id="bgH" min="0.25" max="0.95" step="0.01"></label>
+        <div class="btns"><button id="bgSeat" class="ghost" type="button">Add seat</button><button id="bgClearSeats" class="ghost" type="button">Clear seats</button></div>
+        <form id="bgForm">
+          <label>Name<input name="name"></label>
+          <div class="row"><label>Place<select name="place"></select></label><label>Time<select name="time"><option value="morning">Morning</option><option value="day">Day</option><option value="evening">Evening</option><option value="night">Night</option></select></label></div>
+          <label>Tags <small>(comma separated: haveli, banyan tree, charpai, well…)</small><input name="tags"></label>
+          <label class="check"><input type="checkbox" name="indoor"> Indoor</label>
+          <div class="btns"><button type="submit" class="primary">Save</button><button type="button" id="bgDelete" class="danger">Delete</button></div>
         </form>
       </div>
     </div>
@@ -126,7 +153,7 @@
 
 <div id="setup" class="modal" hidden><div class="card">
   <h2>First-time setup</h2>
-  <p class="muted">Downloading 3D models, Piper (voice engine) and 3 Hindi voices (~300 MB, only once).</p>
+  <p class="muted">Downloading 3D models, Piper + Kokoro (voice engines) and the Hindi voices (~400 MB, only once).</p>
   <div class="bar"><div id="setupBar"></div></div><div id="setupMsg" class="small"></div>
   <div class="btns"><button id="setupRetry" class="primary" hidden>Try again</button></div>
 </div></div>

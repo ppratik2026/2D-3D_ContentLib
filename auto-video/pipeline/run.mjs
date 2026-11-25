@@ -11,7 +11,8 @@ import { castVoices, speakAll } from './tts.mjs';
 import { buildTimeline, finalize } from './timeline.mjs';
 import { mixAll } from './audio.mjs';
 import { estimate, fmt } from './estimate.mjs';
-import { actorsFor, assignActors } from './library.mjs';
+import { actorsFor, assignActors, listCharacters } from './library.mjs';
+import { listBackgrounds, pickBackground } from './backgrounds.mjs';
 
 export function loadEnv() {
   const f = path.join(ROOT, '.env'); if (!fs.existsSync(f)) return;
@@ -42,21 +43,30 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   else {
     let chain = opts.chain;
     if (!chain) { const key = opts.key || process.env.GEMINI_API_KEY; chain = key ? [{ provider: 'gemini', key, model: opts.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite' }] : []; }
-    story = await writeStory({ category, minutes, idea: opts.idea || '', chain,
+    story = await writeStory({ category, minutes, idea: opts.idea || '', chain, chars: opts.chars || 'auto', backgrounds: style === 'cartoon2d' ? listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags })) : [],
       actors: actorsFor(style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
   }
   check();
   story.category = category;
-  const cast = assignActors(story.characters, style);
+  const actorStyle = style === 'cartoon2d' ? 'toon' : style;
+  const cast = assignActors(story.characters, actorStyle);
+  let stageBgs = null;
+  if (style === 'cartoon2d') { const all = listBackgrounds(); if (!all.length) throw new Error('2D Cartoon Stage needs backgrounds. Add some in the Backgrounds tab.');
+    const used = new Map(); stageBgs = {};
+    for (const sc of story.scenes) { const b = all.find((x) => x.id === sc.background) || pickBackground(all, { place: sc.location, time: sc.time_of_day, text: sc.summary, used });
+      sc.background = b.id; used.set(b.id, (used.get(b.id) || 0) + 1); stageBgs[b.id] = b; if (!sc.time_of_day || sc.time_of_day === 'day') sc.time_of_day = b.time || sc.time_of_day; } }
   fs.writeFileSync(path.join(work, 'story.json'), JSON.stringify(story, null, 2));
   step('story', `Story ready: "${story.title}" (${story.scenes.length} scenes, ${story.characters.length} characters)`, { title: story.title });
 
   // 2. voices
   const tl = buildTimeline(story, { style, look, subs });
-  tl.categoryLabel = CATEGORIES[category].label; tl.cast = cast;
+  tl.categoryLabel = CATEGORIES[category].label; tl.cast = cast; if (stageBgs) { tl.mode = 'stage'; tl.backgrounds = stageBgs; }
   const soft = opts.gl === 'swiftshader' || (renderer === 'remotion' && (process.env.REMOTION_GL || (process.platform === 'linux' && !process.env.DISPLAY ? 'swiftshader' : 'angle')) === 'swiftshader');
   tl.perf = { aa: !soft, simpleMat: style === 'toon', noLamps: style !== 'realistic' };
-  const voices = castVoices(story.characters);
+  // fixed voices: a library character can have its own voice (first story character played by it gets it)
+  const libById = Object.fromEntries(listCharacters().map((c) => [c.id, c])); const pinned = {}; const pinUsed = new Set();
+  for (const ch of story.characters) { const v = libById[cast[ch.id]?.actor]?.voice; if (v && !pinUsed.has(v)) { pinned[ch.id] = v; pinUsed.add(v); } }
+  const voices = castVoices(story.characters, pinned);
   stage('voice', 0, tl.lines.length, `Voices 0/${tl.lines.length} lines`);
   await speakAll(tl.lines, voices, path.join(work, 'voice'), (m) => step('voice', m), (d, n) => stage('voice', d, n, `Voices ${d}/${n} lines`));
   finalize(tl); check();

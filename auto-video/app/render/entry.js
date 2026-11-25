@@ -11,6 +11,7 @@ async function run(job) {
   const gl = document.getElementById('gl'), out = document.getElementById('out'); const ctx = out.getContext('2d');
   const eng = await createEngine({ canvas: gl, width: W, height: H, tl, url });
   const compose = makeComposer(W, H);
+  if (job.only) { const shots = []; for (const f of job.only) { eng.renderAt(f / FPS); compose(ctx, gl, tl, f / FPS, f); shots.push(out.toDataURL('image/jpeg', 0.85)); } return window.av.done({ shots }); }
   const codec = ['avc1.640028', 'avc1.4d0028', 'avc1.42002a'];
   let cfg = null; for (const c of codec) { const test = { codec: c, width: W, height: H, bitrate: 6_000_000, framerate: FPS, latencyMode: 'quality', avc: { format: 'avc' } }; if ((await VideoEncoder.isConfigSupported(test)).supported) { cfg = test; break; } }
   if (!cfg) throw new Error('This PC cannot encode H.264 with WebCodecs. Use the Remotion renderer in Settings.');

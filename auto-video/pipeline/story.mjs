@@ -12,11 +12,11 @@ Dialogue is spoken by Hindi text-to-speech, so every line has three versions:
 Keep each line short (max ~14 words). Characters are Indian unless the user says otherwise.
 Return ONLY valid JSON, no markdown.`;
 
-export async function writeStory({ category, minutes, idea = '', chain = [], actors = [], onLog = () => {}, onProgress = () => {} }) {
+export async function writeStory({ category, minutes, idea = '', chain = [], actors = [], backgrounds = [], chars = 'auto', onLog = () => {}, onProgress = () => {} }) {
   // 1) whole story in ONE request (saves free quota: 1 request per video)
   onProgress(0, 1, 'Writing the whole story (1 request)');
   try {
-    const { value, used } = await askJSON(chain, { user: buildPastePrompt({ category, minutes, idea, actors }), onLog, validate: (j) => storyFromObject(j, minutes) });
+    const { value, used } = await askJSON(chain, { user: buildPastePrompt({ category, minutes, idea, actors, backgrounds, chars }), onLog, validate: (j) => storyFromObject(j, minutes) });
     onLog(`Story written by ${used.provider} · ${used.model}`); onProgress(1, 1, 'Story ready');
     return { ...value, category, minutes };
   } catch (e) { if (!e.cut) throw e; onLog('Story too long for one reply — writing it scene by scene…'); }
@@ -75,7 +75,7 @@ function normalizeOutline(o, totalSec) {
   if (!Array.isArray(o.characters) || !o.characters.length) throw new Error('Gemini returned no characters');
   o.title = String(o.title || 'Untitled');
   const ids = new Set();
-  o.characters = o.characters.slice(0, 5).map((c, i) => {
+  o.characters = o.characters.slice(0, 12).map((c, i) => {
     let id = String(c.id || c.name || 'c' + i).toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16) || 'c' + i; while (ids.has(id)) id += i; ids.add(id);
     const col = (v, d) => (HEX.test(String(v || '')) ? '#' + String(v).replace('#', '') : d);
     return { id, name: String(c.name || id), gender: c.gender === 'female' ? 'female' : 'male', age: ['child', 'young', 'adult', 'old'].includes(c.age) ? c.age : 'adult',
@@ -84,7 +84,8 @@ function normalizeOutline(o, totalSec) {
   const idList = o.characters.map((c) => c.id);
   o.scenes = (o.scenes || []).filter(Boolean).map((s) => ({
     location: LOCATIONS[s.location] ? s.location : 'street', time_of_day: TIMES_OF_DAY.includes(s.time_of_day) ? s.time_of_day : 'day',
-    present: (Array.isArray(s.present) ? s.present : []).map((x) => matchId(x, o.characters)).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4),
+    background: s.background ? String(s.background) : '', weather: ['rain', 'storm', 'fog', 'wind'].includes(s.weather) ? s.weather : 'none',
+    present: (Array.isArray(s.present) ? s.present : []).map((x) => matchId(x, o.characters)).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).slice(0, 6),
     summary: String(s.summary || ''), seconds: Math.max(12, Number(s.seconds) || 30) }));
   if (!o.scenes.length) throw new Error('Gemini returned no scenes');
   for (const s of o.scenes) if (!s.present.length) s.present = idList.slice(0, 2);
@@ -101,32 +102,37 @@ export function normalizeBeats(beats, chars, sc) {
       out.push({ type: 'line', char, emotion: String(b.emotion || 'neutral'), hindi, hinglish, english: String(b.english || hinglish) });
     } else if (ACTIONS.includes(b.action)) out.push({ type: 'action', char, action: b.action, target: matchId(b.target, chars) || null });
   }
-  if (!sc.present.length) sc.present = [...new Set(out.map((b) => b.char))].slice(0, 4);
+  if (!sc.present.length) sc.present = [...new Set(out.map((b) => b.char))].slice(0, 6);
   // anyone who speaks must be in the scene
-  for (const b of out) if (!sc.present.includes(b.char) && sc.present.length < 4 && !out.some((x) => x.type === 'action' && x.action === 'enter' && x.char === b.char)) sc.present.push(b.char);
+  for (const b of out) if (!sc.present.includes(b.char) && sc.present.length < 6 && !out.some((x) => x.type === 'action' && x.action === 'enter' && x.char === b.char)) sc.present.push(b.char);
   return out;
 }
 
 // ---------- "Paste from Gemini app" mode: one prompt → whole story JSON (works with the Gemini app subscription, no API) ----------
-export function buildPastePrompt({ category, minutes, idea = '', actors = [] }) {
+export function buildPastePrompt({ category, minutes, idea = '', actors = [], backgrounds = [], chars = 'auto' }) {
   const cat = CATEGORIES[category] || CATEGORIES.drama; const totalSec = Math.round(minutes * 60);
-  const nScenes = Math.max(2, Math.min(18, Math.round(minutes * 1.6))); const lines = Math.max(6, Math.round(totalSec / 4.2));
-  const locs = Object.entries(LOCATIONS).map(([k, v]) => `- ${k}: ${v}`).join('\n');
+  const nScenes = Math.max(2, Math.min(30, Math.round(minutes * 1.6))); const lines = Math.max(6, Math.round(totalSec / 4.2));
+  const stage = backgrounds.length > 0;
+  const places = stage ? backgrounds.map((b) => `- ${b.id}: ${b.name}${b.place ? ' (' + b.place.replace(/_/g, ' ') + ')' : ''}, ${b.time}${b.tags?.length ? ', ' + b.tags.join('/') : ''}`).join('\n')
+    : Object.entries(LOCATIONS).map(([k, v]) => `- ${k}: ${v}`).join('\n');
   const actorList = actors.map((a) => `- ${a.id}: ${a.gender}, ${a.age}${a.tags?.length ? ', ' + a.tags.join('/') : ''}`).join('\n');
+  const nChars = chars === 'auto' ? (minutes >= 10 ? '6 to 12' : minutes >= 4 ? '4 to 8' : '2 to 5') : chars;
+  const genreFx = /horror|thriller|crime|mystery/.test(category) ? 'Use "weather" for mood: rain, storm (thunder and lightning), fog or wind where it fits; most scenes at night.' : 'Use "weather" only when the story needs it (rain, storm, fog, wind), otherwise "none".';
   return `${SYSTEM}
 
-Write ${cat.hint}. Category: ${cat.label}. Total length about ${totalSec} seconds (${minutes} min): about ${nScenes} scenes and about ${lines} dialogue lines in total.
+Write ${cat.hint}. Category: ${cat.label}. Total length about ${totalSec} seconds (${minutes} min): about ${nScenes} scenes and about ${lines} dialogue lines in total. Keep a strong story: hook in the first scene, rising conflict, twist, clear ending.
 ${idea ? `Idea / title: ${idea}` : 'Invent an original title and idea.'}
-Use 2 to 5 characters.${actorList ? ` Each character is played by one of these 3D actors (write its id in "model"):\n${actorList}` : ''}
-Every scene uses one of these locations (write the key):
-${locs}
+Use ${nChars} characters with clearly different ages and roles (for example dada, dadi, father, mother, son, daughter, child, villager, inspector, constable, doctor, villain).${actorList ? ` Each character is played by one of these actors (write its id in "model"; different characters may share an actor):\n${actorList}` : ''}
+${stage ? 'Every scene happens in front of one of these painted backgrounds (write its id in "background"):' : 'Every scene uses one of these locations (write the key in "location"):'}
+${places}
+At most 6 characters in one scene. ${genreFx}
 Between dialogue lines add simple actions, only these words: ${ACTIONS.join(', ')}.
 ("enter"/"exit"/"run_exit" = comes in / leaves; "sit"/"stand"; "walk_to" needs "target" = another character id.)
 
 Reply with ONLY this JSON (no other text):
 {"title":"Hinglish title","title_hindi":"हिंदी शीर्षक","logline":"one line","moral":"last message or empty",
  "characters":[{"id":"short_id","name":"Indian name","gender":"male|female","age":"child|young|adult|old","role":"role","top_color":"#hex","bottom_color":"#hex","hair_color":"#hex","personality":"few words","model":"actor id"}],
- "scenes":[{"location":"key","time_of_day":"${TIMES_OF_DAY.join('|')}","present":["character ids at the start"],"summary":"what happens","seconds":30,
+ "scenes":[{${stage ? '"background":"background id"' : '"location":"key"'},"time_of_day":"${TIMES_OF_DAY.join('|')}","weather":"none|rain|storm|fog|wind","present":["character ids at the start"],"summary":"what happens","seconds":30,
    "beats":[{"type":"action","char":"id","action":"enter"},
             {"type":"line","char":"id","emotion":"neutral|happy|sad|angry|surprised|scared","hindi":"देवनागरी","hinglish":"Roman Hinglish","english":"English"}]}]}`;
 }

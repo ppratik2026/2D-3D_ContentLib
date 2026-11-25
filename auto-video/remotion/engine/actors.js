@@ -123,8 +123,8 @@ export async function createActor(kit, scene, ch, cast, opts = {}) {
     a.actions = Object.fromEntries(['Walk', 'Run', 'Idle'].map((n) => [n.toLowerCase(), a.mix.clipAction(retargetVRM(kit, kit.clip(n), vrm))]));
   } else {
     const g = await kit.loadModel(cast.file, cast.type);
-    a.o = SkeletonUtils.clone(g.scene); scene.add(a.o);
-    const map = mapRig(a.o); a.problems = rigProblems(map); if (a.problems.length) throw new Error(`Not a standard humanoid rig: ${a.problems.join(', ')}. Use a Mixamo / VRoid / MakeHuman style rig.`);
+    a.o = SkeletonUtils.clone(g.scene);
+    const map = mapRig(a.o); a.problems = rigProblems(map); if (!a.problems.length) scene.add(a.o); if (a.problems.length) throw new Error(`Not a standard humanoid rig: ${a.problems.join(', ')}. Use a Mixamo / VRoid / MakeHuman style rig.`);
     a.bones = map;
     a.o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
       m.material = Array.isArray(m.material) ? m.material.map((x) => x.clone()) : m.material.clone(); tintGLB(m, ch); if (opts.toon) toonify(m, opts.toon);
@@ -162,7 +162,9 @@ function faceDir(a) {
 const col = (h) => new THREE.Color(h);
 function simplify(m, grad) { // MToon → MeshToonMaterial (much cheaper on software WebGL)
   const conv = (mat) => { if (!mat || !mat.isShaderMaterial) return mat; const map = mat.map || mat.uniforms?.map?.value || null; const c = (mat.color || mat.uniforms?.litFactor?.value || new THREE.Color(1, 1, 1)).clone();
-    const n = new THREE.MeshToonMaterial({ map, color: c, gradientMap: grad, transparent: mat.transparent, alphaTest: mat.alphaTest || (mat.transparent ? 0 : 0.5), side: mat.side }); n.name = mat.name; return n; };
+    const n = new THREE.MeshToonMaterial({ map, color: c, gradientMap: grad, alphaTest: Math.max(0.5, mat.alphaTest || mat.uniforms?.alphaTest?.value || 0), transparent: false, side: mat.side }); n.name = mat.name;
+    // the outline pass ignores cut-out alpha (it would paint hidden cloth parts), so only outline fully opaque parts
+    n.userData.outlineParameters = { visible: !(mat.transparent || (mat.alphaTest || 0) > 0 || /CLOTH|HAIR|Tops|Bottoms|Shoes/i.test(mat.name || '')) }; return n; };
   m.material = Array.isArray(m.material) ? m.material.map(conv) : conv(m.material); }
 function toonify(m, grad) {
   const conv = (mat) => { if (!mat || mat.isMeshToonMaterial || mat.isShaderMaterial) return mat; const n = new THREE.MeshToonMaterial({ map: mat.map || null, color: mat.color ? mat.color.clone() : new THREE.Color(1, 1, 1), gradientMap: grad, transparent: mat.transparent, opacity: mat.opacity, alphaTest: mat.alphaTest, side: mat.side }); n.name = mat.name; return n; };

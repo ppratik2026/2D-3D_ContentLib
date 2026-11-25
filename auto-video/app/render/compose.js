@@ -58,9 +58,26 @@ export function makeComposer(W, H) {
     ctx.fillStyle = '#ffd166'; ctx.font = `30px ${FONT}`; ctx.fillText('T H E   E N D', W / 2, y + 30); ctx.restore();
   }
 
+  // ---------- weather & horror effects ----------
+  const hash = (a, b) => { let h = (a * 374761393 + b * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
+  const sceneAt = (tl, t) => { let s = tl.scenes[0]; for (const sc of tl.scenes) if (t >= sc.start - 0.001) s = sc; return s; };
+  function flashAt(tl, t) { let f = 0; for (const c of tl.cues || []) if (c.kind === 'thunder') { const d = t - c.t; if (d >= 0 && d < 0.12) f = Math.max(f, 0.9); else if (d >= 0.2 && d < 0.3) f = Math.max(f, 0.5); } return f; }
+  function shakeAt(tl, sc, t, frame) { let k = 0; for (const e of sc.events || []) if (e.kind === 'gesture' && e.name === 'shock' && t >= e.t0 && t < e.t0 + 0.6) k = 1; for (const c of tl.cues || []) if (c.kind === 'thunder' && t >= c.t && t < c.t + 0.5) k = Math.max(k, 0.7);
+    return k ? [(hash(frame, 1) - 0.5) * 12 * k, (hash(frame, 2) - 0.5) * 8 * k] : [0, 0]; }
+  function rain(ctx, frame, n, a) { ctx.save(); ctx.strokeStyle = `rgba(200,212,255,${a})`; ctx.lineWidth = 1.4; ctx.beginPath();
+    for (let i = 0; i < n; i++) { const x = hash(i, 7) * (W + 200) - 100, sp = 0.6 + hash(i, 9) * 0.8, y = ((hash(i, 3) * H + frame * 38 * sp) % (H + 60)) - 30; ctx.moveTo(x + (y / H) * 40, y); ctx.lineTo(x + (y / H) * 40 + 7, y + 22 * sp); } ctx.stroke(); ctx.restore(); }
+  function fog(ctx, t) { ctx.save(); for (let i = 0; i < 4; i++) { const x = ((t * (12 + i * 6) + i * 400) % (W + 800)) - 400, y = H * (0.55 + 0.12 * Math.sin(i * 2 + t * 0.2)); const g = ctx.createRadialGradient(x, y, 20, x, y, 460);
+      g.addColorStop(0, 'rgba(210,218,228,0.32)'); g.addColorStop(1, 'rgba(210,218,228,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); } ctx.restore(); }
+  function wind(ctx, frame) { ctx.save(); for (let i = 0; i < 40; i++) { const sp = 0.5 + hash(i, 4); const x = ((hash(i, 5) * W + frame * 14 * sp) % (W + 40)) - 20, y = hash(i, 6) * H * 0.9 + Math.sin(frame * 0.1 + i) * 12;
+      ctx.fillStyle = i % 3 ? 'rgba(120,90,50,0.7)' : 'rgba(80,110,40,0.7)'; ctx.beginPath(); ctx.ellipse(x, y, 4, 2, frame * 0.2 + i, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
+
   return function compose(ctx, src, tl, t, frame) {
-    const look = tl.look || 'none';
-    ctx.save(); let f = LOOK_FILTER[look] || 'none'; if (look === 'oldfilm') f += ` brightness(${1 + 0.06 * Math.sin(frame * 1.3)})`; ctx.filter = f; ctx.drawImage(src, 0, 0, W, H); ctx.restore();
+    const look = tl.look || 'none'; const sc = sceneAt(tl, t) || {}; const [dx, dy] = shakeAt(tl, sc, t, frame); const zoomPad = dx || dy ? 1.02 : 1;
+    ctx.save(); let f = LOOK_FILTER[look] || 'none'; if (look === 'oldfilm') f += ` brightness(${1 + 0.06 * Math.sin(frame * 1.3)})`; ctx.filter = f; ctx.drawImage(src, dx - (W * (zoomPad - 1)) / 2, dy - (H * (zoomPad - 1)) / 2, W * zoomPad, H * zoomPad); ctx.restore();
+    const wx = sc.weather || 'none';
+    if (wx === 'rain' || wx === 'storm') { ctx.fillStyle = 'rgba(20,30,60,0.18)'; ctx.fillRect(0, 0, W, H); rain(ctx, frame, wx === 'storm' ? 320 : 200, wx === 'storm' ? 0.45 : 0.32); }
+    if (wx === 'fog') fog(ctx, t); if (wx === 'wind') wind(ctx, frame);
+    const fl = flashAt(tl, t); if (fl) { ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = `rgba(225,232,255,${fl * 0.7})`; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     if (look === 'film') { vignette(ctx, 0.35); grain(ctx, frame, 0.18); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H * 0.08); ctx.fillRect(0, H * 0.92, W, H * 0.08); }
     if (look === 'oldfilm') { vignette(ctx, 0.6); grain(ctx, frame, 0.45); const fl = 0.08 * Math.sin(frame * 1.7) + 0.05 * Math.sin(frame * 4.1); if (fl > 0) { ctx.fillStyle = `rgba(255,240,200,${fl})`; ctx.fillRect(0, 0, W, H); }
       if (frame % 11 < 3) { ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect((frame * 397) % W, 0, 2, H); } }
