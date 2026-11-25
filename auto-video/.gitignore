@@ -1,0 +1,9 @@
+node_modules/
+.env
+public/assets/
+public/jobs/
+bin/
+voices/
+output/
+bench.json
+spike/

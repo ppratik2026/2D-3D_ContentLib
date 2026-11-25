@@ -1,0 +1,45 @@
+{
+  "title": "Coffee Date",
+  "title_hindi": "कॉफ़ी डेट",
+  "logline": "Arjun aur Meera ki pehli coffee date, aur ek chhoti si galatfehmi.",
+  "moral": "Sach bolne se rishte aur mazboot hote hain.",
+  "category": "romance",
+  "characters": [
+    { "id": "arjun", "name": "Arjun", "gender": "male", "age": "young", "role": "software engineer", "top_color": "#2f5d8a", "bottom_color": "#2b2b30", "hair_color": "#1c1612", "personality": "shy, kind" },
+    { "id": "meera", "name": "Meera", "gender": "female", "age": "young", "role": "artist", "top_color": "#c98a2b", "bottom_color": "#f2efe6", "hair_color": "#1c1612", "personality": "cheerful" },
+    { "id": "raju", "name": "Raju", "gender": "male", "age": "adult", "role": "waiter", "top_color": "#f4f2ee", "bottom_color": "#1a1a1c", "hair_color": "#2a1d14", "personality": "friendly" }
+  ],
+  "scenes": [
+    { "location": "street", "time_of_day": "evening", "present": ["arjun"], "summary": "Arjun waits outside the cafe; Meera arrives.", "seconds": 20,
+      "beats": [
+        { "type": "action", "char": "arjun", "action": "look_around" },
+        { "type": "line", "char": "arjun", "emotion": "neutral", "hindi": "सात बज गए, मीरा अभी तक नहीं आई।", "hinglish": "Saat baj gaye, Meera abhi tak nahi aayi.", "english": "It's seven, Meera hasn't come yet." },
+        { "type": "action", "char": "meera", "action": "enter" },
+        { "type": "action", "char": "meera", "action": "wave" },
+        { "type": "line", "char": "meera", "emotion": "happy", "hindi": "सॉरी अर्जुन! ट्रैफिक बहुत ज़्यादा था।", "hinglish": "Sorry Arjun! Traffic bahut zyada tha.", "english": "Sorry Arjun! The traffic was terrible." },
+        { "type": "line", "char": "arjun", "emotion": "happy", "hindi": "कोई बात नहीं। चलो, अंदर चलते हैं।", "hinglish": "Koi baat nahi. Chalo, andar chalte hain.", "english": "No problem. Come, let's go inside." },
+        { "type": "action", "char": "arjun", "action": "exit" },
+        { "type": "action", "char": "meera", "action": "exit" }
+      ] },
+    { "location": "cafe", "time_of_day": "evening", "present": ["arjun", "meera"], "summary": "They order coffee and talk.", "seconds": 40,
+      "beats": [
+        { "type": "action", "char": "raju", "action": "enter" },
+        { "type": "line", "char": "raju", "emotion": "happy", "hindi": "गुड इवनिंग! क्या लाऊँ आपके लिए?", "hinglish": "Good evening! Kya laaun aapke liye?", "english": "Good evening! What can I get you?" },
+        { "type": "line", "char": "arjun", "emotion": "neutral", "hindi": "दो कैपुचीनो, प्लीज़।", "hinglish": "Do cappuccino, please.", "english": "Two cappuccinos, please." },
+        { "type": "line", "char": "meera", "emotion": "happy", "hindi": "और एक चॉकलेट केक भी!", "hinglish": "Aur ek chocolate cake bhi!", "english": "And a chocolate cake too!" },
+        { "type": "action", "char": "raju", "action": "nod" },
+        { "type": "line", "char": "raju", "emotion": "happy", "hindi": "जी, अभी लाया।", "hinglish": "Ji, abhi laaya.", "english": "Sure, coming right up." },
+        { "type": "action", "char": "raju", "action": "exit" },
+        { "type": "line", "char": "meera", "emotion": "neutral", "hindi": "अर्जुन, तुम आज कुछ परेशान लग रहे हो।", "hinglish": "Arjun, tum aaj kuch pareshan lag rahe ho.", "english": "Arjun, you look a bit worried today." },
+        { "type": "action", "char": "arjun", "action": "think" },
+        { "type": "line", "char": "arjun", "emotion": "sad", "hindi": "सच कहूँ? मेरी नौकरी चली गई है।", "hinglish": "Sach kahoon? Meri naukri chali gayi hai.", "english": "To be honest? I lost my job." },
+        { "type": "action", "char": "meera", "action": "shock" },
+        { "type": "line", "char": "meera", "emotion": "surprised", "hindi": "तो तुमने मुझे पहले क्यों नहीं बताया?", "hinglish": "Toh tumne mujhe pehle kyun nahi bataya?", "english": "Then why didn't you tell me earlier?" },
+        { "type": "line", "char": "arjun", "emotion": "sad", "hindi": "डर था कि तुम मिलना बंद कर दोगी।", "hinglish": "Darr tha ki tum milna band kar dogi.", "english": "I was afraid you'd stop meeting me." },
+        { "type": "action", "char": "meera", "action": "laugh" },
+        { "type": "line", "char": "meera", "emotion": "happy", "hindi": "पागल! मैं नौकरी से नहीं, तुमसे मिलती हूँ।", "hinglish": "Pagal! Main naukri se nahi, tumse milti hoon.", "english": "Silly! I meet you, not your job." },
+        { "type": "action", "char": "arjun", "action": "drink" },
+        { "type": "line", "char": "arjun", "emotion": "happy", "hindi": "थैंक यू मीरा। ये शहर की बेस्ट कॉफ़ी है।", "hinglish": "Thank you Meera. Ye shehar ki best coffee hai.", "english": "Thank you Meera. This is the best coffee in town." }
+      ] }
+  ]
+}

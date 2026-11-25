@@ -1,0 +1,26 @@
+{
+  "name": "auto-video",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Category -> Gemini story -> Hindi TTS -> Three.js + Remotion render -> final MP4. Free, CPU only.",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "start": "node server/server.mjs",
+    "make": "node pipeline/run.mjs",
+    "bench": "node pipeline/run.mjs --demo --style toon --id bench_toon"
+  },
+  "dependencies": {
+    "@pixiv/three-vrm": "^3.6.0",
+    "@remotion/bundler": "^4.0.547",
+    "@remotion/cli": "^4.0.547",
+    "@remotion/renderer": "^4.0.547",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.547",
+    "three": "^0.170.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

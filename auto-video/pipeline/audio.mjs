@@ -1,0 +1,121 @@
+// Step 4: background music (by category mood), ambience (by location), sound effects and dialogue,
+// all generated/mixed in code into one track. Free: no samples needed. Music ducks under dialogue.
+import { readWav, writeWav } from './wav.mjs';
+
+const SR = 32000;
+let seed = 12345; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const noise = () => rnd() * 2 - 1;
+const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+function add(buf, sig, at, gain = 1) { const i0 = Math.floor(at * SR); for (let i = 0; i < sig.length; i++) { const j = i0 + i; if (j >= 0 && j < buf.length) buf[j] += sig[i] * gain; } }
+function lowpass(x, a) { let s = 0; for (let i = 0; i < x.length; i++) { s += a * (x[i] - s); x[i] = s; } return x; }
+function tone(freq, dur, { type = 'sine', attack = 0.005, decay = 3, harm = 0.3, detune = 0 } = {}) {
+  const n = Math.floor(dur * SR), o = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const t = i / SR; const env = Math.min(1, t / attack) * Math.exp(-t * decay);
+    let v;
+    if (type === 'sine') v = Math.sin(2 * Math.PI * freq * t) + harm * Math.sin(4 * Math.PI * freq * t) * Math.exp(-t * 6);
+    else if (type === 'saw') { const a = (freq * t) % 1, b = (freq * (1 + detune) * t) % 1; v = (a * 2 - 1 + b * 2 - 1) * 0.5; }
+    else if (type === 'bell') v = Math.sin(2 * Math.PI * freq * t) + 0.5 * Math.sin(2 * Math.PI * freq * 2.76 * t) * Math.exp(-t * 4) + 0.25 * Math.sin(2 * Math.PI * freq * 5.4 * t) * Math.exp(-t * 8);
+    else if (type === 'pluck') v = Math.sin(2 * Math.PI * freq * t) * Math.exp(-t * 9) + 0.4 * Math.sin(2 * Math.PI * freq * 2 * t) * Math.exp(-t * 14);
+    o[i] = v * env; }
+  return o;
+}
+function pad(freqs, dur, attack = 0.8) { const n = Math.floor(dur * SR), o = new Float32Array(n);
+  for (const f of freqs) { const s = tone(f, dur, { type: 'saw', attack: 0.01, decay: 0, detune: 0.004 }); for (let i = 0; i < n; i++) o[i] += s[i] * 0.25; }
+  lowpass(o, 0.04); for (let i = 0; i < n; i++) { const t = i / SR; o[i] *= Math.min(1, t / attack) * Math.min(1, (dur - t) / 0.6); } return o; }
+function drum(kind) { const n = Math.floor((kind === 'kick' ? 0.35 : 0.12) * SR), o = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const t = i / SR; o[i] = kind === 'kick' ? Math.sin(2 * Math.PI * (50 + 90 * Math.exp(-t * 30)) * t) * Math.exp(-t * 9) : kind === 'snare' ? noise() * Math.exp(-t * 22) * 0.7 : noise() * Math.exp(-t * 60) * 0.35; }
+  if (kind === 'hat') { let p = 0; for (let i = 0; i < n; i++) { const v = o[i]; o[i] = v - p; p = v; } } return o; }
+
+const PROG = {
+  major: [[0, 4, 7], [9, 0, 4], [5, 9, 0], [7, 11, 2]], minor: [[0, 3, 7], [8, 0, 3], [3, 7, 10], [10, 2, 5]],
+  happy: [[0, 4, 7], [5, 9, 0], [7, 11, 2], [0, 4, 7]], tense: [[0, 3, 7], [0, 3, 7], [8, 0, 3], [7, 11, 2]], lift: [[0, 4, 7], [7, 11, 2], [9, 0, 4], [5, 9, 0]],
+};
+const MOODS = {
+  romance:      { bpm: 72, key: 62, prog: 'major', inst: ['epiano', 'pad'], drums: false, gain: 0.5 },
+  drama:        { bpm: 64, key: 57, prog: 'minor', inst: ['pad', 'piano'], drums: false, gain: 0.5 },
+  comedy:       { bpm: 116, key: 65, prog: 'happy', inst: ['pluck', 'bass'], drums: 'light', gain: 0.45 },
+  crime:        { bpm: 92, key: 52, prog: 'tense', inst: ['pulse', 'pad'], drums: 'tick', gain: 0.45 },
+  thriller:     { bpm: 120, key: 50, prog: 'tense', inst: ['pulse16', 'pad'], drums: 'hits', gain: 0.45 },
+  horror:       { bpm: 0, key: 45, prog: 'minor', inst: ['drone'], drums: false, gain: 0.55 },
+  kids:         { bpm: 108, key: 67, prog: 'happy', inst: ['bell', 'bass'], drums: 'light', gain: 0.45 },
+  motivational: { bpm: 96, key: 60, prog: 'lift', inst: ['arp', 'pad', 'bass'], drums: 'build', gain: 0.45 },
+};
+
+export function makeMusic(mood, dur) {
+  const M = MOODS[mood] || MOODS.drama; const out = new Float32Array(Math.ceil(dur * SR)); seed = 777;
+  if (M.bpm === 0) { // horror: drone + random bells + heartbeat
+    for (let i = 0; i < out.length; i++) { const t = i / SR; out[i] = 0.25 * Math.sin(2 * Math.PI * 55 * t) + 0.2 * Math.sin(2 * Math.PI * 55.7 * t) + 0.12 * Math.sin(2 * Math.PI * 82.4 * t + Math.sin(t * 0.3) * 2); out[i] *= 0.6 + 0.4 * Math.sin(t * 0.21); }
+    const wind = new Float32Array(out.length); for (let i = 0; i < wind.length; i++) wind[i] = noise(); lowpass(wind, 0.01); for (let i = 0; i < out.length; i++) out[i] += wind[i] * 1.5 * (0.5 + 0.5 * Math.sin(i / SR * 0.13));
+    for (let t = 4; t < dur; t += 5 + rnd() * 7) add(out, tone(mtof(M.key + 24 + [0, 1, 6, 11][Math.floor(rnd() * 4)]), 4, { type: 'bell', decay: 0.9 }), t, 0.12);
+    for (let t = 10; t < dur; t += 20 + rnd() * 15) for (let k = 0; k < 6; k++) { add(out, drum('kick'), t + k * 0.85, 0.35); add(out, drum('kick'), t + k * 0.85 + 0.22, 0.25); }
+    return scale(out, M.gain);
+  }
+  const beat = 60 / M.bpm, bar = beat * 4, prog = PROG[M.prog];
+  for (let b = 0, t = 0; t < dur; b++, t += bar) {
+    const ch = prog[b % 4].map((x) => M.key + x); const build = Math.min(1, t / Math.max(20, dur * 0.6));
+    for (const inst of M.inst) {
+      if (inst === 'pad') add(out, pad(ch.map((m) => mtof(m - 12)), bar + 0.3), t, 0.35);
+      if (inst === 'epiano') for (const h of [0, 2.5]) for (const m of ch) add(out, tone(mtof(m), beat * 3, { decay: 1.4 }), t + h * beat, 0.09);
+      if (inst === 'piano') for (let k = 0; k < 4; k++) add(out, tone(mtof(ch[k % 3] + (k === 3 ? 12 : 0)), beat * 2, { decay: 2.2 }), t + k * beat, 0.08);
+      if (inst === 'pluck') for (let k = 0; k < 8; k++) if (k % 3 !== 2) add(out, tone(mtof(ch[k % 3] + 12), 0.4, { type: 'pluck' }), t + k * beat / 2, 0.09);
+      if (inst === 'bell') for (let k = 0; k < 8; k++) add(out, tone(mtof(ch[(k * 2) % 3] + 24), 0.8, { type: 'bell', decay: 4 }), t + k * beat / 2, 0.05);
+      if (inst === 'bass') for (let k = 0; k < 4; k++) add(out, tone(mtof(ch[0] - 24 + (k % 2 ? 7 : 0)), beat * 0.9, { decay: 3, harm: 0.5 }), t + k * beat, 0.22);
+      if (inst === 'pulse' || inst === 'pulse16') { const div = inst === 'pulse' ? 2 : 4; for (let k = 0; k < 4 * div; k++) add(out, tone(mtof(ch[0] - 24), beat / div, { type: 'pluck' }), t + k * beat / div, 0.2); }
+      if (inst === 'arp') for (let k = 0; k < 8; k++) add(out, tone(mtof(ch[k % 3] + 12 * (k > 3 ? 1 : 0)), 0.5, { type: 'pluck' }), t + k * beat / 2, 0.07 + 0.05 * build);
+      if (inst === 'drone') add(out, pad([mtof(ch[0] - 24)], bar + 0.3), t, 0.4);
+    }
+    if (M.drums === 'light') for (let k = 0; k < 4; k++) { add(out, drum(k % 2 ? 'snare' : 'kick'), t + k * beat, 0.18); add(out, drum('hat'), t + k * beat + beat / 2, 0.12); }
+    if (M.drums === 'tick') for (let k = 0; k < 8; k++) add(out, drum('hat'), t + k * beat / 2, 0.1);
+    if (M.drums === 'hits' && b % 2 === 0) { add(out, drum('kick'), t, 0.4); add(out, drum('kick'), t + beat * 2.5, 0.3); }
+    if (M.drums === 'build' && build > 0.3) for (let k = 0; k < 4; k++) { add(out, drum('kick'), t + k * beat, 0.25 * build); if (k % 2) add(out, drum('snare'), t + k * beat, 0.15 * build); }
+  }
+  return scale(lowpass(out, 0.5), M.gain);
+}
+function scale(x, g) { let m = 1e-6; for (const v of x) m = Math.max(m, Math.abs(v)); for (let i = 0; i < x.length; i++) x[i] = (x[i] / m) * g; return x; }
+
+// ambience per location (loops of filtered noise + details)
+function ambience(loc, tod, dur) {
+  const n = Math.ceil(dur * SR), o = new Float32Array(n);
+  const w = new Float32Array(n); for (let i = 0; i < n; i++) w[i] = noise();
+  if (loc === 'street') { lowpass(w, 0.02); for (let i = 0; i < n; i++) o[i] = w[i] * 3; for (let t = 1 + rnd() * 3; t < dur; t += 5 + rnd() * 6) { const car = new Float32Array(Math.floor(3 * SR)); for (let i = 0; i < car.length; i++) car[i] = noise() * Math.sin(Math.PI * i / car.length); lowpass(car, 0.05); add(o, car, t, 2.2); } }
+  else if (loc === 'cafe' || loc === 'office' || loc === 'classroom' || loc === 'police') { const a = lowpass(Float32Array.from(w), 0.09), b = lowpass(Float32Array.from(w), 0.012); for (let i = 0; i < n; i++) o[i] = (a[i] - b[i]) * (loc === 'cafe' ? 2.2 : 1.2) * (0.7 + 0.3 * Math.sin(i / SR * 0.4)); if (loc === 'cafe') for (let t = 2 + rnd() * 4; t < dur; t += 4 + rnd() * 6) add(o, tone(2200 + rnd() * 900, 0.4, { type: 'bell', decay: 12 }), t, 0.05); }
+  else if (loc === 'home') { lowpass(w, 0.01); for (let i = 0; i < n; i++) o[i] = w[i] * 0.8; for (let t = 0; t < dur; t += 1) add(o, tone(1800, 0.03, { decay: 80 }), t, 0.02); }
+  else if (loc === 'park' || loc === 'forest') { lowpass(w, 0.03); for (let i = 0; i < n; i++) o[i] = w[i] * 1.6 * (0.6 + 0.4 * Math.sin(i / SR * 0.25));
+    if (tod === 'night') { for (let t = 0; t < dur; t += 0.9 + rnd() * 0.5) for (let k = 0; k < 3; k++) add(o, tone(4300, 0.05, { decay: 40 }), t + k * 0.07, 0.02); }
+    else for (let t = 1; t < dur; t += 2 + rnd() * 4) for (let k = 0; k < 3; k++) add(o, tone(2600 + rnd() * 1800, 0.12, { decay: 25 }), t + k * 0.13, 0.03); }
+  else if (loc === 'alley') { lowpass(w, 0.008); for (let i = 0; i < n; i++) o[i] = w[i] * 2.5; for (let t = 3; t < dur; t += 6 + rnd() * 8) add(o, tone(900, 0.25, { decay: 15 }), t, 0.03); }
+  return o;
+}
+function step(g = 1) { const n = Math.floor(0.09 * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) { const t = i / SR; o[i] = (noise() * Math.exp(-t * 60) * 0.6 + Math.sin(2 * Math.PI * 95 * t) * Math.exp(-t * 40)) * g; } return lowpass(o, 0.3); }
+function door() { const n = Math.floor(0.7 * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) { const t = i / SR; o[i] = Math.sin(2 * Math.PI * (300 + 200 * Math.sin(t * 9)) * t) * Math.exp(-t * 5) * 0.15 + (t > 0.5 ? noise() * Math.exp(-(t - 0.5) * 30) : 0); } return lowpass(o, 0.2); }
+function whoosh() { const n = Math.floor(0.8 * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) o[i] = noise() * Math.sin(Math.PI * i / n) ** 2; return lowpass(o, 0.06); }
+function sting() { const o = new Float32Array(Math.floor(3 * SR)); for (const m of [50, 57, 62, 66]) add(o, tone(mtof(m), 3, { type: 'bell', decay: 1.1 }), 0, 0.15); return o; }
+
+export function mixAll(tl, mood, outFile) {
+  const dur = tl.duration, n = Math.ceil(dur * SR), mix = new Float32Array(n);
+  // dialogue + duck curve
+  const duck = new Float32Array(n).fill(1);
+  for (const l of tl.lines) {
+    const w = readWav(l.file); const ratio = w.rate / SR; const s = new Float32Array(Math.floor(w.samples.length / ratio));
+    for (let i = 0; i < s.length; i++) s[i] = w.samples[Math.floor(i * ratio)];
+    add(mix, s, l.start, 0.95);
+    const a = Math.floor((l.start - 0.25) * SR), b = Math.floor((l.end + 0.35) * SR);
+    for (let i = Math.max(0, a); i < Math.min(n, b); i++) duck[i] = 0.32;
+  }
+  lowpass(duck, 0.0004);
+  const music = makeMusic(mood, dur);
+  for (let i = 0; i < n; i++) { const t = i / SR; const fade = Math.min(1, t / 1.5, (dur - t) / 2.5); mix[i] += music[i] * duck[i] * fade * 0.8; }
+  // ambience per scene
+  for (const sc of tl.scenes) { const a = ambience(sc.location, sc.time_of_day, sc.end - sc.start + 0.6); for (let i = 0; i < a.length; i++) { const t = i / SR; a[i] *= 0.18 * Math.min(1, t / 0.6, (a.length / SR - t) / 0.6); } add(mix, a, sc.start - 0.3); }
+  // effects
+  add(mix, sting(), 0.2, 0.9);
+  for (const c of tl.cues) {
+    if (c.kind === 'scene' && c.t > 4) add(mix, whoosh(), c.t - 0.5, 0.25);
+    if (c.kind === 'door' && c.location !== 'street' && c.location !== 'park' && c.location !== 'forest' && c.location !== 'alley') add(mix, door(), c.t, 0.6);
+    if (c.kind === 'walk' || c.kind === 'run') { const gap = c.kind === 'run' ? 0.3 : 0.52; for (let t = c.t; t < c.t1; t += gap) add(mix, step(), t, c.kind === 'run' ? 0.45 : 0.32); }
+    if (c.kind === 'sit' || c.kind === 'stand') { const s = new Float32Array(Math.floor(0.3 * SR)); for (let i = 0; i < s.length; i++) s[i] = noise() * Math.sin(Math.PI * i / s.length); add(mix, lowpass(s, 0.1), c.t + 0.3, 0.25); }
+  }
+  let m = 1e-6; for (const v of mix) m = Math.max(m, Math.abs(v)); const g = Math.min(1, 0.9 / m); for (let i = 0; i < n; i++) mix[i] *= g;
+  writeWav(outFile, [mix], SR);
+}
