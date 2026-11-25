@@ -33,7 +33,10 @@ autoUpdater.on('update-not-available', () => sendUpd({ state: 'latest', version:
 autoUpdater.on('download-progress', (p) => sendUpd({ state: 'downloading', percent: Math.round(p.percent) }));
 autoUpdater.on('update-downloaded', (i) => sendUpd({ state: 'ready', version: i.version }));
 autoUpdater.on('error', (e) => sendUpd({ state: 'error', msg: /app-update\.yml|ENOENT/.test(String(e)) ? 'Auto-update works in the installed version (AutoVideoStudio-Setup.exe), not in the ZIP version.' : String(e.message || e).slice(0, 200) }));
-async function checkUpdates() { if (!app.isPackaged) { sendUpd({ state: 'dev' }); return upd; } try { await autoUpdater.checkForUpdates(); } catch (e) { sendUpd({ state: 'error', msg: String(e.message || e).slice(0, 200) }); } return upd; }
+const ZIP_MSG = 'This is the ZIP version — auto-update only works in the installed version. Install AutoVideoStudio-Setup.exe once (from GitHub → Releases); after that updates come here.';
+const isZip = () => app.isPackaged && !fs.existsSync(path.join(process.resourcesPath, 'app-update.yml'));
+async function checkUpdates() { if (!app.isPackaged) { sendUpd({ state: 'dev' }); return upd; } if (isZip()) { sendUpd({ state: 'error', msg: ZIP_MSG }); return upd; }
+  try { await autoUpdater.checkForUpdates(); } catch (e) { sendUpd({ state: 'error', msg: /app-update\.yml|ENOENT/.test(String(e)) ? ZIP_MSG : String(e.message || e).slice(0, 200) }); } return upd; }
 
 // ---------- settings (Gemini key encrypted with Windows DPAPI / OS keychain when available) ----------
 const SETTINGS = path.join(STATE, 'settings.json');
@@ -154,7 +157,9 @@ const H = {
       try { const r = await story.generate({ key: k, model: m, user: 'Reply with this JSON only: {"ok": true}', temperature: 0 }); results.push(`${m}: ✓ works`); if (r) break; }
       catch (e) { results.push(`${m}: ✗ ${String(e.message).slice(0, 140)}`); } }
     const ok = results.some((r) => r.includes('✓'));
-    return { ok, msg: `Key works ✓ · ${avail ? `model ${model} found` : `model "${model}" NOT found`} · Test: ${results.join(' | ')}${ok ? '' : ' → Gemini is not answering right now; use "Paste from Gemini app" on the New Video tab.'}` }; },
+    const quota = !ok && results.every((r) => /429/.test(r) && /quota|billing/i.test(r));
+    const hint = ok ? '' : quota ? ' → This key has NO QUOTA left. Free quota resets daily (~1:30 PM India time), or enable billing in Google AI Studio. Until then use "Paste from Gemini app" on the New Video tab.' : ' → Gemini is not answering right now; use "Paste from Gemini app" on the New Video tab.';
+    return { ok, msg: `Key works ✓ · ${avail ? `model ${model} found` : `model "${model}" NOT found`} · Test: ${results.map((r) => r.replace(/For more information.*$/, '')).join(' | ')}${hint}` }; },
   'story:prompt': async (o) => (await import('../pipeline/story.mjs')).buildPastePrompt({ category: o.category, minutes: Number(o.minutes) || 1, idea: o.idea || '', actors: lib.actorsFor(o.style || 'toon').map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })) }),
   'story:parse': async (o) => { try { const st = (await import('../pipeline/story.mjs')).parsePastedStory(o.text, Number(o.minutes) || 1); return { ok: true, title: st.title, scenes: st.scenes.length, lines: st.scenes.reduce((n, sc) => n + sc.beats.filter((b) => b.type === 'line').length, 0), chars: st.characters.map((c) => c.name).join(', ') }; } catch (e) { return { ok: false, msg: e.message }; } },
   'setup:status': () => setupStatus(),
@@ -221,7 +226,7 @@ app.whenReady().then(() => {
   try { const s = readSettings(); if (process.platform === 'win32' && app.isPackaged && !s.shortcutDone) { shell.writeShortcutLink(path.join(app.getPath('desktop'), 'Auto Video Studio.lnk'), { target: process.execPath, description: 'Auto Video Studio' }); s.shortcutDone = true; writeSettings(s); } } catch {}
   if (process.argv.includes('--demo-test')) return demoTest();
   createWindow();
-  if (app.isPackaged) setTimeout(checkUpdates, 8000);
+  if (app.isPackaged && !isZip()) setTimeout(checkUpdates, 8000);
 });
 app.on('window-all-closed', () => { if (!process.argv.includes('--demo-test')) app.quit(); });
 

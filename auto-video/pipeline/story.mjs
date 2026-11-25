@@ -58,6 +58,7 @@ async function gemini(messages, { models, key, temperature = 0.9, onLog = () => 
       } catch (e) {
         lastErr = e; fails++;
         if (e.status === 401 || e.status === 403 || (e.status === 400 && /API key/i.test(e.message))) throw friendly(e);
+        if (e.status === 429 && /quota|billing/i.test(e.message) && !/per minute|perminute/i.test(e.message)) { e.quota = true; break; } // daily quota / billing: retrying only burns time
         if (e.status === 400 && jsonMode && /mime|json/i.test(e.message)) { jsonMode = false; i--; continue; }
         if (e.status === 404 || e.status === 400) break;
         if (i < WAITS.length) { const w = Math.min(60, Math.max(WAITS[i], e.retryDelay || 0)); onLog(`Gemini ${m}: ${short(e)}, retrying in ${Math.round(w)}s (${i + 1}/${WAITS.length})…`); await sleep(w); }
@@ -66,6 +67,7 @@ async function gemini(messages, { models, key, temperature = 0.9, onLog = () => 
     tried.push(`${m}: ${short(lastErr)}${fails > 1 ? ` ×${fails}` : ''} — ${String(lastErr?.message || '').replace(/^HTTP \d+: /, '').slice(0, 120)}`);
     if (mi < models.length - 1) onLog(`Gemini ${m} failed (${short(lastErr)}), switching to ${models[mi + 1]}…`);
   }
+  if (tried.length && tried.every((t) => /quota|billing/i.test(t))) { const q = new Error('Your Gemini API key has no quota left (429: quota exceeded on every model). The free quota resets daily (about 1:30 PM India time), or enable billing for this key in Google AI Studio. Right now use New Video → Story source → "Paste from Gemini app".'); q.retryable = false; q.quota = true; throw q; }
   const busy = tried.every((t) => /busy|rate limit|network|server error|HTTP 5/.test(t));
   const err = new Error((busy ? 'Gemini is busy right now. ' : 'Gemini could not write the story. ') + 'Tried: ' + tried.join(' · '));
   err.retryable = busy; throw err;
