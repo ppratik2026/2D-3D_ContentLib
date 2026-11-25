@@ -124,7 +124,7 @@ export async function createActor(kit, scene, ch, cast, opts = {}) {
   } else {
     const g = await kit.loadModel(cast.file, cast.type);
     a.o = SkeletonUtils.clone(g.scene); scene.add(a.o);
-    const map = mapRig(a.o); a.problems = rigProblems(map); if (a.problems.length) throw new Error(`Ye standard humanoid rig nahi hai: ${a.problems.join(', ')}. Mixamo / VRoid / MakeHuman jaisa rig chahiye.`);
+    const map = mapRig(a.o); a.problems = rigProblems(map); if (a.problems.length) throw new Error(`Not a standard humanoid rig: ${a.problems.join(', ')}. Use a Mixamo / VRoid / MakeHuman style rig.`);
     a.bones = map;
     a.o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
       m.material = Array.isArray(m.material) ? m.material.map((x) => x.clone()) : m.material.clone(); tintGLB(m, ch); if (opts.toon) toonify(m, opts.toon);

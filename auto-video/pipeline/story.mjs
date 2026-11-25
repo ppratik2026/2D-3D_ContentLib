@@ -4,19 +4,42 @@ import { CATEGORIES, LOCATIONS, ACTIONS, TIMES_OF_DAY } from './config.mjs';
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 
-async function gemini(messages, { model, key, temperature = 0.9, retries = 3 }) {
+// Fallback models when the chosen one is busy (503/429) or not available (404).
+const FALLBACK = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
+const WAITS = [5, 10, 20, 40]; // seconds between retries on the same model
+const sleep = (s) => new Promise((ok) => setTimeout(ok, s * 1000));
+async function gemini(messages, { model, key, temperature = 0.9, onLog = () => {} }) {
+  const models = [model, ...FALLBACK.filter((m) => m !== model)];
   let last;
-  for (let i = 0; i < retries; i++) {
-    try {
-      const r = await fetch(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-        body: JSON.stringify({ model, messages, temperature, response_format: { type: 'json_object' } }) });
-      const txt = await r.text();
-      if (!r.ok) throw new Error(`Gemini HTTP ${r.status}: ${txt.slice(0, 300)}`);
-      const content = JSON.parse(txt).choices?.[0]?.message?.content || '';
-      return parseJSON(content);
-    } catch (e) { last = e; if (/HTTP 4(00|01|03)/.test(e.message)) break; await new Promise((ok) => setTimeout(ok, 1500 * (i + 1))); }
+  for (const [mi, m] of models.entries()) {
+    for (let i = 0; i <= WAITS.length; i++) {
+      try {
+        const r = await fetch(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+          body: JSON.stringify({ model: m, messages, temperature, response_format: { type: 'json_object' } }) });
+        const txt = await r.text();
+        if (!r.ok) { const e = new Error(`Gemini HTTP ${r.status}: ${txt.slice(0, 200)}`); e.status = r.status; throw e; }
+        const content = JSON.parse(txt).choices?.[0]?.message?.content || '';
+        return parseJSON(content);
+      } catch (e) {
+        last = e;
+        if ([400, 401, 403].includes(e.status)) throw friendly(e);
+        if (e.status === 404) break;                       // model not available → next model
+        if (i < WAITS.length && !(e.status === 429 && i >= 1)) { onLog(`Gemini busy (${e.status || 'network'}) on ${m}, retrying in ${WAITS[i]}s…`); await sleep(WAITS[i]); }
+        else break;
+      }
+    }
+    if (mi < models.length - 1) onLog(`Switching to ${models[mi + 1]}…`);
   }
-  throw last;
+  throw friendly(last);
+}
+function friendly(e) {
+  const s = e?.status;
+  const msg = s === 503 ? 'Gemini is overloaded right now (503). All models were tried several times. Press Retry in a few minutes.'
+    : s === 429 ? 'Gemini quota/rate limit reached for this key (429). Wait a while, or use another key.'
+    : s === 401 || s === 403 || /API key/i.test(e?.message || '') ? 'Gemini rejected the API key. Check it in Settings → Test.'
+    : s === 400 ? 'Gemini rejected the request (400): ' + (e.message || '').slice(0, 160)
+    : 'Gemini request failed: ' + (e?.message || e);
+  const out = new Error(msg); out.status = s; return out;
 }
 function parseJSON(s) {
   s = s.trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim();
@@ -49,7 +72,7 @@ JSON shape:
 {"title":"Hinglish title","title_hindi":"हिंदी शीर्षक","logline":"one line","moral":"optional last line message or empty",
  "characters":[{"id":"short_lowercase_id","name":"Indian name","gender":"male|female","age":"child|young|adult|old","role":"e.g. detective","top_color":"#hex","bottom_color":"#hex","hair_color":"#hex","personality":"few words","model":"actor id"}],
  "scenes":[{"location":"one key from the list","time_of_day":"${TIMES_OF_DAY.join('|')}","present":["character ids"],"summary":"what happens","seconds":number}]}
-The scene seconds must add up to about ${totalSec}.` }], { key, model });
+The scene seconds must add up to about ${totalSec}.` }], { key, model, onLog });
   normalizeOutline(outline, totalSec);
   // Step 2: beats for each scene (3 in parallel)
   const out = { ...outline, category, minutes, scenes: [] };
@@ -69,7 +92,7 @@ Allowed actions (use exactly these words): ${ACTIONS.join(', ')}.
 - "enter"/"exit"/"run_exit": a character comes into / leaves the place. Characters already present at the start do not need "enter".
 - "sit"/"stand": sit down on a chair/sofa/bench or stand up. "walk_to" needs "target": another character id.
 JSON shape: {"beats":[{"type":"action","char":"id","action":"one allowed action","target":"optional id"},
- {"type":"line","char":"id","emotion":"neutral|happy|sad|angry|surprised|scared","hindi":"देवनागरी","hinglish":"Roman Hinglish","english":"English"}]}` }], { key, model });
+ {"type":"line","char":"id","emotion":"neutral|happy|sad|angry|surprised|scared","hindi":"देवनागरी","hinglish":"Roman Hinglish","english":"English"}]}` }], { key, model, onLog });
     const scene = { ...sc, beats: normalizeBeats(res.beats || [], outline.characters, sc) };
     out.scenes[i] = scene;
   });

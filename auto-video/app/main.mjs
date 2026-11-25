@@ -110,20 +110,20 @@ const H = {
   estimate: (o) => { const e = estimate({ style: o.style, minutes: Number(o.minutes) || 1, renderer: readSettings().renderer }); return { ...e, totalText: fmt(e.total), partsText: Object.fromEntries(Object.entries(e.parts).map(([k, v]) => [k, fmt(v)])) }; },
   'settings:get': () => publicSettings(),
   'settings:set': (s) => { const cur = readSettings(); if (s.key !== undefined) setKey(s.key); const next = readSettings(); for (const k of ['model', 'renderer', 'concurrency']) if (s[k] !== undefined) next[k] = s[k]; writeSettings(next); void cur; return publicSettings(); },
-  'settings:testKey': async () => { const k = getKey(); if (!k) return { ok: false, msg: 'Key nahi hai' };
-    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models', { headers: { Authorization: `Bearer ${k}` } }); return r.ok ? { ok: true, msg: 'Key sahi hai ✓' } : { ok: false, msg: `Gemini ne mana kiya (${r.status}): ${(await r.text()).slice(0, 160)}` }; },
+  'settings:testKey': async () => { const k = getKey(); if (!k) return { ok: false, msg: 'No key saved' };
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models', { headers: { Authorization: `Bearer ${k}` } }); return r.ok ? { ok: true, msg: 'Key works ✓' } : { ok: false, msg: `Gemini rejected the key (${r.status}): ${(await r.text()).slice(0, 160)}` }; },
   'setup:status': () => setupStatus(),
   'setup:run': async (_o, e) => runSetup((p) => e.sender.send('setup:progress', p)),
   'queue:get': () => queueView(),
   'queue:add': (o) => { const n = Math.max(1, Math.min(20, Number(o.count) || 1)); const ideas = String(o.idea || '').split('\n').map((x) => x.trim()).filter(Boolean);
     for (let i = 0; i < n; i++) { const opts = { category: o.category, idea: ideas[i] ?? (n > 1 ? '' : o.idea || ''), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs, demo: !!o.demo };
       const est = estimate({ style: opts.style, minutes: opts.minutes, renderer: readSettings().renderer });
-      queue.push({ id: newJobId(o.category) + (n > 1 ? `_${i + 1}` : ''), opts, status: 'queued', progress: 0, estimate: est, created: Date.now(), msg: 'Queue me' }); }
+      queue.push({ id: newJobId(o.category) + (n > 1 ? `_${i + 1}` : ''), opts, status: 'queued', progress: 0, estimate: est, created: Date.now(), msg: 'Queued' }); }
     if (o.start) autoRun = true; broadcast(true); pump(); return queueView(); },
   'queue:start': () => { autoRun = true; pump(); broadcast(true); return queueView(); },
   'queue:pause': () => { autoRun = false; broadcast(true); return queueView(); },
   'queue:cancel': (id) => { const j = queue.find((x) => x.id === id); if (j === running) abort?.abort(); else if (j) j.status = 'cancelled'; broadcast(true); return queueView(); },
-  'queue:retry': (id) => { const j = queue.find((x) => x.id === id); if (j) Object.assign(j, { status: 'queued', progress: 0, error: null, msg: 'Queue me' }); broadcast(true); pump(); return queueView(); },
+  'queue:retry': (id) => { const j = queue.find((x) => x.id === id); if (j) Object.assign(j, { status: 'queued', progress: 0, error: null, msg: 'Queued' }); broadcast(true); pump(); return queueView(); },
   'queue:remove': (id) => { queue = queue.filter((x) => x.id !== id || x === running); broadcast(true); return queueView(); },
   'queue:move': ({ id, dir }) => { const i = queue.findIndex((x) => x.id === id), k = i + dir; if (i >= 0 && k >= 0 && k < queue.length) [queue[i], queue[k]] = [queue[k], queue[i]]; broadcast(true); return queueView(); },
   'queue:clearDone': () => { queue = queue.filter((x) => !['done', 'cancelled'].includes(x.status)); broadcast(true); return queueView(); },

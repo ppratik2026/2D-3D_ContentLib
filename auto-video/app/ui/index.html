@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Auto Video Studio</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' av:; script-src 'self' av:; style-src 'self' av: 'unsafe-inline'; img-src 'self' av: data: blob:; media-src av: blob:; connect-src av:; worker-src blob:">
 <link rel="stylesheet" href="ui.css">
@@ -7,7 +7,7 @@
 <header>
   <div class="brand">🎬 Auto Video Studio</div>
   <nav id="tabs">
-    <button data-tab="new" class="on">Naya Video</button>
+    <button data-tab="new" class="on">New Video</button>
     <button data-tab="queue">Queue <span id="qbadge" class="badge" hidden></span></button>
     <button data-tab="library">Library</button>
     <button data-tab="chars">Characters</button>
@@ -20,27 +20,27 @@
     <div class="grid2">
       <div class="card">
         <h3>1. Category</h3><div id="cats" class="chips"></div>
-        <h3>2. Idea / title <small>(optional · har line = alag video)</small></h3>
-        <textarea id="idea" rows="3" placeholder="Khali chhodo to Gemini khud naya idea banayega&#10;Jaise: Gaon me chori"></textarea>
+        <h3>2. Idea / title <small>(optional · one line = one video)</small></h3>
+        <textarea id="idea" rows="3" placeholder="Leave empty and Gemini will invent an idea&#10;e.g. A theft in the village"></textarea>
         <div class="row">
           <div><h3>3. Minutes</h3><div class="range"><input type="range" id="min" min="0.5" max="15" step="0.5" value="2"><b id="minv">2 min</b></div></div>
-          <div><h3>Kitne video</h3><input type="number" id="count" min="1" max="20" value="1"></div>
+          <div><h3>Number of videos</h3><input type="number" id="count" min="1" max="20" value="1"></div>
         </div>
         <div class="row">
           <div><h3>4. Style</h3><select id="style"></select></div>
           <div><h3>5. Look</h3><select id="look"></select></div>
           <div><h3>6. Subtitles</h3><select id="subs"></select></div>
         </div>
-        <label class="check"><input type="checkbox" id="demo"> Demo story (bina Gemini ke test)</label>
+        <label class="check"><input type="checkbox" id="demo"> Demo story (test without Gemini)</label>
       </div>
       <div class="card est">
-        <div class="muted">Ek video ka andaaz (is PC pe)</div>
+        <div class="muted">Estimated time per video (this PC)</div>
         <div class="big" id="estTotal">–</div>
         <table id="estParts"></table>
         <div class="muted small" id="estNote"></div>
         <div class="sum" id="estSum"></div>
-        <div id="keyWarn" class="warn" hidden>Gemini key nahi hai. Settings me daalo, ya "Demo story" se test karo.</div>
-        <div class="btns"><button id="addQ" class="ghost">Queue me daalo</button><button id="addStart" class="primary">Daalo aur shuru karo ▶</button></div>
+        <div id="keyWarn" class="warn" hidden>No Gemini key. Add it in Settings, or test with "Demo story".</div>
+        <div class="btns"><button id="addQ" class="ghost">Add to queue</button><button id="addStart" class="primary">Add &amp; start ▶</button></div>
       </div>
     </div>
   </section>
@@ -49,14 +49,14 @@
   <section id="tab-queue" class="tab">
     <div class="card qhead">
       <div><div class="big" id="qRemain">–</div><div class="muted" id="qInfo"></div></div>
-      <div class="btns"><button id="qStart" class="primary">Start ▶</button><button id="qPause" class="ghost">Pause ⏸</button><button id="qClear" class="ghost">Done hatao</button></div>
+      <div class="btns"><button id="qStart" class="primary">Start ▶</button><button id="qPause" class="ghost">Pause</button><button id="qClear" class="ghost">Clear finished</button></div>
     </div>
     <div id="qList"></div>
   </section>
 
   <!-- LIBRARY -->
   <section id="tab-library" class="tab">
-    <div class="card qhead"><div><b>Bani hui videos</b><div class="muted small" id="libPath"></div></div><div class="btns"><button id="libOpen" class="ghost">Folder kholo</button><button id="libRefresh" class="ghost">Refresh</button></div></div>
+    <div class="card qhead"><div><b>Finished videos</b><div class="muted small" id="libPath"></div></div><div class="btns"><button id="libOpen" class="ghost">Open folder</button><button id="libRefresh" class="ghost">Refresh</button></div></div>
     <div id="libList" class="libgrid"></div>
   </section>
 
@@ -64,7 +64,7 @@
   <section id="tab-chars" class="tab">
     <div class="grid2 chars">
       <div>
-        <div class="card qhead"><div><b>3D characters</b><div class="muted small">.vrm · .glb · .gltf · .fbx (humanoid rig). File yahan drop karo.</div></div>
+        <div class="card qhead"><div><b>3D characters</b><div class="muted small">.vrm · .glb · .gltf · .fbx (humanoid rig). Drop files here.</div></div>
           <div class="btns"><button id="chImport" class="primary">+ Import</button><button id="chFolder" class="ghost">Folder</button></div></div>
         <div id="chList" class="chgrid"></div>
       </div>
@@ -72,10 +72,10 @@
         <canvas id="chCanvas" width="360" height="420"></canvas>
         <div id="chInfo" class="muted small"></div>
         <form id="chForm">
-          <label>Naam<input name="name"></label>
-          <div class="row"><label>Gender<select name="gender"><option value="male">Ladka / Aadmi</option><option value="female">Ladki / Aurat</option></select></label>
-            <label>Umar<select name="age"><option value="child">Bachcha</option><option value="young">Jawaan</option><option value="adult">Bada</option><option value="old">Bujurg</option></select></label></div>
-          <label>Tags / role <small>(comma se: police, doctor, teacher, dadi, kurta…)</small><input name="tags"></label>
+          <label>Name<input name="name"></label>
+          <div class="row"><label>Gender<select name="gender"><option value="male">Male</option><option value="female">Female</option></select></label>
+            <label>Age<select name="age"><option value="child">Child</option><option value="young">Young</option><option value="adult">Adult</option><option value="old">Old</option></select></label></div>
+          <label>Tags / role <small>(comma separated: police, doctor, teacher, grandma, kurta…)</small><input name="tags"></label>
           <div class="row styles"><label class="check"><input type="checkbox" name="st_toon"> Toon</label><label class="check"><input type="checkbox" name="st_anime"> Anime</label><label class="check"><input type="checkbox" name="st_realistic"> Realistic</label></div>
           <div class="btns"><button type="submit" class="primary">Save</button><button type="button" id="chDelete" class="danger">Delete</button></div>
         </form>
@@ -88,30 +88,30 @@
     <div class="grid2">
       <div class="card">
         <h3>Gemini API key</h3>
-        <div class="muted small">Free key: aistudio.google.com/apikey · Key sirf is PC me (encrypted) rehti hai.</div>
+        <div class="muted small">Free key: aistudio.google.com/apikey · The key stays on this PC only (encrypted).</div>
         <div class="row"><input id="key" type="password" placeholder="AIza..."><button id="keySave" class="primary">Save</button><button id="keyTest" class="ghost">Test</button></div>
         <div id="keyMsg" class="small"></div>
         <h3>Gemini model</h3><input id="model" placeholder="gemini-2.5-flash">
       </div>
       <div class="card">
         <h3>Renderer</h3>
-        <label class="check"><input type="radio" name="renderer" value="chrome"> Chrome + WebCodecs + ffmpeg <small>(tez, free)</small></label>
-        <label class="check"><input type="radio" name="renderer" value="remotion"> Remotion <small>(company license chahiye: remotion.pro)</small></label>
+        <label class="check"><input type="radio" name="renderer" value="chrome"> Chrome + WebCodecs + ffmpeg <small>(fast, free)</small></label>
+        <label class="check"><input type="radio" name="renderer" value="remotion"> Remotion <small>(needs a company licence: remotion.pro)</small></label>
         <div class="row"><label>Remotion parallel tabs<input id="conc" type="number" min="1" max="8"></label></div>
         <h3>Data</h3><div class="muted small" id="dataDir"></div>
-        <div class="btns"><button id="openData" class="ghost">Folder kholo</button><button id="reSetup" class="ghost">Models / voices dobara check karo</button></div>
+        <div class="btns"><button id="openData" class="ghost">Open folder</button><button id="reSetup" class="ghost">Re-check models / voices</button></div>
       </div>
     </div>
   </section>
 </main>
 
 <div id="setup" class="modal" hidden><div class="card">
-  <h2>Pehli baar ki taiyaari</h2>
-  <p class="muted">3D models, Piper (awaaz ka program) aur 3 Hindi awaazein download ho rahi hain (~300 MB, sirf ek baar).</p>
+  <h2>First-time setup</h2>
+  <p class="muted">Downloading 3D models, Piper (voice engine) and 3 Hindi voices (~300 MB, only once).</p>
   <div class="bar"><div id="setupBar"></div></div><div id="setupMsg" class="small"></div>
-  <div class="btns"><button id="setupRetry" class="primary" hidden>Dobara try karo</button></div>
+  <div class="btns"><button id="setupRetry" class="primary" hidden>Try again</button></div>
 </div></div>
-<div id="player" class="modal" hidden><div class="card wide"><video id="playerVideo" controls></video><div class="btns"><button id="playerClose" class="ghost">Band karo</button></div></div></div>
+<div id="player" class="modal" hidden><div class="card wide"><video id="playerVideo" controls></video><div class="btns"><button id="playerClose" class="ghost">Close</button></div></div></div>
 
 <script src="../build/preview.js"></script>
 <script type="module" src="ui.js"></script>
