@@ -31,6 +31,7 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   const id = opts.id || newJobId(category);
   const work = path.join(OUTPUT, '.work', id); const pubDir = path.join(JOBS, id); fs.mkdirSync(work, { recursive: true }); fs.mkdirSync(pubDir, { recursive: true });
   const T = { start: Date.now() }; const step = (name, msg, extra = {}) => report({ id, step: name, msg, elapsed: (Date.now() - T.start) / 1000, ...extra });
+  const stage = (name, done, total, label) => report({ id, step: name, stage: { name, done, total, label }, msg: label, elapsed: (Date.now() - T.start) / 1000 });
   const check = () => { if (signal?.aborted) throw new Error('Cancelled'); };
   const est = estimate({ style, minutes, renderer }); step('plan', `Estimated total ${fmt(est.total)}`, { estimate: est });
 
@@ -40,7 +41,7 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   else {
     const key = opts.key || process.env.GEMINI_API_KEY; if (!key) throw new Error('Gemini API key missing. Add it in Settings.');
     story = await writeStory({ category, minutes, idea: opts.idea || '', key, model: opts.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-      actors: actorsFor(style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m) });
+      actors: actorsFor(style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
   }
   check();
   story.category = category;
@@ -54,23 +55,27 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   const soft = opts.gl === 'swiftshader' || (renderer === 'remotion' && (process.env.REMOTION_GL || (process.platform === 'linux' && !process.env.DISPLAY ? 'swiftshader' : 'angle')) === 'swiftshader');
   tl.perf = { aa: !soft, simpleMat: style === 'toon', noLamps: style !== 'realistic' };
   const voices = castVoices(story.characters);
-  await speakAll(tl.lines, voices, path.join(work, 'voice'), (m) => step('voice', m));
+  stage('voice', 0, tl.lines.length, `Voices 0/${tl.lines.length} lines`);
+  await speakAll(tl.lines, voices, path.join(work, 'voice'), (m) => step('voice', m), (d, n) => stage('voice', d, n, `Voices ${d}/${n} lines`));
   finalize(tl); check();
   step('voice', `Voices ready (${tl.lines.length} lines). Video length ${fmt(tl.duration)}`, { duration: tl.duration });
 
   // 3. sound
   const mixFile = path.join(pubDir, 'mix.wav');
+  stage('sound', 0, 1, 'Music, ambience and effects');
   mixAll(tl, CATEGORIES[category].mood, mixFile);
-  step('sound', 'Music, ambience, effects and dialogue mixed');
+  stage('sound', 1, 1, 'Music, ambience, effects and dialogue mixed');
 
   // 4. render
   const clean = JSON.parse(JSON.stringify(tl)); for (const l of clean.lines) delete l.file;
   fs.writeFileSync(path.join(work, 'timeline.json'), JSON.stringify(clean));
   const out = path.join(work, 'final.mp4');
-  const onProgress = (p, frames, secs) => step('render', `Rendering ${(p * 100).toFixed(0)}% (${frames}/${clean.durationInFrames} frames)`, { progress: p, eta: p > 0.02 ? secs / p - secs : null });
+  const onProgress = (p, frames, secs) => { step('render', `Rendering ${(p * 100).toFixed(0)}% (${frames}/${clean.durationInFrames} frames)`, { progress: p, eta: p > 0.02 ? secs / p - secs : null, stage: { name: 'render', done: frames, total: clean.durationInFrames, label: `Frames ${frames}/${clean.durationInFrames}` } }); };
+  const onSave = () => stage('save', 0, 1, 'Adding audio and saving MP4');
   let r;
   if (renderer === 'remotion') { const { renderVideo } = await import('./render.mjs'); r = await renderVideo({ tl: clean, mix: `jobs/${id}/mix.wav`, out, concurrency: opts.concurrency, onProgress }); }
-  else r = await opts.renderFn({ tl: clean, mixFile, out, onProgress, signal });
+  else r = await opts.renderFn({ tl: clean, mixFile, out, onProgress, onSave, signal });
+  stage('save', 1, 1, 'Saved');
   check();
   writeSubtitles(clean, path.join(work, 'subtitles.srt'));
   fs.rmSync(pubDir, { recursive: true, force: true }); fs.rmSync(path.join(work, 'voice'), { recursive: true, force: true });

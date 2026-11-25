@@ -42,16 +42,21 @@ function runPiper(voice, lengthScale, items) {
 }
 
 // lines: [{id, char, hindi}] → adds {file, duration, mouth[]}
-export async function speakAll(lines, voices, outDir, onLog = () => {}) {
+export async function speakAll(lines, voices, outDir, onLog = () => {}, onProgress = () => {}) {
   fs.mkdirSync(outDir, { recursive: true });
   const groups = {};
   for (const l of lines) { const v = voices[l.char]; const k = v.voice + '|' + v.lengthScale; (groups[k] ||= []).push(l); l.file = path.join(outDir, `line_${String(l.id).padStart(4, '0')}.wav`); }
-  let done = 0;
-  for (const [k, items] of Object.entries(groups)) {
-    const [voice, ls] = k.split('|');
-    await runPiper(voice, Number(ls), items.map((l) => ({ text: l.hindi, file: path.resolve(l.file) })));
-    done += items.length; onLog(`Voice: ${done}/${lines.length} lines`);
-  }
+  for (const l of lines) fs.rmSync(l.file, { force: true });
+  const count = () => lines.reduce((n, l) => n + (fs.existsSync(l.file) ? 1 : 0), 0);
+  const timer = setInterval(() => onProgress(count(), lines.length), 500);
+  try {
+    for (const [k, items] of Object.entries(groups)) {
+      const [voice, ls] = k.split('|');
+      await runPiper(voice, Number(ls), items.map((l) => ({ text: l.hindi, file: path.resolve(l.file) })));
+      onLog(`Voice: ${count()}/${lines.length} lines`);
+    }
+  } finally { clearInterval(timer); }
+  onProgress(lines.length, lines.length);
   for (const l of lines) { const w = readWav(l.file); l.duration = w.duration; l.mouth = envelope(w.samples, w.rate, FPS); }
   return lines;
 }

@@ -35,22 +35,44 @@ const publicSettings = () => { const s = readSettings(); const k = getKey(); ret
 const QFILE = path.join(STATE, 'queue.json');
 let queue = []; try { queue = JSON.parse(fs.readFileSync(QFILE, 'utf8')); for (const j of queue) if (j.status === 'running') j.status = 'queued'; } catch {}
 let running = null, autoRun = false, abort = null, lastSave = 0;
+const SESSION = Date.now();
+for (const j of queue) if (j.status === 'queued') j.session = SESSION;
 const saveQueue = () => fs.writeFileSync(QFILE, JSON.stringify(queue, null, 2));
 function broadcast(force) { const now = Date.now(); if (!force && now - lastSave < 700) return; lastSave = now; saveQueue(); for (const w of BrowserWindow.getAllWindows()) if (w.__ui) w.webContents.send('queue', queueView()); }
 function queueView() {
   let remain = 0; for (const j of queue) { if (j.status === 'queued') remain += j.estimate?.total || 0; if (j.status === 'running') remain += j.eta ?? (j.estimate?.total || 0) * (1 - (j.progress || 0)); }
-  return { jobs: queue, running: !!running, autoRun, remainSec: Math.round(remain), remainText: fmt(remain), finishAt: remain ? new Date(Date.now() + remain * 1000).toISOString() : null };
+  const active = queue.filter((j) => ['queued', 'running', 'done', 'error'].includes(j.status) && (j.session === SESSION));
+  const counts = { total: active.length, done: active.filter((j) => j.status === 'done').length, failed: active.filter((j) => j.status === 'error').length, waiting: queue.filter((j) => j.status === 'queued').length, current: running ? active.indexOf(running) + 1 : 0 };
+  return { jobs: queue, running: !!running, autoRun, counts, remainSec: Math.round(remain), remainText: fmt(remain), finishAt: remain ? new Date(Date.now() + remain * 1000).toISOString() : null };
 }
+const STAGES = ['story', 'voice', 'sound', 'render', 'save'];
+let wakeTimer = null;
 async function pump() {
-  if (running || !autoRun) return; const job = queue.find((j) => j.status === 'queued'); if (!job) { autoRun = false; broadcast(true); return; }
-  running = job; job.status = 'running'; job.started = Date.now(); job.error = null; abort = new AbortController(); broadcast(true);
+  if (running || !autoRun) return;
+  const now = Date.now(); const ready = queue.find((j) => j.status === 'queued' && !(j.retryAt > now));
+  if (!ready) { const waiting = queue.filter((j) => j.status === 'queued'); if (!waiting.length) { autoRun = false; broadcast(true); return; }
+    clearTimeout(wakeTimer); wakeTimer = setTimeout(pump, Math.max(1000, Math.min(...waiting.map((j) => j.retryAt || now)) - now)); broadcast(true); return; }
+  const job = ready; running = job; job.status = 'running'; job.started = Date.now(); job.error = null; job.retryAt = null; job.progress = 0; job.eta = null;
+  job.stages = Object.fromEntries(STAGES.map((k) => [k, { state: 'todo', done: 0, total: 0, label: '' }])); abort = new AbortController(); broadcast(true);
   const s = readSettings();
   try {
     const r = await makeVideo({ ...job.opts, id: job.id, key: getKey(), model: s.model, renderer: s.renderer, concurrency: s.concurrency, renderFn: s.renderer === 'remotion' ? null : chromeRender },
-      (e) => { Object.assign(job, { step: e.step, msg: e.msg }); if (e.progress != null) job.progress = e.progress; if (e.eta != null) job.eta = e.eta; if (e.estimate) job.estimate = e.estimate; if (e.title) job.title = e.title; if (e.duration) job.duration = e.duration; broadcast(); },
+      (e) => { Object.assign(job, { step: e.step, msg: e.msg, elapsed: e.elapsed }); if (e.progress != null) job.progress = e.progress; if (e.eta != null) job.eta = e.eta; if (e.estimate) job.estimate = e.estimate; if (e.title) job.title = e.title; if (e.duration) job.duration = e.duration;
+        if (e.stage && job.stages[e.stage.name]) { const i = STAGES.indexOf(e.stage.name); STAGES.forEach((k, j) => { if (j < i) job.stages[k].state = 'done'; });
+          Object.assign(job.stages[e.stage.name], { state: e.stage.total && e.stage.done >= e.stage.total ? 'done' : 'active', done: e.stage.done, total: e.stage.total, label: e.stage.label }); }
+        broadcast(); },
       { signal: abort.signal });
-    Object.assign(job, { status: 'done', folder: r.folder, file: r.file, title: r.story.title, progress: 1, finished: Date.now() });
-  } catch (e) { Object.assign(job, { status: abort.signal.aborted ? 'cancelled' : 'error', error: String(e.message || e) }); console.error(e); }
+    STAGES.forEach((k) => (job.stages[k].state = 'done'));
+    Object.assign(job, { status: 'done', folder: r.folder, file: r.file, title: r.story.title, progress: 1, finished: Date.now(), elapsed: (Date.now() - job.started) / 1000 });
+  } catch (e) {
+    const msg = String(e.message || e);
+    if (abort.signal.aborted) Object.assign(job, { status: 'cancelled', error: 'Cancelled' });
+    else if (e.retryable && (job.autoRetries || 0) < 3) { job.autoRetries = (job.autoRetries || 0) + 1; const wait = 3 * 60e3 * job.autoRetries;
+      Object.assign(job, { status: 'queued', retryAt: Date.now() + wait, error: msg, msg: `Gemini busy — automatic retry ${job.autoRetries}/3 at ${new Date(Date.now() + wait).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` }); }
+    else Object.assign(job, { status: 'error', error: msg });
+    if (job.stages) for (const k of STAGES) if (job.stages[k].state === 'active') job.stages[k].state = job.status === 'queued' ? 'todo' : 'failed';
+    console.error(e);
+  }
   running = null; abort = null; broadcast(true); pump();
 }
 
@@ -61,7 +83,7 @@ ipcMain.handle('render:chunk', (e, pos, data) => sessions.get(e.sender.id)?.chun
 ipcMain.on('render:progress', (e, f, n, secs) => sessions.get(e.sender.id)?.progress(f, n, secs));
 ipcMain.on('render:done', (e, info) => sessions.get(e.sender.id)?.done(info));
 ipcMain.on('render:fail', (e, msg) => sessions.get(e.sender.id)?.fail(msg));
-function chromeRender({ tl, mixFile, out, onProgress, signal }) {
+function chromeRender({ tl, mixFile, out, onProgress, onSave = () => {}, signal }) {
   return new Promise((resolve, reject) => {
     const win = new BrowserWindow({ show: false, width: 1280, height: 720, webPreferences: { preload: path.join(APP_DIR, 'app', 'render', 'preload.cjs'), backgroundThrottling: false } });
     const id = win.webContents.id; const tmp = out + '.video.mp4'; const fd = fs.openSync(tmp, 'w'); let finished = false;
@@ -74,7 +96,7 @@ function chromeRender({ tl, mixFile, out, onProgress, signal }) {
       chunk: (pos, data) => { const b = Buffer.from(data.buffer || data, data.byteOffset || 0, data.byteLength); fs.writeSync(fd, b, 0, b.length, pos); },
       progress: (f, n, secs) => onProgress(f / n, f, secs),
       fail: (msg) => end(new Error(msg)),
-      done: async (info) => { try { fs.closeSync(fd); } catch {}
+      done: async (info) => { try { fs.closeSync(fd); } catch {} onSave();
         try { await ffmpeg(['-y', '-i', tmp, '-i', mixFile, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out]); fs.rmSync(tmp, { force: true }); end(null, info); }
         catch (e) { end(e); } },
     });
@@ -123,12 +145,12 @@ const H = {
   'queue:add': (o) => { const n = Math.max(1, Math.min(20, Number(o.count) || 1)); const ideas = String(o.idea || '').split('\n').map((x) => x.trim()).filter(Boolean);
     for (let i = 0; i < n; i++) { const opts = { category: o.category, idea: ideas[i] ?? (n > 1 ? '' : o.idea || ''), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs, demo: !!o.demo };
       const est = estimate({ style: opts.style, minutes: opts.minutes, renderer: readSettings().renderer });
-      queue.push({ id: newJobId(o.category) + (n > 1 ? `_${i + 1}` : ''), opts, status: 'queued', progress: 0, estimate: est, created: Date.now(), msg: 'Queued' }); }
+      queue.push({ id: newJobId(o.category) + (n > 1 ? `_${i + 1}` : ''), opts, status: 'queued', progress: 0, estimate: est, created: Date.now(), msg: 'Queued', session: SESSION }); }
     if (o.start) autoRun = true; broadcast(true); pump(); return queueView(); },
   'queue:start': () => { autoRun = true; pump(); broadcast(true); return queueView(); },
   'queue:pause': () => { autoRun = false; broadcast(true); return queueView(); },
   'queue:cancel': (id) => { const j = queue.find((x) => x.id === id); if (j === running) abort?.abort(); else if (j) j.status = 'cancelled'; broadcast(true); return queueView(); },
-  'queue:retry': (id) => { const j = queue.find((x) => x.id === id); if (j) Object.assign(j, { status: 'queued', progress: 0, error: null, msg: 'Queued' }); broadcast(true); pump(); return queueView(); },
+  'queue:retry': (id) => { const j = queue.find((x) => x.id === id); if (j) Object.assign(j, { status: 'queued', progress: 0, error: null, msg: 'Queued', retryAt: null, autoRetries: 0, session: SESSION }); autoRun = true; broadcast(true); pump(); return queueView(); },
   'queue:remove': (id) => { queue = queue.filter((x) => x.id !== id || x === running); broadcast(true); return queueView(); },
   'queue:move': ({ id, dir }) => { const i = queue.findIndex((x) => x.id === id), k = i + dir; if (i >= 0 && k >= 0 && k < queue.length) [queue[i], queue[k]] = [queue[k], queue[i]]; broadcast(true); return queueView(); },
   'queue:clearDone': () => { queue = queue.filter((x) => !['done', 'cancelled'].includes(x.status)); broadcast(true); return queueView(); },
@@ -153,6 +175,10 @@ function createWindow() {
   win.__ui = true; win.loadURL('av://app/app/ui/index.html');
   if (shots > 0) win.webContents.once('did-finish-load', async () => { // dev: screenshots of every tab
     const dir = process.argv[shots + 1]; const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); await wait(2500);
+    if (process.argv.includes('--queue-demo')) { await H['queue:add']({ category: 'romance', minutes: 1, count: 2, style: 'toon', look: 'auto', subs: 'auto', demo: true, start: true });
+      await win.webContents.executeJavaScript(`document.querySelector('[data-tab=queue]').click()`);
+      for (const [i, t] of [[1, 25000], [2, 60000]]) { await wait(t); fs.writeFileSync(path.join(dir, `queue_${i}.png`), (await win.webContents.capturePage()).toPNG()); }
+      abort?.abort(); return app.quit(); }
     const only = process.argv.includes('--chars-only');
     if (only) { await win.webContents.executeJavaScript(`document.querySelector('[data-tab=chars]').click()`); await wait(6000);
       for (const id of process.argv[process.argv.indexOf('--chars-only') + 1].split(',')) { await win.webContents.executeJavaScript(`document.querySelector('.ch[data-id=${id}]').click()`); await wait(14000);

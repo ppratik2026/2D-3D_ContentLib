@@ -35,18 +35,29 @@ $('#addQ').onclick = () => add(false); $('#addStart').onclick = () => add(true);
 
 // ---------- queue ----------
 const STATUS = { queued: 'Queued', running: 'Rendering', done: 'Ready ✓', error: 'Error', cancelled: 'Cancelled' };
+const STAGE_NAMES = { story: 'Story', voice: 'Voices', sound: 'Music & sound', render: '3D render', save: 'Save MP4' };
+const WEIGHT = { story: 0.06, voice: 0.04, sound: 0.02, render: 0.85, save: 0.03 };
+function overall(j) { if (j.status === 'done') return 1; if (!j.stages) return 0; let p = 0;
+  for (const [k, w] of Object.entries(WEIGHT)) { const st = j.stages[k]; if (!st) continue; p += w * (st.state === 'done' ? 1 : st.state === 'active' && st.total ? Math.min(1, st.done / st.total) : 0); } return p; }
+function stepper(j) {
+  if (!j.stages) return '';
+  return `<div class="steps">${Object.keys(STAGE_NAMES).map((k, i) => { const st = j.stages[k] || {}; const icon = st.state === 'done' ? '✓' : st.state === 'active' ? '●' : st.state === 'failed' ? '✕' : '○';
+    const count = st.total > 1 ? ` ${st.done}/${st.total}` : '';
+    return `<div class="step ${st.state || 'todo'}"><span class="ic">${icon}</span><span><b>${i + 1}. ${STAGE_NAMES[k]}</b>${count}<br><small>${esc(st.state === 'active' ? st.label : st.state === 'done' ? 'done' : st.state === 'failed' ? 'failed' : 'waiting')}</small></span></div>`; }).join('')}</div>`;
+}
 function renderQueue(q) {
-  const left = q.jobs.filter((j) => j.status === 'queued' || j.status === 'running').length;
+  const c = q.counts || {}; const left = q.jobs.filter((j) => j.status === 'queued' || j.status === 'running').length;
   $('#qbadge').hidden = !left; $('#qbadge').textContent = left;
-  $('#qRemain').textContent = left ? fmt(q.remainSec) : 'Empty';
-  $('#qInfo').textContent = left ? `${left} video(s) left · finishes around ${clock(q.finishAt)}${q.autoRun ? '' : ' (press Start)'}` : 'Add videos from the New Video tab';
+  $('#qRemain').textContent = left ? fmt(q.remainSec) + ' left' : 'Empty';
+  $('#qInfo').textContent = left ? `${c.current ? `Video ${c.current} of ${c.total}` : `${c.total} video(s)`} · ${c.done || 0} done${c.failed ? ` · ${c.failed} failed` : ''} · ${c.waiting} waiting · finishes around ${clock(q.finishAt)}${q.autoRun ? '' : ' (press Start)'}` : (c.total ? `All done · ${c.done} ready${c.failed ? ` · ${c.failed} failed` : ''}` : 'Add videos from the New Video tab');
   $('#qStart').disabled = q.autoRun; $('#qPause').disabled = !q.autoRun;
-  $('#qList').innerHTML = q.jobs.slice().reverse().map((j) => { const o = j.opts || {}; const p = Math.round((j.status === 'done' ? 1 : j.step === 'render' ? 0.15 + 0.85 * (j.progress || 0) : { plan: 0.01, story: 0.05, voice: 0.1, sound: 0.14 }[j.step] || 0) * 100);
-    return `<div class="card job"><div><span class="t">${esc(j.title || (O?.categories[o.category]?.label || o.category))}</span><span class="pill ${j.status}">${STATUS[j.status] || j.status}</span>
+  $('#qList').innerHTML = q.jobs.slice().reverse().map((j) => { const o = j.opts || {}; const p = Math.round(overall(j) * 100);
+    return `<div class="card job"><div><span class="t">${esc(j.title || (O?.categories[o.category]?.label || o.category))}</span><span class="pill ${j.status}">${STATUS[j.status] || j.status}${j.status === 'running' ? ' ' + p + '%' : ''}</span>
       <div class="meta">${esc(O?.categories[o.category]?.label || '')} · ${o.minutes} min · ${esc(o.style)}${o.idea ? ' · ' + esc(o.idea.slice(0, 60)) : ''}${o.demo ? ' · demo' : ''}</div>
-      ${j.status === 'running' ? `<div class="bar"><div style="width:${p}%"></div></div><div class="meta">${esc(j.msg || '')}${j.eta ? ' · ' + fmt(j.eta) + ' left' : ''}</div>` : ''}
-      ${j.status === 'queued' ? `<div class="meta">Estimate: ${fmt(j.estimate?.total)}</div>` : ''}
-      ${j.status === 'error' ? `<div class="meta warn">${esc(j.error)}</div>` : ''}</div>
+      ${j.status === 'running' ? `<div class="bar"><div style="width:${p}%"></div></div>${stepper(j)}<div class="meta">${esc(j.msg || '')}</div><div class="meta">Elapsed ${fmt(j.elapsed)}${j.eta ? ' · about ' + fmt(j.eta) + ' left' : ''}</div>` : ''}
+      ${j.status === 'queued' ? `<div class="meta">${j.retryAt ? esc(j.msg) : 'Estimate: ' + fmt(j.estimate?.total)}</div>` : ''}
+      ${j.status === 'done' ? `<div class="meta">Made in ${fmt(j.elapsed)}${j.duration ? ' · video ' + fmt(j.duration) : ''}</div>` : ''}
+      ${j.status === 'error' ? `${stepper(j)}<div class="meta warn">${esc(j.error)}</div>` : ''}</div>
       <div class="acts">${j.status === 'queued' ? `<button data-a="up" data-id="${j.id}">↑</button><button data-a="down" data-id="${j.id}">↓</button>` : ''}
         ${j.status === 'running' || j.status === 'queued' ? `<button data-a="cancel" data-id="${j.id}">Cancel</button>` : ''}
         ${j.status === 'error' || j.status === 'cancelled' ? `<button data-a="retry" data-id="${j.id}">Retry</button>` : ''}

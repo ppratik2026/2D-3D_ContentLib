@@ -4,41 +4,60 @@ import { CATEGORIES, LOCATIONS, ACTIONS, TIMES_OF_DAY } from './config.mjs';
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 
-// Fallback models when the chosen one is busy (503/429) or not available (404).
-const FALLBACK = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
-const WAITS = [5, 10, 20, 40]; // seconds between retries on the same model
+// Models are discovered live from the key (Google retires old models often), newest flash first.
+const SKIP = /(tts|image|audio|live|embedding|vision|aqa|native|computer|robotics|veo|imagen|learnlm|gemma|nano|banana)/i;
+let modelCache = null;
+export async function listModels(key) {
+  if (modelCache && modelCache.key === key && Date.now() - modelCache.at < 10 * 60e3) return modelCache.ids;
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models', { headers: { Authorization: `Bearer ${key}` } });
+  if (!r.ok) { const e = new Error(`Gemini HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`); e.status = r.status; throw friendly(e); }
+  const ids = ((await r.json()).data || []).map((m) => String(m.id).replace(/^models\//, ''));
+  modelCache = { key, at: Date.now(), ids }; return ids;
+}
+const ver = (id) => { const m = id.match(/gemini-(\d+(?:\.\d+)?)/); return m ? parseFloat(m[1]) : 0; };
+export function pickModels(ids, preferred) {
+  const ok = ids.filter((id) => /^gemini-/.test(id) && !SKIP.test(id));
+  const score = (id) => ver(id) * 10 + (/flash-lite/.test(id) ? 2 : /flash/.test(id) ? 3 : /pro/.test(id) ? 1 : 0) - (/preview|exp/.test(id) ? 0.5 : 0);
+  const list = []; if (preferred && (ids.includes(preferred) || !ids.length)) list.push(preferred);
+  for (const id of ok.sort((a, b) => score(b) - score(a))) if (!list.includes(id) && list.length < 4) list.push(id);
+  return list.length ? list : [preferred || 'gemini-2.5-flash'];
+}
+
+const WAITS = (process.env.AV_GEMINI_WAITS || '5,10,20,40').split(',').map(Number); // seconds between retries on the same model
 const sleep = (s) => new Promise((ok) => setTimeout(ok, s * 1000));
-async function gemini(messages, { model, key, temperature = 0.9, onLog = () => {} }) {
-  const models = [model, ...FALLBACK.filter((m) => m !== model)];
-  let last;
-  for (const [mi, m] of models.entries()) {
+const short = (e) => (e.status === 503 ? 'busy (503)' : e.status === 429 ? 'rate limit (429)' : e.status === 404 ? 'not available (404)' : e.status === 400 ? 'rejected (400)' : e.status ? `HTTP ${e.status}` : /JSON/i.test(e.message) ? 'bad JSON reply' : 'network error');
+async function gemini(messages, { models, key, temperature = 0.9, onLog = () => {} }) {
+  const tried = []; let retryable = true;
+  for (const [mi, m] of [...models].entries()) {
+    let jsonMode = true, fails = 0, lastErr = null;
     for (let i = 0; i <= WAITS.length; i++) {
       try {
-        const r = await fetch(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-          body: JSON.stringify({ model: m, messages, temperature, response_format: { type: 'json_object' } }) });
+        const body = { model: m, messages, temperature }; if (jsonMode) body.response_format = { type: 'json_object' };
+        const r = await fetch(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify(body) });
         const txt = await r.text();
-        if (!r.ok) { const e = new Error(`Gemini HTTP ${r.status}: ${txt.slice(0, 200)}`); e.status = r.status; throw e; }
+        if (!r.ok) { const e = new Error(`HTTP ${r.status}: ${txt.slice(0, 200)}`); e.status = r.status; throw e; }
         const content = JSON.parse(txt).choices?.[0]?.message?.content || '';
-        return parseJSON(content);
+        const out = parseJSON(content);
+        if (mi > 0) { models.splice(mi, 1); models.unshift(m); onLog(`Using ${m} for the rest of this story`); } // stick to the model that works
+        return out;
       } catch (e) {
-        last = e;
-        if ([400, 401, 403].includes(e.status)) throw friendly(e);
-        if (e.status === 404) break;                       // model not available → next model
-        if (i < WAITS.length && !(e.status === 429 && i >= 1)) { onLog(`Gemini busy (${e.status || 'network'}) on ${m}, retrying in ${WAITS[i]}s…`); await sleep(WAITS[i]); }
-        else break;
+        lastErr = e; fails++;
+        if (e.status === 401 || e.status === 403 || (e.status === 400 && /API key/i.test(e.message))) throw friendly(e);
+        if (e.status === 400 && jsonMode && /response_format|json/i.test(e.message)) { jsonMode = false; i--; continue; } // model without JSON mode
+        if (e.status === 404 || e.status === 400) { retryable = retryable && false; break; }
+        if (i < WAITS.length && !(e.status === 429 && i >= 2)) { onLog(`Gemini ${m}: ${short(e)}, retrying in ${WAITS[i]}s (${i + 1}/${WAITS.length})…`); await sleep(WAITS[i]); }
       }
     }
-    if (mi < models.length - 1) onLog(`Switching to ${models[mi + 1]}…`);
+    tried.push(`${m}: ${short(lastErr)}${fails > 1 ? ` ×${fails}` : ''}`);
+    if (mi < models.length - 1) onLog(`Gemini ${m} failed (${short(lastErr)}), switching to ${models[mi + 1]}…`);
   }
-  throw friendly(last);
+  const busy = tried.every((t) => /busy|rate limit|network|HTTP 5/.test(t));
+  const err = new Error((busy ? 'Gemini is busy right now. ' : 'Gemini could not write the story. ') + 'Tried: ' + tried.join(' · '));
+  err.retryable = busy; void retryable; throw err;
 }
 function friendly(e) {
   const s = e?.status;
-  const msg = s === 503 ? 'Gemini is overloaded right now (503). All models were tried several times. Press Retry in a few minutes.'
-    : s === 429 ? 'Gemini quota/rate limit reached for this key (429). Wait a while, or use another key.'
-    : s === 401 || s === 403 || /API key/i.test(e?.message || '') ? 'Gemini rejected the API key. Check it in Settings → Test.'
-    : s === 400 ? 'Gemini rejected the request (400): ' + (e.message || '').slice(0, 160)
-    : 'Gemini request failed: ' + (e?.message || e);
+  const msg = s === 401 || s === 403 || /API key/i.test(e?.message || '') ? 'Gemini rejected the API key. Check it in Settings → Test.' : 'Gemini request failed: ' + (e?.message || e);
   const out = new Error(msg); out.status = s; return out;
 }
 function parseJSON(s) {
@@ -54,13 +73,15 @@ Dialogue is spoken by Hindi text-to-speech, so every line has three versions:
 Keep each line short (max ~14 words). Characters are Indian unless the user says otherwise.
 Return ONLY valid JSON, no markdown.`;
 
-export async function writeStory({ category, minutes, idea = '', language = 'hinglish', key, model = 'gemini-2.5-flash', actors = [], onLog = () => {} }) {
+export async function writeStory({ category, minutes, idea = '', language = 'hinglish', key, model = 'gemini-2.5-flash', actors = [], onLog = () => {}, onProgress = () => {} }) {
+  let ids = []; try { ids = await listModels(key); } catch (e) { if (/API key/.test(e.message)) throw e; }
+  const models = pickModels(ids, model); onLog(`Gemini models: ${models.join(', ')}`);
   const cat = CATEGORIES[category] || CATEGORIES.drama;
   const totalSec = Math.round(minutes * 60);
   const nScenes = Math.max(2, Math.min(18, Math.round(minutes * 1.6)));
   const locs = Object.entries(LOCATIONS).map(([k, v]) => `"${k}": ${v}`).join('\n');
   const actorList = actors.map((a) => `"${a.id}": ${a.gender}, ${a.age}${a.tags?.length ? ', ' + a.tags.join('/') : ''}`).join('\n');
-  onLog(`Gemini: outline (${nScenes} scenes, ~${totalSec}s)`);
+  onLog(`Gemini: outline (${nScenes} scenes, ~${totalSec}s)`); onProgress(0, nScenes + 1, 'Writing outline');
   const outline = await gemini([
     { role: 'system', content: SYSTEM },
     { role: 'user', content: `Write the outline of ${cat.hint}. Category: ${cat.label}. Total length about ${totalSec} seconds.
@@ -72,8 +93,8 @@ JSON shape:
 {"title":"Hinglish title","title_hindi":"हिंदी शीर्षक","logline":"one line","moral":"optional last line message or empty",
  "characters":[{"id":"short_lowercase_id","name":"Indian name","gender":"male|female","age":"child|young|adult|old","role":"e.g. detective","top_color":"#hex","bottom_color":"#hex","hair_color":"#hex","personality":"few words","model":"actor id"}],
  "scenes":[{"location":"one key from the list","time_of_day":"${TIMES_OF_DAY.join('|')}","present":["character ids"],"summary":"what happens","seconds":number}]}
-The scene seconds must add up to about ${totalSec}.` }], { key, model, onLog });
-  normalizeOutline(outline, totalSec);
+The scene seconds must add up to about ${totalSec}.` }], { key, models, onLog });
+  normalizeOutline(outline, totalSec); let doneScenes = 0; onProgress(1, outline.scenes.length + 1, 'Outline ready');
   // Step 2: beats for each scene (3 in parallel)
   const out = { ...outline, category, minutes, scenes: [] };
   const charList = outline.characters.map((c) => `${c.id} (${c.name}, ${c.gender}, ${c.age}, ${c.role})`).join('; ');
@@ -92,9 +113,9 @@ Allowed actions (use exactly these words): ${ACTIONS.join(', ')}.
 - "enter"/"exit"/"run_exit": a character comes into / leaves the place. Characters already present at the start do not need "enter".
 - "sit"/"stand": sit down on a chair/sofa/bench or stand up. "walk_to" needs "target": another character id.
 JSON shape: {"beats":[{"type":"action","char":"id","action":"one allowed action","target":"optional id"},
- {"type":"line","char":"id","emotion":"neutral|happy|sad|angry|surprised|scared","hindi":"देवनागरी","hinglish":"Roman Hinglish","english":"English"}]}` }], { key, model, onLog });
+ {"type":"line","char":"id","emotion":"neutral|happy|sad|angry|surprised|scared","hindi":"देवनागरी","hinglish":"Roman Hinglish","english":"English"}]}` }], { key, models, onLog });
     const scene = { ...sc, beats: normalizeBeats(res.beats || [], outline.characters, sc) };
-    out.scenes[i] = scene;
+    out.scenes[i] = scene; doneScenes++; onProgress(1 + doneScenes, outline.scenes.length + 1, `Scene ${doneScenes}/${outline.scenes.length} dialogue`);
   });
   await runPool(jobs, 3);
   return out;
