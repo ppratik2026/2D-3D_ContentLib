@@ -1,29 +1,100 @@
-// Characters: VRM (toon/anime) or GLB (realistic), Mixamo animation retargeted, procedural poses, face + lip-sync.
+// Characters: any humanoid .vrm / .glb / .gltf / .fbx. Mixamo animations (walk/idle/run) are retargeted onto it,
+// procedural poses add sitting, gestures and head-look; face = VRM expressions, blendshapes or a jaw bone.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 const UP = V3(0, 1, 0);
-
-export const POOL = {
-  vrm: { male: ['AvatarSample_C.vrm'], female: ['AvatarSample_A.vrm', 'AvatarSample_B.vrm', 'girl.vrm'], child_male: ['Seed-san.vrm'], child_female: ['girl.vrm'] },
-  glb: { male: ['readyplayer.me.glb'], female: ['Michelle.glb'] },
-};
+const CANON = ['Hips', 'Spine', 'Spine1', 'Spine2', 'Neck', 'Head', 'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand', 'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'LeftToeBase', 'RightUpLeg', 'RightLeg', 'RightFoot', 'RightToeBase'];
 const VRM_MAP = { Hips: 'hips', Spine: 'spine', Spine1: 'chest', Spine2: 'upperChest', Neck: 'neck', Head: 'head', LeftShoulder: 'leftShoulder', LeftArm: 'leftUpperArm', LeftForeArm: 'leftLowerArm', LeftHand: 'leftHand', RightShoulder: 'rightShoulder', RightArm: 'rightUpperArm', RightForeArm: 'rightLowerArm', RightHand: 'rightHand', LeftUpLeg: 'leftUpperLeg', LeftLeg: 'leftLowerLeg', LeftFoot: 'leftFoot', LeftToeBase: 'leftToes', RightUpLeg: 'rightUpperLeg', RightLeg: 'rightLowerLeg', RightFoot: 'rightFoot', RightToeBase: 'rightToes' };
+const MOUTH_KEYS = ['mouthOpen', 'jawOpen', 'viseme_aa', 'viseme_AA', 'Fcl_MTH_A', 'MTH_A', 'vrc.v_aa', 'v_aa', 'aa', 'A', 'MouthOpen', 'Mouth_Open', 'mouth_open', 'JawOpen'];
+const SMILE_KEYS = ['mouthSmile', 'mouthSmile_L', 'Fcl_MTH_Joy', 'Fcl_ALL_Joy', 'happy', 'Joy', 'smile', 'Smile'];
+const BLINK_KEYS = ['eyesClosed', 'eyeBlinkLeft', 'Fcl_EYE_Close', 'blink', 'Blink', 'eyeBlink_L', 'EyeBlink'];
 
 export async function loadActorKit(url) {
-  const loader = new GLTFLoader(); loader.register((p) => new VRMLoaderPlugin(p));
-  const soldier = await loader.loadAsync(url('Soldier.glb'));
+  const loader = new GLTFLoader(); loader.register((p) => new VRMLoaderPlugin(p)); const fbx = new FBXLoader();
+  const soldier = await loader.loadAsync(url('assets/Soldier.glb'));
   const clip = (n) => soldier.animations.find((c) => c.name === n);
   const srcRest = SkeletonUtils.clone(soldier.scene); { const m = new THREE.AnimationMixer(srcRest); m.clipAction(clip('TPose')).play(); m.update(0); } srcRest.updateMatrixWorld(true);
+  const srcMap = mapRig(srcRest); const srcFacing = restFacing(srcRest, srcMap);
   const cache = {};
-  const load = async (file) => (cache[file] ||= loader.loadAsync(url(file)));
-  return { loader, soldier, clip, srcRest, load, urlOf: url };
+  const loadModel = (file, type) => (cache[file] ||= type === 'fbx' ? fbx.loadAsync(url(file)).then((o) => ({ scene: o, animations: o.animations || [] })) : loader.loadAsync(url(file)));
+  return { loader, soldier, clip, srcRest, srcMap, srcFacing, loadModel, url };
 }
 
-// ---------- retargeting ----------
+// ---------- rig detection: map any bone naming (Mixamo, VRM, Unreal/MakeHuman, Blender, CC) to canonical names ----------
+function tokens(name) { return name.replace(/^mixamorig\d*[:_]?/i, '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[:._\-|]+/g, ' ').toLowerCase().split(/\s+/).filter(Boolean); }
+export function mapRig(root) {
+  const bones = []; root.traverse((b) => { if (b.isBone) bones.push(b); });
+  const depth = (b) => { let d = 0; while (b.parent) { d++; b = b.parent; } return d; };
+  const cand = {};
+  const put = (k, b) => { if (!cand[k] || depth(b) < depth(cand[k])) cand[k] = b; };
+  for (const b of bones) {
+    const t = tokens(b.name); const has = (...w) => w.some((x) => t.some((y) => y === x || y.startsWith(x)));
+    if (has('twist', 'roll', 'ik', 'pole', 'target', 'nub', 'end', 'helper', 'corrective')) continue;
+    const side = t.includes('left') || t.includes('l') ? 'Left' : t.includes('right') || t.includes('r') ? 'Right' : null;
+    if (!side) {
+      if (has('hips', 'pelvis', 'hip')) put('Hips', b);
+      else if (has('neck')) put('Neck', b);
+      else if (has('head') && !has('top')) put('Head', b);
+      else if (has('spine', 'chest', 'abdomen', 'torso', 'upperchest')) (cand._spine ||= []).push(b);
+      continue;
+    }
+    if (has('thumb', 'index', 'middle', 'ring', 'pinky', 'little', 'finger')) continue;
+    if (has('shoulder', 'clavicle', 'collar')) put(side + 'Shoulder', b);
+    else if (has('forearm', 'lowerarm', 'elbow') || (has('arm') && has('fore', 'lower'))) put(side + 'ForeArm', b);
+    else if (has('upperarm') || has('arm')) put(side + 'Arm', b);
+    else if (has('hand', 'wrist')) put(side + 'Hand', b);
+    else if (has('upleg', 'thigh', 'upperleg') || (has('leg') && has('up', 'upper'))) put(side + 'UpLeg', b);
+    else if (has('toe', 'ball')) put(side + 'ToeBase', b);
+    else if (has('foot', 'ankle')) put(side + 'Foot', b);
+    else if (has('leg', 'calf', 'shin', 'knee', 'lowerleg')) put(side + 'Leg', b);
+  }
+  const spine = (cand._spine || []).sort((a, b) => depth(a) - depth(b)); delete cand._spine;
+  ['Spine', 'Spine1', 'Spine2'].forEach((k, i) => { if (spine[i]) cand[k] = spine[i]; });
+  return cand;
+}
+export function rigProblems(map) {
+  const miss = ['Hips', 'Head', 'LeftArm', 'RightArm', 'LeftUpLeg', 'RightUpLeg', 'LeftLeg', 'RightLeg'].filter((k) => !map[k]); if (miss.length) return miss.map((k) => k + ' missing');
+  const under = (c, p) => { for (let x = c && c.parent; x; x = x.parent) if (x === p) return true; return false; };
+  const bad = [];
+  for (const s of ['Left', 'Right']) { if (!under(map[s + 'Leg'], map[s + 'UpLeg'])) bad.push(s + ' leg chain'); if (map[s + 'Foot'] && !under(map[s + 'Foot'], map[s + 'Leg'])) bad.push(s + ' foot not attached to leg (IK rig)'); if (!under(map[s + 'UpLeg'], map.Hips)) bad.push(s + ' leg not under hips'); }
+  if (!under(map.Head, map.Hips)) bad.push('head not under hips');
+  return bad;
+}
+
+function restFacing(root, map) { // direction the character faces at rest (from heel → toe, else eyes)
+  root.updateMatrixWorld(true);
+  const f = map.LeftFoot, t = map.LeftToeBase;
+  if (f && t) { const d = V3().setFromMatrixPosition(t.matrixWorld).sub(V3().setFromMatrixPosition(f.matrixWorld)); d.y = 0; if (d.lengthSq() > 1e-8) return d.normalize(); }
+  const l = map.LeftArm, r = map.RightArm; if (l && r) { const s = V3().setFromMatrixPosition(r.matrixWorld).sub(V3().setFromMatrixPosition(l.matrixWorld)); return V3(-s.z, 0, s.x).normalize().negate(); }
+  return V3(0, 0, 1);
+}
+function tPose(root, map) { // A-pose → T-pose (arms horizontal, legs straight), measured in world space
+  const align = (b, want) => { if (!b) return; const c = b.children.find((x) => x.isBone); if (!c) return; root.updateMatrixWorld(true);
+    const d = V3().setFromMatrixPosition(c.matrixWorld).sub(V3().setFromMatrixPosition(b.matrixWorld)).normalize(); const rq = new THREE.Quaternion().setFromUnitVectors(d, want);
+    const pq = b.parent.getWorldQuaternion(new THREE.Quaternion()); b.quaternion.premultiply(pq.clone().invert().multiply(rq).multiply(pq)); };
+  const fwd = restFacing(root, map); const side = V3().crossVectors(UP, fwd).normalize(); // character's left
+  for (const [s, dir] of [['Left', side], ['Right', side.clone().negate()]]) { align(map[s + 'Arm'], dir); align(map[s + 'ForeArm'], dir); align(map[s + 'Hand'], dir); }
+  for (const s of ['Left', 'Right']) { align(map[s + 'UpLeg'], V3(0, -1, 0)); align(map[s + 'Leg'], V3(0, -1, 0)); }
+  root.updateMatrixWorld(true);
+}
+function retargetGeneric(kit, clip, tRest, tMap, nameOf) {
+  const tFacing = restFacing(tRest, tMap);
+  const turn = new THREE.Quaternion().setFromUnitVectors(kit.srcFacing, tFacing);
+  const tracks = [], q = new THREE.Quaternion(), A1 = new THREE.Quaternion(), B1 = new THREE.Quaternion();
+  const srcByName = {}; for (const [k, b] of Object.entries(kit.srcMap)) srcByName[b.name] = k;
+  for (const tr of clip.tracks) { const [node, prop] = tr.name.split('.'); if (prop !== 'quaternion') continue;
+    const key = srcByName[node]; const sb = kit.srcMap[key], tb = tMap[key]; if (!sb || !tb) continue;
+    const PsW = sb.parent.getWorldQuaternion(new THREE.Quaternion()), SsW = sb.getWorldQuaternion(new THREE.Quaternion()), PtW = tb.parent.getWorldQuaternion(new THREE.Quaternion()), StW = tb.getWorldQuaternion(new THREE.Quaternion());
+    A1.copy(PtW).invert().multiply(turn).multiply(PsW); B1.copy(SsW).invert().multiply(turn.clone().invert()).multiply(StW);
+    const vals = tr.values.slice(); for (let k = 0; k < vals.length; k += 4) { q.fromArray(vals, k); q.premultiply(A1).multiply(B1); q.toArray(vals, k); }
+    tracks.push(new THREE.QuaternionKeyframeTrack(nameOf(key) + '.quaternion', tr.times, vals)); }
+  return new THREE.AnimationClip(clip.name, clip.duration, tracks);
+}
 function retargetVRM(kit, clip, vrm) {
   const tracks = [], q = new THREE.Quaternion(), restInv = new THREE.Quaternion(), parentRest = new THREE.Quaternion(); const v0 = vrm.meta && vrm.meta.metaVersion === '0';
   for (const tr of clip.tracks) { const [node, prop] = tr.name.split('.'); if (prop !== 'quaternion') continue; const vb = VRM_MAP[node.replace('mixamorig', '')]; if (!vb) continue;
@@ -34,80 +105,67 @@ function retargetVRM(kit, clip, vrm) {
     tracks.push(new THREE.QuaternionKeyframeTrack(vn.name + '.quaternion', tr.times, vals)); }
   return new THREE.AnimationClip(clip.name, clip.duration, tracks);
 }
-function tPoseRest(root) { // put a bind pose (A-pose) into a T-pose
-  root.updateMatrixWorld(true);
-  const align = (bn, want) => { const b = root.getObjectByName(bn); if (!b) return; const c = b.children.find((x) => x.isBone); if (!c) return; root.updateMatrixWorld(true);
-    const d = c.getWorldPosition(V3()).sub(b.getWorldPosition(V3())).normalize(); const rq = new THREE.Quaternion().setFromUnitVectors(d, want);
-    const pq = b.parent.getWorldQuaternion(new THREE.Quaternion()); b.quaternion.premultiply(pq.clone().invert().multiply(rq).multiply(pq)); root.updateMatrixWorld(true); };
-  for (const [side, x] of [['Left', 1], ['Right', -1]]) for (const bn of ['Arm', 'ForeArm', 'Hand']) align(side + bn, V3(x, 0, 0));
-  for (const side of ['Left', 'Right']) for (const bn of ['UpLeg', 'Leg']) align(side + bn, V3(0, -1, 0));
-}
-function retargetRPM(kit, clip, tgtRest) {
-  const FLIP = new THREE.Quaternion().setFromAxisAngle(UP, Math.PI); const tracks = [], q = new THREE.Quaternion(), A1 = new THREE.Quaternion(), B1 = new THREE.Quaternion();
-  for (const tr of clip.tracks) { const [node, prop] = tr.name.split('.'); if (prop !== 'quaternion') continue;
-    const sb = kit.srcRest.getObjectByName(node), tb = tgtRest.getObjectByName(node.replace('mixamorig', '')); if (!sb || !tb) continue;
-    const PsW = sb.parent.getWorldQuaternion(new THREE.Quaternion()), SsW = sb.getWorldQuaternion(new THREE.Quaternion()), PtW = tb.parent.getWorldQuaternion(new THREE.Quaternion()), StW = tb.getWorldQuaternion(new THREE.Quaternion());
-    A1.copy(PtW).invert().multiply(FLIP).multiply(PsW); B1.copy(SsW).invert().multiply(FLIP).multiply(StW);
-    const vals = tr.values.slice(); for (let k = 0; k < vals.length; k += 4) { q.fromArray(vals, k); q.premultiply(A1).multiply(B1); q.toArray(vals, k); }
-    tracks.push(new THREE.QuaternionKeyframeTrack(tb.name + '.quaternion', tr.times, vals)); }
-  return new THREE.AnimationClip(clip.name, clip.duration, tracks);
-}
-const stripQ = (c, noHip) => { c = c.clone(); c.tracks = c.tracks.filter((t) => /\.quaternion$/.test(t.name) && !(noHip && t.name === 'mixamorigHips.quaternion')); return c; };
 
 // ---------- actor creation ----------
-export async function createActor(kit, scene, ch, mode, index) {
-  const age = ch.age, child = age === 'child';
-  const key = child ? (ch.gender === 'female' ? 'child_female' : 'child_male') : ch.gender;
-  const list = POOL[mode][key] || POOL[mode][ch.gender]; const file = list[index % list.length];
+// cast: { file, type: 'vrm'|'glb'|'fbx' }   ch: story character (colours, age, gender)
+export async function createActor(kit, scene, ch, cast, opts = {}) {
+  const child = ch.age === 'child';
   const height = child ? 1.25 : ch.gender === 'female' ? 1.62 : 1.76;
-  const a = { id: ch.id, name: ch.name, ch, mode, bones: {}, morph: [] };
-  if (mode === 'vrm') {
-    const g = await kit.loader.loadAsync(kitUrl(kit, file)); const vrm = g.userData.vrm; VRMUtils.rotateVRM0(vrm);
-    a.vrm = vrm; a.o = vrm.scene; scene.add(a.o);
-    a.o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; tintVRM(m, ch); if (kit.simpleMat) simplify(m, kit.simpleMat); } });
+  const a = { id: ch.id, name: ch.name, ch, bones: {}, face: [], problems: [] };
+  if (cast.type === 'vrm') {
+    const g = await kit.loader.loadAsync(kit.url(cast.file)); const vrm = g.userData.vrm; if (!vrm) throw new Error('Not a valid VRM: ' + cast.file);
+    VRMUtils.rotateVRM0(vrm); a.vrm = vrm; a.o = vrm.scene; scene.add(a.o);
+    a.o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; tintVRM(m, ch); if (opts.simpleMat) simplify(m, opts.simpleMat); } });
     for (const [k, v] of Object.entries(VRM_MAP)) { const n = vrm.humanoid.getNormalizedBoneNode(v); if (n) a.bones[k] = n; }
     a.hipRest = a.bones.Hips.position.clone(); vrm.update(0); a.o.updateMatrixWorld(true);
     const hy = vrm.humanoid.getRawBoneNode('head').getWorldPosition(V3()).y; a.o.scale.setScalar(height / (hy + 0.11));
     a.mix = new THREE.AnimationMixer(a.o);
-    a.actions = { walk: a.mix.clipAction(retargetVRM(kit, kit.clip('Walk'), vrm)), run: a.mix.clipAction(retargetVRM(kit, kit.clip('Run'), vrm)), idle: a.mix.clipAction(retargetVRM(kit, kit.clip('Idle'), vrm)) };
+    a.actions = Object.fromEntries(['Walk', 'Run', 'Idle'].map((n) => [n.toLowerCase(), a.mix.clipAction(retargetVRM(kit, kit.clip(n), vrm))]));
   } else {
-    const g = await kit.load(file); const rpm = /readyplayer/.test(file);
+    const g = await kit.loadModel(cast.file, cast.type);
     a.o = SkeletonUtils.clone(g.scene); scene.add(a.o);
-    a.o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; m.material = m.material.clone(); tintGLB(m, ch);
-      if (m.morphTargetDictionary && 'mouthOpen' in m.morphTargetDictionary) a.morph.push(m); } });
-    a.o.traverse((b) => { if (b.isBone) a.bones[b.name.replace('mixamorig', '')] = b; });
-    a.mix = new THREE.AnimationMixer(a.o);
-    if (rpm) { const rest = SkeletonUtils.clone(g.scene); tPoseRest(rest); a.hipRest = a.bones.Hips.position.clone();
-      a.actions = Object.fromEntries(['Walk', 'Run', 'Idle'].map((n) => [n.toLowerCase(), a.mix.clipAction(retargetRPM(kit, kit.clip(n), rest))])); }
-    else { const tr = kit.clip('Idle').tracks.find((t) => t.name === 'mixamorigHips.position'); const hp = g.animations.map((c) => c.tracks.find((t) => t.name === 'mixamorigHips.position')).find(Boolean);
-      a.hipRest = hp ? V3(hp.values[0], hp.values[1], hp.values[2]) : a.bones.Hips.position.clone();
-      a.actions = Object.fromEntries(['Walk', 'Run', 'Idle'].map((n) => [n.toLowerCase(), a.mix.clipAction(stripQ(kit.clip(n), true))])); }
-    a.bones.Hips.position.copy(a.hipRest); a.o.updateMatrixWorld(true);
-    const hy = a.bones.Head.getWorldPosition(V3()).y; a.o.scale.setScalar(height / (hy + 0.12));
+    const map = mapRig(a.o); a.problems = rigProblems(map); if (a.problems.length) throw new Error(`Ye standard humanoid rig nahi hai: ${a.problems.join(', ')}. Mixamo / VRoid / MakeHuman jaisa rig chahiye.`);
+    a.bones = map;
+    a.o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
+      m.material = Array.isArray(m.material) ? m.material.map((x) => x.clone()) : m.material.clone(); tintGLB(m, ch); if (opts.toon) toonify(m, opts.toon);
+      const d = m.morphTargetDictionary; if (d) { const mk = MOUTH_KEYS.find((k) => k in d), sk = SMILE_KEYS.find((k) => k in d), bk = BLINK_KEYS.find((k) => k in d); if (mk || sk || bk) a.face.push({ m, mouth: d[mk], smile: d[sk], blink: d[bk] }); } } });
+    a.o.traverse((b) => { if (b.isBone && !a.jaw && /jaw/i.test(b.name)) a.jaw = b; }); if (a.jaw) a.jawRest = a.jaw.quaternion.clone();
+    const rest = SkeletonUtils.clone(g.scene); const rmap = mapRig(rest); tPose(rest, rmap);
+    a.hipRest = map.Hips.position.clone(); a.mix = new THREE.AnimationMixer(a.o);
+    a.actions = Object.fromEntries(['Walk', 'Run', 'Idle'].map((n) => [n.toLowerCase(), a.mix.clipAction(retargetGeneric(kit, kit.clip(n), rest, rmap, (k) => map[k].name))]));
+    a.o.updateMatrixWorld(true);
+    // size from bones only (meshes can have their own scale): head height above the lowest foot/toe bone
+    const yOf = (b) => (b ? b.getWorldPosition(V3()).y : Infinity); const toe = Math.min(yOf(map.LeftToeBase), yOf(map.RightToeBase)), foot = Math.min(yOf(map.LeftFoot), yOf(map.RightFoot));
+    const low = isFinite(toe) ? toe - 0.02 * (map.Head.getWorldPosition(V3()).y - toe) : foot - 0.05 * (map.Head.getWorldPosition(V3()).y - foot);
+    const sc = height / Math.max(1e-4, (map.Head.getWorldPosition(V3()).y - low) * 1.07); a.o.scale.multiplyScalar(sc); a.o.updateMatrixWorld(true);
+    a.yLift = -(low * sc);
   }
   for (const act of Object.values(a.actions)) { act.play(); act.weight = 0; }
-  // which way does the model face after the idle clip? → yawOffset so that yaw 0 means facing +Z
-  a.yawOffset = 0; a.actions.idle.weight = 1; a.actions.idle.time = 0; a.mix.update(0); if (a.vrm) a.vrm.update(0); a.o.rotation.set(0, 0, 0); a.o.position.set(0, 0, 0); a.o.updateMatrixWorld(true);
+  a.yawOffset = 0; a.actions.idle.weight = 1; a.actions.idle.time = 0; a.mix.update(0); if (a.vrm) a.vrm.update(0); a.o.rotation.set(0, 0, 0); a.o.position.set(0, a.yLift || 0, 0); a.o.updateMatrixWorld(true);
   const f = faceDir(a); a.yawOffset = -Math.atan2(f.x, f.z); a.actions.idle.weight = 0;
-  a.o.updateMatrixWorld(true); a.hipY = a.bones.Hips.getWorldPosition(V3()).y;
-  a.height = height;
+  a.o.updateMatrixWorld(true); a.hipY = a.bones.Hips.getWorldPosition(V3()).y; a.height = height;
+  a.hasLipSync = !!(a.vrm?.expressionManager || a.face.some((x) => x.mouth !== undefined) || a.jaw);
   return a;
 }
-function kitUrl(kit, f) { return kit.urlOf ? kit.urlOf(f) : f; }
 function faceDir(a) {
   const up = (n) => n && n.updateWorldMatrix(true, false);
   if (a.vrm) { const h = a.vrm.humanoid, le = h.getRawBoneNode('leftEye'), re = h.getRawBoneNode('rightEye'), hd = h.getRawBoneNode('head'); up(le); up(re); up(hd); const hp = V3().setFromMatrixPosition(hd.matrixWorld);
     if (le && re) { const m = V3().setFromMatrixPosition(le.matrixWorld).add(V3().setFromMatrixPosition(re.matrixWorld)).multiplyScalar(0.5).sub(hp); m.y = 0; if (m.lengthSq() > 1e-8) return m.normalize(); } }
-  const le = a.eyeL || (a.eyeL = a.o.getObjectByName('LeftEye')), re = a.eyeR || (a.eyeR = a.o.getObjectByName('RightEye')), hd = a.bones.Head; up(le); up(re); up(hd); up(a.bones.LeftToeBase);
-  if (le && re) { const m = le.getWorldPosition(V3()).add(re.getWorldPosition(V3())).multiplyScalar(0.5).sub(hd.getWorldPosition(V3())); m.y = 0; if (m.lengthSq() > 1e-8) return m.normalize(); }
-  // fallback: toes are in front of the feet
-  const lf = a.bones.LeftFoot, lt = a.bones.LeftToeBase; if (lf && lt) { const m = lt.getWorldPosition(V3()).sub(lf.getWorldPosition(V3())); m.y = 0; if (m.lengthSq() > 1e-8) return m.normalize(); }
+  if (!a.eyes) { a.eyes = []; a.o.traverse((b) => { if (b.isBone && /eye/i.test(b.name) && !/brow|lid|lash/i.test(b.name) && a.eyes.length < 2) a.eyes.push(b); }); }
+  const hd = a.bones.Head; up(hd); const hp = V3().setFromMatrixPosition(hd.matrixWorld);
+  if (a.eyes.length === 2) { a.eyes.forEach(up); const m = V3().setFromMatrixPosition(a.eyes[0].matrixWorld).add(V3().setFromMatrixPosition(a.eyes[1].matrixWorld)).multiplyScalar(0.5).sub(hp); m.y = 0; if (m.lengthSq() > 1e-8) return m.normalize(); }
+  const lf = a.bones.LeftFoot, lt = a.bones.LeftToeBase; if (lf && lt) { up(lt); const m = V3().setFromMatrixPosition(lt.matrixWorld).sub(V3().setFromMatrixPosition(lf.matrixWorld)); m.y = 0; if (m.lengthSq() > 1e-8) return m.normalize(); }
   return V3(0, 0, 1);
 }
+
+// ---------- colours / materials ----------
 const col = (h) => new THREE.Color(h);
 function simplify(m, grad) { // MToon → MeshToonMaterial (much cheaper on software WebGL)
   const conv = (mat) => { if (!mat || !mat.isShaderMaterial) return mat; const map = mat.map || mat.uniforms?.map?.value || null; const c = (mat.color || mat.uniforms?.litFactor?.value || new THREE.Color(1, 1, 1)).clone();
     const n = new THREE.MeshToonMaterial({ map, color: c, gradientMap: grad, transparent: mat.transparent, alphaTest: mat.alphaTest || (mat.transparent ? 0 : 0.5), side: mat.side }); n.name = mat.name; return n; };
+  m.material = Array.isArray(m.material) ? m.material.map(conv) : conv(m.material); }
+function toonify(m, grad) {
+  const conv = (mat) => { if (!mat || mat.isMeshToonMaterial || mat.isShaderMaterial) return mat; const n = new THREE.MeshToonMaterial({ map: mat.map || null, color: mat.color ? mat.color.clone() : new THREE.Color(1, 1, 1), gradientMap: grad, transparent: mat.transparent, opacity: mat.opacity, alphaTest: mat.alphaTest, side: mat.side }); n.name = mat.name; return n; };
   m.material = Array.isArray(m.material) ? m.material.map(conv) : conv(m.material); }
 function recolorTex(map) { // grey + lift the cloth texture so the story colour can show on dark clothes
   const img = map && map.image; if (!img || !img.width) return map;
@@ -127,12 +185,13 @@ function tintVRM(m, ch) {
     const k = col(c); if (isHair) k.lerp(col('#ffffff'), 0.25);
     mat.color.copy(k); if (mat.shadeColorFactor) mat.shadeColorFactor.copy(k).multiplyScalar(0.55); mat.needsUpdate = true; }
 }
-function tintGLB(m, ch) {
-  const mat = m.material, n = m.name;
-  if (/Outfit_Top/.test(n)) { mat.color.set(ch.top_color); mat.map = null; }
-  if (/Outfit_Bottom/.test(n)) { mat.color.set(ch.bottom_color); mat.map = null; }
-  if (/Headwear|Hair/.test(n)) mat.color.set(ch.age === 'old' ? '#9a9a9a' : ch.hair_color).lerp(new THREE.Color('#ffffff'), 0.25);
-  if (/Beard/.test(n) && ch.age === 'young') m.visible = false;
+function tintGLB(m, ch) { // only for models with clearly named outfit meshes (e.g. Ready Player Me); custom models keep their look
+  const mats = Array.isArray(m.material) ? m.material : [m.material]; const n = m.name;
+  for (const mat of mats) { if (!mat.color) continue;
+    if (/Outfit_Top/.test(n)) { mat.color.set(ch.top_color); mat.map = null; }
+    if (/Outfit_Bottom/.test(n)) { mat.color.set(ch.bottom_color); mat.map = null; }
+    if (/Wolf3D_(Headwear|Hair)/.test(n)) mat.color.set(ch.age === 'old' ? '#9a9a9a' : ch.hair_color).lerp(new THREE.Color('#ffffff'), 0.25); }
+  if (/Wolf3D_Beard/.test(n) && ch.age === 'young') m.visible = false;
 }
 
 // ---------- posing ----------
@@ -146,8 +205,8 @@ export function poseActor(a, t, st) {
   a.o.visible = st.visible !== false; if (!a.o.visible) return;
   const w = { walk: st.walk || 0, run: st.run || 0 }; w.idle = Math.max(0, 1 - w.walk - w.run);
   for (const [k, act] of Object.entries(a.actions)) { act.weight = w[k] || 0; act.time = (t * (k === 'idle' ? 1 : 1.05) + a.id.length * 0.37) % act.getClip().duration; }
-  a.mix.update(0); a.bones.Hips.position.copy(a.hipRest);
-  a.o.position.copy(st.pos); a.o.rotation.set(0, st.yaw + a.yawOffset, 0);
+  a.mix.update(0); a.bones.Hips.position.copy(a.hipRest); if (a.jaw) a.jaw.quaternion.copy(a.jawRest);
+  a.o.position.copy(st.pos); a.o.position.y += a.yLift || 0; a.o.rotation.set(0, st.yaw + a.yawOffset, 0);
   const { F, R } = dirs(st.yaw);
   const s = st.sit || 0;
   if (s > 0) { a.o.position.y -= s * st.drop; a.o.position.addScaledVector(F, -0.1 * s);
@@ -176,14 +235,15 @@ export function poseActor(a, t, st) {
     rotW(a, 'Neck', UP, ang * 0.45); rotW(a, 'Head', UP, ang * 0.55); }
   if (st.talk) rotW(a, 'Head', R, Math.sin(t * 4.1) * 0.04 * st.talk);
   // face
-  const mouth = st.mouth || 0;
+  const mouth = st.mouth || 0; const per = 3.1 + a.id.length * 0.29, q = (t + a.id.length * 1.7) % per; const blink = face === 'happy' ? 0 : q < 0.16 ? 1 - Math.abs(q - 0.08) / 0.08 : 0;
   if (a.vrm) { const em = a.vrm.expressionManager;
     if (em) { for (const v of VOW) em.setValue(v, 0); if (mouth > 0.02) em.setValue(VOW[Math.floor(t * 7.3 + a.id.length) % 5], Math.min(1, mouth * 1.1));
-      const per = 3.1 + a.id.length * 0.29, q = (t + a.id.length * 1.7) % per; em.setValue('blink', face === 'happy' ? 0 : q < 0.16 ? 1 - Math.abs(q - 0.08) / 0.08 : 0);
+      em.setValue('blink', blink);
       for (const e of ['happy', 'sad', 'angry', 'surprised']) em.setValue(e, 0);
       const emo = { happy: 'happy', sad: 'sad', angry: 'angry', surprised: 'surprised', scared: 'surprised' }[face]; if (emo) em.setValue(emo, mouth > 0.05 ? 0.45 : 0.8); }
     a.vrm.update(0); }
-  for (const m of a.morph) { const d = m.morphTargetDictionary; m.morphTargetInfluences[d.mouthOpen] = Math.min(1, mouth * 0.9); if ('mouthSmile' in d) m.morphTargetInfluences[d.mouthSmile] = face === 'happy' ? 0.7 : 0.15; }
+  for (const f of a.face) { const inf = f.m.morphTargetInfluences; if (f.mouth !== undefined) inf[f.mouth] = Math.min(1, mouth * 0.9); if (f.smile !== undefined) inf[f.smile] = face === 'happy' ? 0.7 : 0.15; if (f.blink !== undefined) inf[f.blink] = blink; }
+  if (a.jaw && !a.face.some((f) => f.mouth !== undefined) && mouth > 0.02) { a.jaw.updateWorldMatrix(true, false); rotW({ bones: { J: a.jaw } }, 'J', R, 0.22 * mouth); }
   a.o.updateMatrixWorld(true);
 }
 export const headPos = (a) => { const n = a.vrm ? a.vrm.humanoid.getRawBoneNode('head') : a.bones.Head; n.updateWorldMatrix(true, false); return V3().setFromMatrixPosition(n.matrixWorld); };

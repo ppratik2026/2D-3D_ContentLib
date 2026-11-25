@@ -7,3 +7,6 @@ voices/
 output/
 bench.json
 spike/
+app/build/
+dist/
+dist-stage/

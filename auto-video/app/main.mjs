@@ -1,0 +1,178 @@
+// Auto Video Studio — Electron main process.
+// Data lives in Documents\AutoVideo (Videos\, data\ for models/voices/characters, settings.json, queue.json).
+import { app, BrowserWindow, ipcMain, protocol, net, dialog, shell, safeStorage } from 'electron';
+import path from 'path';
+import fs from 'fs';
+import { spawn } from 'child_process';
+import { Readable } from 'stream';
+import { pathToFileURL, fileURLToPath } from 'url';
+
+const APP_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+process.env.AUTOVIDEO_DATA ||= path.join(app.getPath('documents'), 'AutoVideo');
+protocol.registerSchemesAsPrivileged([{ scheme: 'av', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-unsafe-swiftshader');
+if (process.argv.includes('--cpu')) app.commandLine.appendSwitch('use-angle', 'swiftshader');
+
+const { PUBLIC, OUTPUT, STATE, CHARS } = await import('../pipeline/paths.mjs');
+const { CATEGORIES, STYLES, LOOKS, SUBTITLE_STYLES } = await import('../pipeline/config.mjs');
+const { estimate, fmt } = await import('../pipeline/estimate.mjs');
+const { makeVideo, newJobId } = await import('../pipeline/run.mjs');
+const { setupStatus, runSetup } = await import('../pipeline/setup.mjs');
+const lib = await import('../pipeline/library.mjs');
+const ffmpegPath = (await import('ffmpeg-static')).default;
+
+// ---------- settings (Gemini key encrypted with Windows DPAPI / OS keychain when available) ----------
+const SETTINGS = path.join(STATE, 'settings.json');
+const DEFAULTS = { model: 'gemini-2.5-flash', renderer: 'chrome', concurrency: 2, keyEnc: '', keyPlain: '' };
+function readSettings() { try { return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(SETTINGS, 'utf8')) }; } catch { return { ...DEFAULTS }; } }
+function writeSettings(s) { fs.writeFileSync(SETTINGS, JSON.stringify(s, null, 2)); }
+function getKey() { const s = readSettings(); try { if (s.keyEnc && safeStorage.isEncryptionAvailable()) return safeStorage.decryptString(Buffer.from(s.keyEnc, 'base64')); } catch {} return s.keyPlain || process.env.GEMINI_API_KEY || ''; }
+function setKey(k) { const s = readSettings(); k = String(k || '').trim(); if (safeStorage.isEncryptionAvailable()) { s.keyEnc = k ? safeStorage.encryptString(k).toString('base64') : ''; s.keyPlain = ''; } else { s.keyPlain = k; s.keyEnc = ''; } writeSettings(s); }
+const publicSettings = () => { const s = readSettings(); const k = getKey(); return { model: s.model, renderer: s.renderer, concurrency: s.concurrency, hasKey: !!k, keyHint: k ? k.slice(0, 4) + '…' + k.slice(-4) : '', dataDir: process.env.AUTOVIDEO_DATA }; };
+
+// ---------- queue ----------
+const QFILE = path.join(STATE, 'queue.json');
+let queue = []; try { queue = JSON.parse(fs.readFileSync(QFILE, 'utf8')); for (const j of queue) if (j.status === 'running') j.status = 'queued'; } catch {}
+let running = null, autoRun = false, abort = null, lastSave = 0;
+const saveQueue = () => fs.writeFileSync(QFILE, JSON.stringify(queue, null, 2));
+function broadcast(force) { const now = Date.now(); if (!force && now - lastSave < 700) return; lastSave = now; saveQueue(); for (const w of BrowserWindow.getAllWindows()) if (w.__ui) w.webContents.send('queue', queueView()); }
+function queueView() {
+  let remain = 0; for (const j of queue) { if (j.status === 'queued') remain += j.estimate?.total || 0; if (j.status === 'running') remain += j.eta ?? (j.estimate?.total || 0) * (1 - (j.progress || 0)); }
+  return { jobs: queue, running: !!running, autoRun, remainSec: Math.round(remain), remainText: fmt(remain), finishAt: remain ? new Date(Date.now() + remain * 1000).toISOString() : null };
+}
+async function pump() {
+  if (running || !autoRun) return; const job = queue.find((j) => j.status === 'queued'); if (!job) { autoRun = false; broadcast(true); return; }
+  running = job; job.status = 'running'; job.started = Date.now(); job.error = null; abort = new AbortController(); broadcast(true);
+  const s = readSettings();
+  try {
+    const r = await makeVideo({ ...job.opts, id: job.id, key: getKey(), model: s.model, renderer: s.renderer, concurrency: s.concurrency, renderFn: s.renderer === 'remotion' ? null : chromeRender },
+      (e) => { Object.assign(job, { step: e.step, msg: e.msg }); if (e.progress != null) job.progress = e.progress; if (e.eta != null) job.eta = e.eta; if (e.estimate) job.estimate = e.estimate; if (e.title) job.title = e.title; if (e.duration) job.duration = e.duration; broadcast(); },
+      { signal: abort.signal });
+    Object.assign(job, { status: 'done', folder: r.folder, file: r.file, title: r.story.title, progress: 1, finished: Date.now() });
+  } catch (e) { Object.assign(job, { status: abort.signal.aborted ? 'cancelled' : 'error', error: String(e.message || e) }); console.error(e); }
+  running = null; abort = null; broadcast(true); pump();
+}
+
+// ---------- Chrome renderer: hidden window → WebCodecs chunks → file → ffmpeg adds audio ----------
+const sessions = new Map();
+ipcMain.on('render:ready', (e) => sessions.get(e.sender.id)?.ready());
+ipcMain.handle('render:chunk', (e, pos, data) => sessions.get(e.sender.id)?.chunk(pos, data));
+ipcMain.on('render:progress', (e, f, n, secs) => sessions.get(e.sender.id)?.progress(f, n, secs));
+ipcMain.on('render:done', (e, info) => sessions.get(e.sender.id)?.done(info));
+ipcMain.on('render:fail', (e, msg) => sessions.get(e.sender.id)?.fail(msg));
+function chromeRender({ tl, mixFile, out, onProgress, signal }) {
+  return new Promise((resolve, reject) => {
+    const win = new BrowserWindow({ show: false, width: 1280, height: 720, webPreferences: { preload: path.join(APP_DIR, 'app', 'render', 'preload.cjs'), backgroundThrottling: false } });
+    const id = win.webContents.id; const tmp = out + '.video.mp4'; const fd = fs.openSync(tmp, 'w'); let finished = false;
+    const end = (err, val) => { if (finished) return; finished = true; sessions.delete(id); try { fs.closeSync(fd); } catch {} if (!win.isDestroyed()) win.destroy(); err ? reject(err) : resolve(val); };
+    signal?.addEventListener('abort', () => end(new Error('Cancelled')));
+    win.webContents.on('render-process-gone', (_e, d) => end(new Error('Renderer crashed: ' + d.reason)));
+    win.webContents.on('console-message', (_e, level, msg) => { if (level >= 2) console.log('[render]', msg); });
+    sessions.set(id, {
+      ready: () => win.webContents.send('render:job', { tl }),
+      chunk: (pos, data) => { const b = Buffer.from(data.buffer || data, data.byteOffset || 0, data.byteLength); fs.writeSync(fd, b, 0, b.length, pos); },
+      progress: (f, n, secs) => onProgress(f / n, f, secs),
+      fail: (msg) => end(new Error(msg)),
+      done: async (info) => { try { fs.closeSync(fd); } catch {}
+        try { await ffmpeg(['-y', '-i', tmp, '-i', mixFile, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out]); fs.rmSync(tmp, { force: true }); end(null, info); }
+        catch (e) { end(e); } },
+    });
+    win.loadURL('av://app/app/render/render.html').catch((e) => end(e));
+  });
+}
+function ffmpeg(args) { return new Promise((ok, fail) => { const p = spawn(ffmpegPath, args); let err = ''; p.stderr.on('data', (d) => (err = (err + d).slice(-2000))); p.on('error', fail); p.on('close', (c) => (c === 0 ? ok() : fail(new Error('ffmpeg failed: ' + err)))); }); }
+
+// ---------- av:// protocol: app files, data (models, characters, jobs) and finished videos (with Range for seeking) ----------
+function serve() {
+  protocol.handle('av', async (req) => {
+    const u = new URL(req.url); const base = { app: APP_DIR, data: PUBLIC, videos: OUTPUT }[u.hostname]; if (!base) return new Response('no', { status: 404 });
+    const file = path.resolve(base, decodeURIComponent(u.pathname).replace(/^\/+/, '')); if (!file.startsWith(path.resolve(base)) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return new Response('not found', { status: 404 });
+    const size = fs.statSync(file).size; const range = req.headers.get('range'); const type = file.endsWith('.mp4') ? 'video/mp4' : undefined;
+    if (range) { const m = /bytes=(\d*)-(\d*)/.exec(range); const start = m[1] ? +m[1] : 0, endB = m[2] ? +m[2] : size - 1;
+      return new Response(Readable.toWeb(fs.createReadStream(file, { start, end: endB })), { status: 206, headers: { 'Content-Range': `bytes ${start}-${endB}/${size}`, 'Accept-Ranges': 'bytes', 'Content-Length': String(endB - start + 1), ...(type ? { 'Content-Type': type } : {}) } }); }
+    if (type) return new Response(Readable.toWeb(fs.createReadStream(file)), { headers: { 'Content-Type': type, 'Content-Length': String(size), 'Accept-Ranges': 'bytes' } });
+    return net.fetch(pathToFileURL(file).toString());
+  });
+}
+
+// ---------- UI IPC ----------
+function libraryList() {
+  if (!fs.existsSync(OUTPUT)) return [];
+  return fs.readdirSync(OUTPUT).filter((d) => !d.startsWith('.') && fs.existsSync(path.join(OUTPUT, d, 'final.mp4'))).map((d) => {
+    let story = {}; try { story = JSON.parse(fs.readFileSync(path.join(OUTPUT, d, 'story.json'), 'utf8')); } catch {}
+    const st = fs.statSync(path.join(OUTPUT, d, 'final.mp4'));
+    return { dir: d, title: story.title || d, category: story.category, created: st.mtimeMs, sizeMB: +(st.size / 1e6).toFixed(1), video: `av://videos/${encodeURIComponent(d)}/final.mp4` };
+  }).sort((a, b) => b.created - a.created);
+}
+const H = {
+  options: () => ({ categories: CATEGORIES, styles: STYLES, looks: LOOKS, subs: SUBTITLE_STYLES }),
+  estimate: (o) => { const e = estimate({ style: o.style, minutes: Number(o.minutes) || 1, renderer: readSettings().renderer }); return { ...e, totalText: fmt(e.total), partsText: Object.fromEntries(Object.entries(e.parts).map(([k, v]) => [k, fmt(v)])) }; },
+  'settings:get': () => publicSettings(),
+  'settings:set': (s) => { const cur = readSettings(); if (s.key !== undefined) setKey(s.key); const next = readSettings(); for (const k of ['model', 'renderer', 'concurrency']) if (s[k] !== undefined) next[k] = s[k]; writeSettings(next); void cur; return publicSettings(); },
+  'settings:testKey': async () => { const k = getKey(); if (!k) return { ok: false, msg: 'Key nahi hai' };
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models', { headers: { Authorization: `Bearer ${k}` } }); return r.ok ? { ok: true, msg: 'Key sahi hai ✓' } : { ok: false, msg: `Gemini ne mana kiya (${r.status}): ${(await r.text()).slice(0, 160)}` }; },
+  'setup:status': () => setupStatus(),
+  'setup:run': async (_o, e) => runSetup((p) => e.sender.send('setup:progress', p)),
+  'queue:get': () => queueView(),
+  'queue:add': (o) => { const n = Math.max(1, Math.min(20, Number(o.count) || 1)); const ideas = String(o.idea || '').split('\n').map((x) => x.trim()).filter(Boolean);
+    for (let i = 0; i < n; i++) { const opts = { category: o.category, idea: ideas[i] ?? (n > 1 ? '' : o.idea || ''), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs, demo: !!o.demo };
+      const est = estimate({ style: opts.style, minutes: opts.minutes, renderer: readSettings().renderer });
+      queue.push({ id: newJobId(o.category) + (n > 1 ? `_${i + 1}` : ''), opts, status: 'queued', progress: 0, estimate: est, created: Date.now(), msg: 'Queue me' }); }
+    if (o.start) autoRun = true; broadcast(true); pump(); return queueView(); },
+  'queue:start': () => { autoRun = true; pump(); broadcast(true); return queueView(); },
+  'queue:pause': () => { autoRun = false; broadcast(true); return queueView(); },
+  'queue:cancel': (id) => { const j = queue.find((x) => x.id === id); if (j === running) abort?.abort(); else if (j) j.status = 'cancelled'; broadcast(true); return queueView(); },
+  'queue:retry': (id) => { const j = queue.find((x) => x.id === id); if (j) Object.assign(j, { status: 'queued', progress: 0, error: null, msg: 'Queue me' }); broadcast(true); pump(); return queueView(); },
+  'queue:remove': (id) => { queue = queue.filter((x) => x.id !== id || x === running); broadcast(true); return queueView(); },
+  'queue:move': ({ id, dir }) => { const i = queue.findIndex((x) => x.id === id), k = i + dir; if (i >= 0 && k >= 0 && k < queue.length) [queue[i], queue[k]] = [queue[k], queue[i]]; broadcast(true); return queueView(); },
+  'queue:clearDone': () => { queue = queue.filter((x) => !['done', 'cancelled'].includes(x.status)); broadcast(true); return queueView(); },
+  'library:list': () => libraryList(),
+  'library:open': (dir) => shell.openPath(dir ? path.join(OUTPUT, dir) : OUTPUT),
+  'library:delete': (dir) => { fs.rmSync(path.join(OUTPUT, dir), { recursive: true, force: true }); return libraryList(); },
+  'chars:list': () => lib.listCharacters().map((c) => ({ ...c, url: 'av://data/' + c.file.split('/').map(encodeURIComponent).join('/') })),
+  'chars:import': async (meta, e) => { const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), { properties: ['openFile', 'multiSelections'], filters: [{ name: '3D characters', extensions: ['vrm', 'glb', 'gltf', 'fbx'] }] });
+    return r.canceled ? [] : r.filePaths.map((f) => lib.importCharacter(f, meta || {})); },
+  'chars:importPaths': (paths) => paths.map((f) => lib.importCharacter(f, {})),
+  'chars:update': ({ id, patch }) => lib.updateCharacter(id, patch),
+  'chars:delete': (id) => lib.deleteCharacter(id),
+  'chars:openFolder': () => shell.openPath(CHARS),
+  'open:data': () => shell.openPath(process.env.AUTOVIDEO_DATA),
+};
+for (const [ch, fn] of Object.entries(H)) ipcMain.handle(ch, (e, arg) => fn(arg, e));
+
+function createWindow() {
+  const shots = process.argv.indexOf('--screens');
+  const win = new BrowserWindow({ ...(shots > 0 ? { show: false } : {}), width: 1280, height: 860, minWidth: 980, minHeight: 640, title: 'Auto Video Studio', backgroundColor: '#0f1117', autoHideMenuBar: true,
+    webPreferences: { preload: path.join(APP_DIR, 'app', 'ui', 'preload.cjs') } });
+  win.__ui = true; win.loadURL('av://app/app/ui/index.html');
+  if (shots > 0) win.webContents.once('did-finish-load', async () => { // dev: screenshots of every tab
+    const dir = process.argv[shots + 1]; const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); await wait(2500);
+    const only = process.argv.includes('--chars-only');
+    if (only) { await win.webContents.executeJavaScript(`document.querySelector('[data-tab=chars]').click()`); await wait(6000);
+      for (const id of process.argv[process.argv.indexOf('--chars-only') + 1].split(',')) { await win.webContents.executeJavaScript(`document.querySelector('.ch[data-id=${id}]').click()`); await wait(14000);
+        fs.writeFileSync(path.join(dir, `char_${id}.png`), (await win.webContents.capturePage()).toPNG()); } return app.quit(); }
+    for (const tab of ['new', 'queue', 'library', 'chars', 'settings']) { await win.webContents.executeJavaScript(`document.querySelector('[data-tab=${tab}]').click()`); await wait(tab === 'chars' ? 15000 : 1500);
+      fs.writeFileSync(path.join(dir, `ui_${tab}.png`), (await win.webContents.capturePage()).toPNG()); }
+    app.quit(); });
+}
+
+app.whenReady().then(() => {
+  serve();
+  // Windows portable build: make a Desktop shortcut once
+  try { const s = readSettings(); if (process.platform === 'win32' && app.isPackaged && !s.shortcutDone) { shell.writeShortcutLink(path.join(app.getPath('desktop'), 'Auto Video Studio.lnk'), { target: process.execPath, description: 'Auto Video Studio' }); s.shortcutDone = true; writeSettings(s); } } catch {}
+  if (process.argv.includes('--demo-test')) return demoTest();
+  createWindow();
+});
+app.on('window-all-closed', () => { if (!process.argv.includes('--demo-test')) app.quit(); });
+
+// headless self-test: node_modules/.bin/electron . --demo-test [--style toon]
+async function demoTest() {
+  const style = process.argv[process.argv.indexOf('--style') + 1] || 'toon';
+  const t0 = Date.now();
+  try {
+    const r = await makeVideo({ demo: true, category: 'romance', style, renderFn: chromeRender }, (e) => console.log(`[${fmt(e.elapsed)}] ${e.step}: ${e.msg}`));
+    console.log('DEMO OK', r.file, fmt((Date.now() - t0) / 1000));
+  } catch (e) { console.error('DEMO FAIL', e); }
+  app.quit();
+}

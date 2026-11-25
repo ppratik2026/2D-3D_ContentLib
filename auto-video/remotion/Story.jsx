@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AbsoluteFill, Audio, staticFile, useCurrentFrame, useVideoConfig, delayRender, continueRender, interpolate } from 'remotion';
 import { createEngine } from './engine/index.js';
 
-const asset = (f) => staticFile('assets/' + f);
+const asset = (f) => staticFile(f);
 const FONT = '"Poppins","Noto Sans","Noto Sans Devanagari","Nirmala UI","Mangal","DejaVu Sans",Arial,sans-serif';
 
 function Stage({ tl }) {

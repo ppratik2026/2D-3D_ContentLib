@@ -5,6 +5,7 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { OutlineEffect } from 'three/examples/jsm/effects/OutlineEffect.js';
 import { makeKit, buildSet } from './sets.js';
 import { loadActorKit, createActor, poseActor, headPos, handPos, dirs } from './actors.js';
+export { loadActorKit, createActor, poseActor, headPos } from './actors.js';
 
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 const sm = (a, b, t) => { const x = Math.min(1, Math.max(0, (t - a) / (b - a))); return x * x * (3 - 2 * x); };
@@ -21,7 +22,7 @@ export async function createEngine({ canvas, width, height, tl, url }) {
   const outline = style === 'anime' ? new OutlineEffect(renderer, { defaultThickness: 0.0035, defaultColor: [0.08, 0.06, 0.06] }) : null;
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(45, width / height, 0.05, 300);
-  if (realistic) { const hdr = await new RGBELoader().loadAsync(url('venice_sunset_1k.hdr')); hdr.mapping = THREE.EquirectangularReflectionMapping; scene.environment = hdr; scene.environmentIntensity = 0.35; }
+  if (realistic) { const hdr = await new RGBELoader().loadAsync(url('assets/venice_sunset_1k.hdr')); hdr.mapping = THREE.EquirectangularReflectionMapping; scene.environment = hdr; scene.environmentIntensity = 0.35; }
 
   // lights
   const sun = new THREE.DirectionalLight(0xffffff, 2); sun.castShadow = true; sun.shadow.mapSize.set(realistic ? 2048 : 1024, realistic ? 2048 : 1024); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03;
@@ -35,9 +36,12 @@ export async function createEngine({ canvas, width, height, tl, url }) {
 
   if (perf.actorShadowsOnly !== false) for (const S of Object.values(sets)) S.group.traverse((m) => { if (m.isMesh) m.castShadow = false; });
   // actors
-  const akit = await loadActorKit(url); const actors = {}; const mode = realistic ? 'glb' : 'vrm'; const used = {};
-  if (perf.simpleMat) akit.simpleMat = kit.grad;
-  for (const ch of tl.story.characters) { const key = ch.age === 'child' ? 'c' + ch.gender : ch.gender; used[key] = (used[key] ?? -1) + 1; actors[ch.id] = await createActor(akit, scene, ch, mode, used[key]); }
+  const akit = await loadActorKit(url); const actors = {};
+  for (const ch of tl.story.characters) {
+    const cast = (tl.cast && tl.cast[ch.id]) || { file: 'assets/AvatarSample_C.vrm', type: 'vrm' };
+    try { actors[ch.id] = await createActor(akit, scene, ch, cast, { simpleMat: perf.simpleMat ? kit.grad : null, toon: kit.toon ? kit.grad : null }); }
+    catch (e) { console.warn('Actor failed, using fallback:', e.message); actors[ch.id] = await createActor(akit, scene, ch, ch.gender === 'female' ? { file: 'assets/AvatarSample_A.vrm', type: 'vrm' } : { file: 'assets/AvatarSample_C.vrm', type: 'vrm' }, { simpleMat: perf.simpleMat ? kit.grad : null }); }
+  }
   // props
   const cupMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
   const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.035, 0.09, 16), cupMat); cup.castShadow = true; scene.add(cup);

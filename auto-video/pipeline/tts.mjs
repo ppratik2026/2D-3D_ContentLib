@@ -5,15 +5,15 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { VOICES, VOICE_VARIANTS, FPS } from './config.mjs';
 import { readWav, envelope } from './wav.mjs';
-import { ROOT } from './paths.mjs';
+import { BIN, VOICES_DIR } from './paths.mjs';
 
 export function piperBin() {
   if (process.env.PIPER_BIN && fs.existsSync(process.env.PIPER_BIN)) return process.env.PIPER_BIN;
   const exe = process.platform === 'win32' ? 'piper.exe' : 'piper';
-  const p = path.join(ROOT, 'bin', 'piper', exe);
+  const p = path.join(BIN, 'piper', exe);
   return fs.existsSync(p) ? p : null;
 }
-export const voicePath = (v) => path.join(ROOT, 'voices', v + '.onnx');
+export const voicePath = (v) => path.join(VOICES_DIR, v + '.onnx');
 
 // choose a voice for every character (different characters → different voice/speed where possible)
 export function castVoices(characters) {

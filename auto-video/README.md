@@ -1,24 +1,47 @@
-# Auto Video Studio (Three.js + Remotion)
+# Auto Video Studio
 
-Pick a **category** (romance, comedy, crime, horror, kids, …), a **length**, a **style**. Gemini writes the story, characters and Hindi/Hinglish dialogue. The tool then makes the voices, music, sound effects and subtitles, renders the 3D animation and gives you a finished MP4.
+A Windows desktop app. Pick a **category**, **length** and **style**; Gemini writes the story, characters and Hindi/Hinglish dialogue; the app makes the voices, music, sound effects and subtitles, renders the 3D animation and saves a finished MP4. Videos go into a **queue** and are made one after another, so a PC can work through 5–10 videos (for example overnight).
 
-Everything is free and runs on the CPU. No graphics card is needed. Only the story step uses the internet (Gemini).
+Everything except the Gemini story step runs offline on the PC, without a graphics card.
 
-| Step | Tool (free) |
+## For the team (Windows)
+
+1. Download **AutoVideoStudio-Setup.exe** (GitHub → Actions → "Build Windows installer" → artifact), or the portable ZIP. With the ZIP: unzip it anywhere and run `Auto Video Studio.exe`; it puts a shortcut on the Desktop.
+2. On first start the app downloads the 3D models, Piper and three Hindi voices (~300 MB, once).
+3. **Settings** → paste your own Gemini key (free: https://aistudio.google.com/apikey) → **Test**. The key is stored encrypted on that PC only.
+4. **Naya Video** → category, idea (one per line for several videos), minutes, style, look, subtitles → **Daalo aur shuru karo**.
+5. **Queue** shows progress, time left and the finish time. **Library** plays the finished videos.
+
+Files: `Documents\AutoVideo\Videos\<date>_<category>_<title>\` → `final.mp4`, `subtitles.srt`, `story.json`, `timeline.json`.
+
+## Screens
+
+| Screen | What it does |
 |---|---|
-| Story, characters, scene-by-scene dialogue | Gemini API (your key, free tier) |
-| Hindi voices (3 voices: Pratham, Rohan, Priyamvada) | Piper TTS, offline |
-| Lip-sync | Loudness of each voice line, per video frame |
-| Music (one mood per category), ambience, footsteps, doors | Generated in code, no samples |
-| 3D sets (café, home, office, police station, classroom, street, park, forest, alley) | Three.js, built in code |
-| Characters: anime/toon (VRoid VRM) or realistic (Ready Player Me / Mixamo) | Three.js + three-vrm |
-| Subtitles (classic, YouTube bold, karaoke, cinematic, Hinglish+English, Hindi) and looks (film, old film, noir, dreamy, horror, vivid) | Remotion |
-| Final MP4 + `.srt` | Remotion |
+| Naya Video | Category, idea, minutes, number of videos, style (toon / anime / realistic), look (film, old film, noir, dreamy, horror, vivid), subtitles (classic, YouTube, karaoke, cinematic, Hinglish+English, Hindi). Shows the time estimate for this PC. |
+| Queue | Videos made one after another: progress, time left, finish time, start/pause, cancel, retry, reorder. Survives a restart. |
+| Library | All finished videos: play, open folder, delete. |
+| Characters | Built-in characters plus your own `.vrm` / `.glb` / `.gltf` / `.fbx` (drag and drop). 3D preview with a walk test, lip-sync check, and tags (gender, age, role) that Gemini uses to cast the story. |
+| Settings | Gemini key and model, renderer (Chrome + WebCodecs + ffmpeg, or Remotion), data folder. |
 
-## Install (once)
+## Renderers
 
-1. Install **Node.js 20 or newer** from https://nodejs.org
-2. Open a terminal in this folder (`auto-video`) and run:
+- **Chrome + WebCodecs + ffmpeg** (default, free). Three.js draws each frame. Canvas 2D adds the look, subtitles and title cards. WebCodecs encodes H.264 directly (no screenshots), and ffmpeg adds the AAC audio. Measured on a 4-core CPU without a GPU: **0.15 s per frame** (a 68-second video in 5 min 22 s).
+- **Remotion**: same video through Remotion. About 2× slower here. A Remotion company licence is required for teams of more than 3 people (https://remotion.dev/license).
+
+The app learns the real speed of each PC after its first video and uses it for the estimates.
+
+## Custom characters
+
+Any humanoid rig works: Mixamo, VRoid/VRM, MakeHuman, Unreal-style (`pelvis`, `thigh_l`, …) or Blender-style (`Arm.L`). The app finds the bones, turns A-pose into T-pose, fixes the facing and the height, and retargets walk/idle/run. Lip-sync uses VRM expressions, blendshapes (`mouthOpen`, `jawOpen`, `viseme_aa`, …) or a jaw bone. Game rigs whose feet are not attached to the legs (IK rigs) are refused with a clear message.
+
+Free sources:
+- **VRoid Studio**: make your own Indian characters and export `.vrm`.
+- **MakeHuman**: CC0 output.
+- **Mixamo**: download with your own Adobe login.
+- **Quaternius** / **Kenney**: CC0.
+
+## Developers
 
 ```bash
 npm install
@@ -28,54 +51,24 @@ npm install
 npm run setup
 ```
 
-   `setup` downloads the 3D models (~80 MB), the Piper program (~25 MB) and three Hindi voices (~190 MB).
-
-3. Get a free Gemini key at https://aistudio.google.com/apikey. Open the `.env` file and paste it:
-
-```
-GEMINI_API_KEY=your-key-here
-```
-
-   `.env` stays on your PC and is never uploaded (`.gitignore` excludes it).
-
-## Make a video
-
 ```bash
 npm start
 ```
 
-Open http://localhost:3000. Choose the category, idea (optional), minutes, style, look and subtitles. The page shows the **estimated time** before you start. Press **Video banao**. The finished file is in `output/<job>/final.mp4`, next to `subtitles.srt`, `story.json` and `timeline.json`.
+- `npm start` runs the desktop app in dev mode (data in this folder).
+- `npm run demo-test` renders the built-in demo story headless.
+- `npm run dist:win` builds the Windows installer (on Windows, or in CI); `node scripts/build-win.mjs --dir` builds an unpacked folder.
 
-Command line instead of the web page:
+Layout:
+- `app/`: Electron main, UI, Chrome renderer.
+- `remotion/engine/`: Three.js sets, characters and director.
+- `pipeline/`: Gemini story, Piper TTS, timeline, audio mix, Remotion render, character library, first-run setup.
 
-```bash
-npm run make -- --category crime --minutes 3 --style toon --look auto --subs karaoke --idea "Gaon me chori"
-```
+## Licences to know
 
-To test the setup without a Gemini key, run the built-in demo story:
-
-```bash
-npm run make -- --demo --style toon
-```
-
-## Speed
-
-| Style | Measured: 4-core CPU, no GPU (software WebGL) | 10-min video, CPU only |
-|---|---|---|
-| Toon 3D | 0.40 s per frame (about 12× the video length) | about 2 hours |
-| Realistic 3D | 0.53 s per frame (about 16×) | about 2 h 40 min |
-| Anime 3D (outlines) | 0.60 s per frame (about 18×) | about 3 hours |
-
-These numbers are for pure CPU rendering. On a normal PC the built-in graphics (Intel/AMD/Apple) draws WebGL many times faster; the tool uses it by default (`REMOTION_GL=angle`). After your first video, the page shows the real speed of your PC: every render saves it in `bench.json`.
-
-Settings in `.env`:
-- `REMOTION_GL=angle` uses your built-in graphics. This is the default on Windows and Mac.
-- `REMOTION_GL=swiftshader` is pure CPU.
-- `CONCURRENCY=2` renders that many frames in parallel.
-
-## Notes / limits
-
-- The characters are free sample models (VRoid samples, Ready Player Me, Mixamo Michelle). The tool changes their clothes and hair colours from the story, but it cannot make new faces. To get new characters, export them from VRoid Studio (free) as `.vrm`, put them in `public/assets`, and add the file names in `remotion/engine/actors.js` → `POOL`.
-- Lip-sync uses mouth shapes on the VRM characters and the realistic male. The realistic female (Michelle) has no face shapes.
-- Mac: the 2023 Piper build may not start on some Macs. In that case run `pip install piper-tts` and set `PIPER_BIN` (see `pipeline/tts.mjs`).
-- Remotion is free for individuals and companies with up to 3 people. See https://remotion.dev/license.
+- Piper: MIT. Hindi voices: each voice has its own licence.
+- three.js / three-vrm: MIT.
+- VRoid sample avatars: VRoid licence.
+- Mixamo-derived sample models: free to use, not for resale as assets.
+- ffmpeg-static: GPL build of ffmpeg, used as a separate program.
+- Remotion: see above.

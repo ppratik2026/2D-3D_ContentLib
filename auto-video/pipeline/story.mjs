@@ -31,21 +31,23 @@ Dialogue is spoken by Hindi text-to-speech, so every line has three versions:
 Keep each line short (max ~14 words). Characters are Indian unless the user says otherwise.
 Return ONLY valid JSON, no markdown.`;
 
-export async function writeStory({ category, minutes, idea = '', language = 'hinglish', key, model = 'gemini-2.5-flash', onLog = () => {} }) {
+export async function writeStory({ category, minutes, idea = '', language = 'hinglish', key, model = 'gemini-2.5-flash', actors = [], onLog = () => {} }) {
   const cat = CATEGORIES[category] || CATEGORIES.drama;
   const totalSec = Math.round(minutes * 60);
   const nScenes = Math.max(2, Math.min(18, Math.round(minutes * 1.6)));
   const locs = Object.entries(LOCATIONS).map(([k, v]) => `"${k}": ${v}`).join('\n');
+  const actorList = actors.map((a) => `"${a.id}": ${a.gender}, ${a.age}${a.tags?.length ? ', ' + a.tags.join('/') : ''}`).join('\n');
   onLog(`Gemini: outline (${nScenes} scenes, ~${totalSec}s)`);
   const outline = await gemini([
     { role: 'system', content: SYSTEM },
     { role: 'user', content: `Write the outline of ${cat.hint}. Category: ${cat.label}. Total length about ${totalSec} seconds.
 ${idea ? `User idea / title: ${idea}` : 'Invent an original title and idea.'}
-Use 2 to 5 characters. Use about ${nScenes} scenes. Each scene happens in ONE of these locations (use the key):
+Use 2 to 5 characters. Use about ${nScenes} scenes.
+${actorList ? `Each character is played by one of these 3D actors (pick the best match by gender/age/role, use different actors where possible, write its id in "model"):\n${actorList}\n` : ''} Each scene happens in ONE of these locations (use the key):
 ${locs}
 JSON shape:
 {"title":"Hinglish title","title_hindi":"हिंदी शीर्षक","logline":"one line","moral":"optional last line message or empty",
- "characters":[{"id":"short_lowercase_id","name":"Indian name","gender":"male|female","age":"child|young|adult|old","role":"e.g. detective","top_color":"#hex","bottom_color":"#hex","hair_color":"#hex","personality":"few words"}],
+ "characters":[{"id":"short_lowercase_id","name":"Indian name","gender":"male|female","age":"child|young|adult|old","role":"e.g. detective","top_color":"#hex","bottom_color":"#hex","hair_color":"#hex","personality":"few words","model":"actor id"}],
  "scenes":[{"location":"one key from the list","time_of_day":"${TIMES_OF_DAY.join('|')}","present":["character ids"],"summary":"what happens","seconds":number}]}
 The scene seconds must add up to about ${totalSec}.` }], { key, model });
   normalizeOutline(outline, totalSec);
@@ -86,7 +88,7 @@ function normalizeOutline(o, totalSec) {
     let id = String(c.id || c.name || 'c' + i).toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16) || 'c' + i; while (ids.has(id)) id += i; ids.add(id);
     const col = (v, d) => (HEX.test(String(v || '')) ? '#' + String(v).replace('#', '') : d);
     return { id, name: String(c.name || id), gender: c.gender === 'female' ? 'female' : 'male', age: ['child', 'young', 'adult', 'old'].includes(c.age) ? c.age : 'adult',
-      role: String(c.role || ''), top_color: col(c.top_color, ['#2f5d8a', '#b23a48', '#3f7d4e', '#7a4fa0', '#c98a2b'][i % 5]), bottom_color: col(c.bottom_color, '#2b2b30'), hair_color: col(c.hair_color, '#1c1612'), personality: String(c.personality || '') };
+      role: String(c.role || ''), model: String(c.model || ''), top_color: col(c.top_color, ['#2f5d8a', '#b23a48', '#3f7d4e', '#7a4fa0', '#c98a2b'][i % 5]), bottom_color: col(c.bottom_color, '#2b2b30'), hair_color: col(c.hair_color, '#1c1612'), personality: String(c.personality || '') };
   });
   const idList = o.characters.map((c) => c.id);
   o.scenes = (o.scenes || []).filter(Boolean).map((s) => ({

@@ -2,13 +2,13 @@
 import fs from 'fs';
 import path from 'path';
 import { STYLES, FPS } from './config.mjs';
-import { ROOT } from './paths.mjs';
+import { STATE } from './paths.mjs';
 
-export function loadBench() { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'bench.json'), 'utf8')); } catch { return null; } }
+export function loadBench() { try { return JSON.parse(fs.readFileSync(path.join(STATE, 'bench.json'), 'utf8')); } catch { return null; } }
 
-export function estimate({ style = 'toon', minutes = 1 }) {
-  const bench = loadBench(); const measured = !!(bench && bench[style]);
-  const spf = measured ? bench[style] : STYLES[style]?.secPerFrame ?? 0.3; // effective seconds per frame (already includes parallel tabs)
+export function estimate({ style = 'toon', minutes = 1, renderer = 'chrome' }) {
+  const bench = loadBench(); const key = `${style}_${renderer}`; const measured = !!(bench && (bench[key] || bench[style]));
+  const spf = measured ? (bench[key] || bench[style]) : (STYLES[style]?.secPerFrame ?? 0.3) * (renderer === 'chrome' ? 0.8 : 1); // effective seconds per frame (already includes parallel tabs)
   const sec = minutes * 60; const scenes = Math.max(2, Math.round(minutes * 1.6));
   const parts = {
     story: 8 + Math.ceil(scenes / 3) * 9,       // Gemini outline + scenes (3 at a time)
