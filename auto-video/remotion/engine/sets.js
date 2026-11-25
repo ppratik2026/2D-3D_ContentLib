@@ -100,7 +100,7 @@ export function buildSet(name, kit) {
     for (let x = -40; x < 40; x += 9) { const h = 6 + rnd() * 7; b.box(8.6, h, 6, M({ color: cols[Math.floor(rnd() * 5)] }), x, h / 2, -6); for (let fy = 1; fy < h / 3; fy++) for (const wx of [-2.5, 0, 2.5]) b.plane(1.1, 1.3, M({ map: T.window(), emissive: 0xffd590, emissiveIntensity: 0.05 }), x + wx, fy * 3 + 0.8, -2.99); }
     b.box(6, 0.8, 0.3, M({ color: 0x1f2a24 }), 0, 3.2, -2.9); b.plane(5.4, 0.6, M({ map: T.board('BEAN & BREW', [], '#1f2a24', '#f4d48f') }), 0, 3.2, -2.74);
     b.plane(1.3, 2.4, M({ color: 0x3a2a1e }), 1.5, 1.2, -2.98); b.plane(3.2, 2.0, M({ map: T.window(), emissive: 0xffc070, emissiveIntensity: 0.4 }), -1.4, 1.3, -2.98);
-    for (let x = -35; x < 35; x += 10) { b.tree(x + 5, 1.4, 0.85); b.cyl(0.06, 0.08, 4.2, M({ color: 0x2b2d30 }), x, 2.1, 1.7); S.lamps.push(b.lamp(x, 4.25, 1.7, 0xffe2a8)); }
+    for (let x = -35; x < 35; x += 10) { if (Math.abs(x + 5) > 4) b.tree(x + 5, 1.4, 0.85); b.cyl(0.06, 0.08, 4.2, M({ color: 0x2b2d30 }), x, 2.1, 1.7); S.lamps.push(b.lamp(x, 4.25, 1.7, 0xffe2a8)); }
     slot(-0.7, 0, Math.PI / 2); slot(0.7, 0, -Math.PI / 2); slot(0, -0.9, 0); slot(-0.1, 0.9, Math.PI);
     S.entrance = { pos: V3(-9, 0, 0.4), yaw: Math.PI / 2 }; S.wide = { pos: V3(0.8, 1.6, 5.4), look: V3(0, 1.0, -0.6) };
   } else if (name === 'park' || name === 'forest') {
