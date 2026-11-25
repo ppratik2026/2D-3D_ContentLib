@@ -55,10 +55,11 @@ function renderQueue(q) {
     return `<div class="card job"><div><span class="t">${esc(j.title || (O?.categories[o.category]?.label || o.category))}</span><span class="pill ${j.status}">${STATUS[j.status] || j.status}${j.status === 'running' ? ' ' + p + '%' : ''}</span>
       <div class="meta">${esc(O?.categories[o.category]?.label || '')} · ${o.minutes} min · ${esc(o.style)}${o.idea ? ' · ' + esc(o.idea.slice(0, 60)) : ''}${o.demo ? ' · demo' : ''}</div>
       ${j.status === 'running' ? `<div class="bar"><div style="width:${p}%"></div></div>${stepper(j)}<div class="meta">${esc(j.msg || '')}</div><div class="meta">Elapsed ${fmt(j.elapsed)}${j.eta ? ' · about ' + fmt(j.eta) + ' left' : ''}</div>` : ''}
-      ${j.status === 'queued' ? `<div class="meta">${j.retryAt ? esc(j.msg) : 'Estimate: ' + fmt(j.estimate?.total)}</div>` : ''}
+      ${j.status === 'queued' ? `<div class="meta">${j.retryAt ? esc(j.msg) : 'Estimate: ' + fmt(j.estimate?.total)}</div>${j.retryAt && j.error ? `<div class="meta warn">${esc(j.error)}</div>` : ''}` : ''}
       ${j.status === 'done' ? `<div class="meta">Made in ${fmt(j.elapsed)}${j.duration ? ' · video ' + fmt(j.duration) : ''}</div>` : ''}
       ${j.status === 'error' ? `${stepper(j)}<div class="meta warn">${esc(j.error)}</div>` : ''}</div>
       <div class="acts">${j.status === 'queued' ? `<button data-a="up" data-id="${j.id}">↑</button><button data-a="down" data-id="${j.id}">↓</button>` : ''}
+        ${j.status === 'queued' && j.retryAt ? `<button data-a="retryNow" data-id="${j.id}">Retry now</button>` : ''}
         ${j.status === 'running' || j.status === 'queued' ? `<button data-a="cancel" data-id="${j.id}">Cancel</button>` : ''}
         ${j.status === 'error' || j.status === 'cancelled' ? `<button data-a="retry" data-id="${j.id}">Retry</button>` : ''}
         ${j.status === 'done' ? `<button data-a="open" data-id="${esc(j.folder)}">Open folder</button>` : ''}
@@ -66,7 +67,7 @@ function renderQueue(q) {
 }
 $('#qList').onclick = async (e) => { const b = e.target.closest('button'); if (!b) return; const id = b.dataset.id, a = b.dataset.a;
   if (a === 'open') return api.call('library:open', id.split(/[\\/]/).pop());
-  const map = { up: ['queue:move', { id, dir: 1 }], down: ['queue:move', { id, dir: -1 }], cancel: ['queue:cancel', id], retry: ['queue:retry', id], remove: ['queue:remove', id] };
+  const map = { up: ['queue:move', { id, dir: 1 }], down: ['queue:move', { id, dir: -1 }], cancel: ['queue:cancel', id], retry: ['queue:retry', id], retryNow: ['queue:retryNow', id], remove: ['queue:remove', id] };
   renderQueue(await api.call(...map[a])); };
 $('#qStart').onclick = async () => renderQueue(await api.call('queue:start'));
 $('#qPause').onclick = async () => renderQueue(await api.call('queue:pause'));
@@ -130,4 +131,24 @@ api.on('setup:progress', (p) => { const pct = ((p.index + (p.total ? p.got / p.t
   $('#setupMsg').textContent = `${p.label} ${p.total > 1 ? Math.round((p.got / p.total) * 100) + '%' : ''} (${Math.min(p.index + 1, p.count)}/${p.count})`; });
 $('#setupRetry').onclick = () => checkSetup(true);
 
-(async () => { await loadSettings(); await initNew(); renderQueue(await api.call('queue:get')); checkSetup(false); })();
+// ---------- updates ----------
+let queueBusy = false;
+function renderUpd(u) {
+  $('#ver').textContent = 'v' + (u.current || '');
+  const map = { idle: '', checking: 'Checking for updates…', latest: `You have the latest version (v${u.current}) ✓`, available: `New version v${u.version} is available.`, downloading: `Downloading v${u.version || ''}… ${u.percent || 0}%`,
+    ready: `v${u.version} downloaded. Restart to install.`, error: `Update: ${u.msg || 'error'}`, dev: 'Updates work in the installed app.' };
+  $('#updStatus').textContent = map[u.state] ?? ''; $('#updStatus').className = 'small ' + (u.state === 'error' ? 'warn' : '');
+  $('#updDownload').hidden = u.state !== 'available'; $('#updInstall').hidden = u.state !== 'ready';
+  $('#updBarWrap').hidden = u.state !== 'downloading'; $('#updBar').style.width = (u.percent || 0) + '%';
+  $('#updBtn').hidden = !['available', 'downloading', 'ready'].includes(u.state);
+  $('#updBtn').textContent = u.state === 'ready' ? 'Restart & install' : u.state === 'downloading' ? `Updating ${u.percent || 0}%` : `Update to v${u.version}`;
+}
+api.on('update', renderUpd);
+$('#updCheck').onclick = async () => renderUpd(await api.call('update:check'));
+$('#updDownload').onclick = async () => renderUpd(await api.call('update:download'));
+async function install() { if (queueBusy && !confirm('A video is rendering. Restart now and continue it after the update?')) return; await api.call('update:install'); }
+$('#updInstall').onclick = install;
+$('#updBtn').onclick = async () => { const u = await api.call('update:get'); if (u.state === 'available') renderUpd(await api.call('update:download')); else if (u.state === 'ready') install(); else $('[data-tab=settings]').click(); };
+api.on('queue', (q) => (queueBusy = q.running));
+
+(async () => { renderUpd(await api.call('update:get')); await loadSettings(); await initNew(); renderQueue(await api.call('queue:get')); checkSetup(false); })();

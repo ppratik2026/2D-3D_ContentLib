@@ -21,6 +21,19 @@ const { makeVideo, newJobId } = await import('../pipeline/run.mjs');
 const { setupStatus, runSetup } = await import('../pipeline/setup.mjs');
 const lib = await import('../pipeline/library.mjs');
 const ffmpegPath = (await import('ffmpeg-static')).default;
+const { autoUpdater } = (await import('electron-updater')).default;
+
+// ---------- auto update (installed version, from GitHub Releases) ----------
+let upd = { state: 'idle', current: app.getVersion() };
+const sendUpd = (patch) => { upd = { ...upd, ...patch, current: app.getVersion() }; for (const w of BrowserWindow.getAllWindows()) if (w.__ui) w.webContents.send('update', upd); };
+autoUpdater.autoDownload = false; autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.on('checking-for-update', () => sendUpd({ state: 'checking' }));
+autoUpdater.on('update-available', (i) => sendUpd({ state: 'available', version: i.version }));
+autoUpdater.on('update-not-available', () => sendUpd({ state: 'latest', version: app.getVersion() }));
+autoUpdater.on('download-progress', (p) => sendUpd({ state: 'downloading', percent: Math.round(p.percent) }));
+autoUpdater.on('update-downloaded', (i) => sendUpd({ state: 'ready', version: i.version }));
+autoUpdater.on('error', (e) => sendUpd({ state: 'error', msg: /app-update\.yml|ENOENT/.test(String(e)) ? 'Auto-update works in the installed version (AutoVideoStudio-Setup.exe), not in the ZIP version.' : String(e.message || e).slice(0, 200) }));
+async function checkUpdates() { if (!app.isPackaged) { sendUpd({ state: 'dev' }); return upd; } try { await autoUpdater.checkForUpdates(); } catch (e) { sendUpd({ state: 'error', msg: String(e.message || e).slice(0, 200) }); } return upd; }
 
 // ---------- settings (Gemini key encrypted with Windows DPAPI / OS keychain when available) ----------
 const SETTINGS = path.join(STATE, 'settings.json');
@@ -165,6 +178,11 @@ const H = {
   'chars:delete': (id) => lib.deleteCharacter(id),
   'chars:openFolder': () => shell.openPath(CHARS),
   'open:data': () => shell.openPath(process.env.AUTOVIDEO_DATA),
+  'update:get': () => upd,
+  'update:check': () => checkUpdates(),
+  'update:download': () => { autoUpdater.downloadUpdate().catch((e) => sendUpd({ state: 'error', msg: String(e.message || e) })); sendUpd({ state: 'downloading', percent: 0 }); return upd; },
+  'update:install': () => { setImmediate(() => autoUpdater.quitAndInstall(false, true)); return true; },
+  'queue:retryNow': (id) => { const j = queue.find((x) => x.id === id); if (j && j.status === 'queued') { j.retryAt = null; j.msg = 'Queued'; } autoRun = true; clearTimeout(wakeTimer); pump(); broadcast(true); return queueView(); },
 };
 for (const [ch, fn] of Object.entries(H)) ipcMain.handle(ch, (e, arg) => fn(arg, e));
 
@@ -194,6 +212,7 @@ app.whenReady().then(() => {
   try { const s = readSettings(); if (process.platform === 'win32' && app.isPackaged && !s.shortcutDone) { shell.writeShortcutLink(path.join(app.getPath('desktop'), 'Auto Video Studio.lnk'), { target: process.execPath, description: 'Auto Video Studio' }); s.shortcutDone = true; writeSettings(s); } } catch {}
   if (process.argv.includes('--demo-test')) return demoTest();
   createWindow();
+  if (app.isPackaged) setTimeout(checkUpdates, 8000);
 });
 app.on('window-all-closed', () => { if (!process.argv.includes('--demo-test')) app.quit(); });
 

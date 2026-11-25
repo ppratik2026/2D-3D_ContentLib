@@ -31,10 +31,12 @@ const cfg = {
   appId: 'studio.autovideo.app', productName: 'Auto Video Studio', electronVersion, asar: false, compression: 'normal',
   directories: { output: OUT, buildResources: path.join(ROOT, 'build-res') },
   files: ['**/*', '!**/*.map', '!**/test/**', '!**/tests/**', '!**/*.md', 'README.md'],
-  win: { target: [{ target: 'nsis', arch: ['x64'] }], signAndEditExecutable: false, artifactName: 'AutoVideoStudio-Setup-${version}.exe' },
+  win: { target: [{ target: 'nsis', arch: ['x64'] }], signAndEditExecutable: false, artifactName: 'AutoVideoStudio-Setup-${version}.${ext}' },
   nsis: { oneClick: false, perMachine: false, allowToChangeInstallationDirectory: true, createDesktopShortcut: true, shortcutName: 'Auto Video Studio' },
+  publish: [{ provider: 'github', owner: 'ppratik2026', repo: '2D-3D_ContentLib', releaseType: 'release' }],
 };
 fs.writeFileSync(path.join(STAGE, 'electron-builder.json'), JSON.stringify(cfg, null, 2));
 const target = process.argv.includes('--dir') ? 'dir' : 'nsis'; // --dir = unpacked folder only (no installer)
-run(`npx electron-builder --win ${target} --x64 --projectDir "${STAGE}" --config electron-builder.json`, { cwd: ROOT });
+const publish = process.argv.includes('--publish') ? 'always' : 'never'; // --publish: upload installer + latest.yml to a GitHub Release (needs GH_TOKEN)
+run(`npx electron-builder --win ${target} --x64 --projectDir "${STAGE}" --config electron-builder.json --publish ${publish}`, { cwd: ROOT });
 console.log('\nOutput:', fs.readdirSync(OUT).map((f) => path.join(OUT, f)).join('\n'));

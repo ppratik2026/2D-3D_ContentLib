@@ -13,6 +13,7 @@
     <button data-tab="chars">Characters</button>
     <button data-tab="settings">Settings</button>
   </nav>
+  <div class="hdr-right"><span id="ver" class="muted small"></span><button id="updBtn" class="primary small-btn" hidden>Update available</button></div>
 </header>
 <main>
   <!-- NEW VIDEO -->
@@ -98,6 +99,10 @@
         <label class="check"><input type="radio" name="renderer" value="chrome"> Chrome + WebCodecs + ffmpeg <small>(fast, free)</small></label>
         <label class="check"><input type="radio" name="renderer" value="remotion"> Remotion <small>(needs a company licence: remotion.pro)</small></label>
         <div class="row"><label>Remotion parallel tabs<input id="conc" type="number" min="1" max="8"></label></div>
+        <h3>Updates</h3>
+        <div id="updStatus" class="small">–</div>
+        <div class="bar" id="updBarWrap" hidden><div id="updBar"></div></div>
+        <div class="btns"><button id="updCheck" class="ghost">Check for updates</button><button id="updDownload" class="primary" hidden>Download update</button><button id="updInstall" class="primary" hidden>Restart &amp; install</button></div>
         <h3>Data</h3><div class="muted small" id="dataDir"></div>
         <div class="btns"><button id="openData" class="ghost">Open folder</button><button id="reSetup" class="ghost">Re-check models / voices</button></div>
       </div>

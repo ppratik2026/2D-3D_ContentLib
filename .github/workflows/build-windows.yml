@@ -3,16 +3,31 @@ on:
   workflow_dispatch:
   push:
     paths: ['auto-video/**', '.github/workflows/build-windows.yml']
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: windows-latest
-    defaults: { run: { working-directory: auto-video } }
+    defaults: { run: { working-directory: auto-video, shell: bash } }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: npm ci --no-audit --no-fund
-      - run: node scripts/build-win.mjs
+      - name: New version? (a GitHub Release per version feeds the in-app updater)
+        id: ver
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+        run: |
+          V=$(node -p "require('./package.json').version")
+          echo "version=$V" >> $GITHUB_OUTPUT
+          if gh release view "v$V" >/dev/null 2>&1; then echo "publish=no" >> $GITHUB_OUTPUT; else echo "publish=yes" >> $GITHUB_OUTPUT; fi
+      - name: Build and publish release
+        if: steps.ver.outputs.publish == 'yes'
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+        run: node scripts/build-win.mjs --publish
+      - name: Build only (version already released)
+        if: steps.ver.outputs.publish != 'yes'
+        run: node scripts/build-win.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: AutoVideoStudio-Setup
