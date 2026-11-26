@@ -58,13 +58,14 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   let stageBgs = null;
   if (style === 'cartoon2d') { const all = listBackgrounds(); if (!all.length) throw new Error('2D Cartoon Stage needs backgrounds. Add some in the Backgrounds tab.');
     const used = new Map(); stageBgs = {};
-    for (const sc of story.scenes) { const want = /^new\s*:/i.test(sc.background || '') ? sc.background.replace(/^new\s*:\s*/i, '') : ''; const b = all.find((x) => x.id === sc.background) || pickBackground(all, { place: sc.location, time: sc.time_of_day, text: `${want} ${sc.summary}`, used });
+    for (const sc of story.scenes) { const want = /^new\s*:/i.test(sc.background || '') ? sc.background.replace(/^new\s*:\s*/i, '') : ''; const b = all.find((x) => x.id === sc.background) || pickBackground(all, { place: sc.location, time: sc.time_of_day, weather: sc.weather, text: `${want} ${sc.summary}`, used });
+      if (sc.weather === 'snow' && !/snow|hill|mountain|pahad|barf|himal/i.test([b.name, ...(b.tags || [])].join(' '))) (story.newBackgrounds ||= []).push('snowy mountain / hill scene with snow on the ground and roofs (for the snow scenes)');
       sc.background = b.id; used.set(b.id, (used.get(b.id) || 0) + 1); stageBgs[b.id] = b; if (!sc.time_of_day || sc.time_of_day === 'day') sc.time_of_day = b.time || sc.time_of_day; } }
   fs.writeFileSync(path.join(work, 'story.json'), JSON.stringify(story, null, 2));
   // what the app could not show yet → a to-do list next to the video
   const notes = [];
   if (story.unsupported?.length) { notes.push('Actions the story needs that the app cannot animate yet (the narrator tells them instead):', ...story.unsupported.map((a) => '  - ' + a), ''); step('story', `⚠ Not animated yet (narrator tells them): ${story.unsupported.join(', ')}`); }
-  if (story.newBackgrounds?.length) { notes.push('Backgrounds to make (a similar one was used this time). Prompts:', ...story.newBackgrounds.map((d) => `  - ${d}. Indian 2D cartoon animation background, hand-painted digital art, soft cel shading, clean outlines, warm vivid colours, wide shot at eye level, flat open ground in the lower third, completely empty scene, no people, no animals, no text, 16:9`), ''); step('story', `⚠ Missing backgrounds (used the closest): ${story.newBackgrounds.join('; ')}`); }
+  if (story.newBackgrounds?.length) { notes.push('Backgrounds to make (a similar one was used this time). Prompts:', ...[...new Set(story.newBackgrounds)].map((d) => `  - ${d}. Indian 2D cartoon animation background, hand-painted digital art, soft cel shading, clean outlines, warm vivid colours, wide shot at eye level, flat open ground in the lower third, completely empty scene, no people, no animals, no text, 16:9`), ''); step('story', `⚠ Missing backgrounds (used the closest): ${story.newBackgrounds.join('; ')}`); }
   if (notes.length) fs.writeFileSync(path.join(work, 'TO-DO.txt'), notes.join('\r\n'));
   step('story', `Story ready: "${story.title}" (${story.scenes.length} scenes, ${story.characters.length} characters)`, { title: story.title });
 

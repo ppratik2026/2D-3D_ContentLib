@@ -265,7 +265,10 @@ export function poseActor(a, t, st) {
     if (n === 'slap') { const c = Math.min(1, Math.max(0, (Math.sin(t * 5) + 0.2))); arm('Right', 1.3 * k, 0.3 * k, (-0.6 + 1.6 * c) * k); face = 'angry'; }
     if (n === 'give' || n === 'receive') arm('Right', 1.1 * k, 0.35 * k, 0.3 * k);
     const ph = g.ph ?? ((t * 0.7) % 1);
-    if (n === 'kick') { const w = Math.sin(Math.min(1, ph / 0.3) * Math.PI); rotW(a, 'RightUpLeg', R, (-0.3 + 1.3 * w) * k); rotW(a, 'RightLeg', R, (-0.6 * (1 - w)) * k); arm('Left', 0.5 * k, 0.3 * k, -0.3 * k); arm('Right', -0.2 * k, 0.3 * k, 0); }
+    if (n === 'kick') { // back-swing → strike at ph 0.3 → follow-through
+      const back = ph < 0.2 ? Math.sin((ph / 0.2) * Math.PI / 2) : ph < 0.3 ? 1 - (ph - 0.2) / 0.1 : 0; const fwd = ph < 0.2 ? 0 : ph < 0.32 ? (ph - 0.2) / 0.12 : ph < 0.5 ? 1 - (ph - 0.32) / 0.18 : 0;
+      rotW(a, 'RightUpLeg', R, (-0.75 * back + 1.45 * fwd) * k); rotW(a, 'RightLeg', R, (-1.2 * back - 0.15 * fwd) * k); rotW(a, 'Spine1', R, (0.08 * back - 0.18 * fwd) * k);
+      arm('Left', 0.9 * k, 0.2 * k, -0.6 * k); arm('Right', (0.2 + 0.5 * back) * k, 0.3 * k, -0.3 * k); }
     if (n === 'raid') { arm('Right', 1.2 * k, 0.2 * k, -0.2 * k); arm('Left', 1.2 * k, 0.2 * k, -0.2 * k); rotW(a, 'Spine1', R, 0.25 * k); face = 'angry'; }
     if (n === 'pichkari') { arm('Right', 1.2 * k, 0.4 * k, 0.4 * k); arm('Left', 1.2 * k, 0.5 * k, 0.6 * k); face = 'happy'; }
     if (n === 'sparkler') { const c = t * 5; arm('Right', (1.1 + 0.3 * Math.sin(c)) * k, (0.5 + 0.3 * Math.cos(c)) * k, 0.2 * k); face = 'happy'; }
@@ -279,7 +282,8 @@ export function poseActor(a, t, st) {
     if (n === 'swim') { const c = t * 4; rotW(a, 'RightArm', R, (Math.sin(c) * 1.6 + 1.2) * k); rotW(a, 'LeftArm', R, (Math.sin(c + Math.PI) * 1.6 + 1.2) * k); rotW(a, 'RightUpLeg', R, Math.sin(t * 9) * 0.25 * k); rotW(a, 'LeftUpLeg', R, -Math.sin(t * 9) * 0.25 * k); rotW(a, 'Head', R, -0.6 * k); }
     if (n === 'climb') { const c = Math.sin(t * 5); rotW(a, 'RightArm', F, (-2.4 - 0.4 * c) * k); rotW(a, 'LeftArm', F, (2.4 - 0.4 * c) * k); rotW(a, 'RightUpLeg', R, (0.5 + 0.4 * c) * k); rotW(a, 'LeftUpLeg', R, (0.5 - 0.4 * c) * k); rotW(a, 'RightLeg', R, -0.8 * k); rotW(a, 'LeftLeg', R, -0.8 * k); }
     if (n === 'row') { const c = Math.sin(t * 3); arm('Right', (0.9 + 0.35 * c) * k, (0.6 - 0.4 * c) * k, 0.3 * k); arm('Left', (0.9 + 0.35 * c) * k, (0.6 - 0.4 * c) * k, 0.3 * k); rotW(a, 'Spine1', R, 0.15 * c * k); }
-    if (n === 'kite') { arm('Right', 1.6 * k, 0.4 * k, 0.1 * k); rotW(a, 'RightArm', F, -0.6 * k); arm('Left', 1.0 * k, 0.8 * k, 0.4 * k); rotW(a, 'Head', R, -0.35 * k); face = 'happy'; }
+    if (n === 'cut') { const w = Math.max(0, Math.sin(t * 4)); arm('Right', (0.9 - 0.35 * w) * k, (0.7 + 0.2 * w) * k, 0.45 * k); arm('Left', 0.7 * k, 0.9 * k, 0.5 * k); rotW(a, 'Spine1', R, 0.2 * k); rotW(a, 'Head', R, 0.3 * k); face = 'happy'; }
+    if (n === 'kite') { const tug = Math.max(0, Math.sin(t * 2.2)) * 0.25; rotW(a, 'RightArm', R, -tug * k); arm('Right', 1.6 * k, 0.4 * k, 0.1 * k); rotW(a, 'RightArm', F, -0.6 * k); arm('Left', 1.0 * k, 0.8 * k, 0.4 * k); rotW(a, 'Head', R, -0.35 * k); face = 'happy'; }
     if (n === 'skip') { const c = Math.sin(t * 9); rotW(a, 'RightArm', F, (-0.45 + 0.15 * c) * k); rotW(a, 'LeftArm', F, (0.45 - 0.15 * c) * k); face = 'happy'; }
     if (n === 'hit_back') { rotW(a, 'Spine1', R, -0.22 * k); rotW(a, 'Head', UP, 0.35 * k); face = 'surprised'; }
     if (n === 'angry') { arm('Right', 0.5 * k, 1.7 * k, -0.1 * k); arm('Left', 0.5 * k, 1.7 * k, -0.1 * k); face = 'angry'; }
@@ -307,4 +311,5 @@ export function poseActor(a, t, st) {
   a.o.updateMatrixWorld(true);
 }
 export const headPos = (a) => { const n = a.vrm ? a.vrm.humanoid.getRawBoneNode('head') : a.bones.Head; n.updateWorldMatrix(true, false); return V3().setFromMatrixPosition(n.matrixWorld); };
+export const footPos = (a, side = 'Right') => { const n = a.vrm ? a.vrm.humanoid.getRawBoneNode(side.toLowerCase() + 'Foot') : a.bones[side + 'Foot']; n.updateWorldMatrix(true, false); return V3().setFromMatrixPosition(n.matrixWorld); };
 export const handPos = (a, side = 'Right') => { const n = a.vrm ? a.vrm.humanoid.getRawBoneNode(side.toLowerCase() + 'Hand') : a.bones[side + 'Hand']; n.updateWorldMatrix(true, false); return V3().setFromMatrixPosition(n.matrixWorld); };

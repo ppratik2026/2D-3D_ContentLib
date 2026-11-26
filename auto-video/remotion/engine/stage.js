@@ -4,9 +4,10 @@
 // bed, jail cell…) with "cover" patches cut from the background so people stand behind desks and benches.
 import * as THREE from 'three';
 import { OutlineEffect } from 'three/examples/jsm/effects/OutlineEffect.js';
-import { loadActorKit, createActor, poseActor, headPos, handPos } from './actors.js';
+import { loadActorKit, createActor, poseActor, headPos, handPos, footPos } from './actors.js';
 import { makeVehicle } from './vehicles.js';
 import { makeAnimal, makeExtra, makeSafa, makeBirds } from './creatures.js';
+import { makeKite, makeCurve } from './effects.js';
 import { makeFire, makeExplosion, makeSplash, makeProps, makeLine, makeFireworks, makeDiyas, makeLights, makePowder, makeSpark, makeFestProps } from './effects.js';
 
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -94,13 +95,28 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
   const extras = []; for (let i = 0; i < Math.min(14, tl.crowdMax || 0); i++) { const e = makeExtra(i + 1, grad); e.group.visible = false; scene.add(e.group); extras.push(e); }
   const safa = makeSafa(grad); safa.visible = false; scene.add(safa);
   const confetti = []; { const cols = [0xff4d6d, 0xffd166, 0x06d6a0, 0x4cc9f0, 0xf72585, 0xffffff]; for (let i = 0; i < 46; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.012, 0.018), new THREE.MeshBasicMaterial({ color: cols[i % cols.length], side: THREE.DoubleSide, depthTest: false, toneMapped: false })); m.userData.outlineParameters = { visible: false }; m.visible = false; m.position.z = 44; scene.add(m); confetti.push(m); } }
+  // camera angles for chases: drone (top view) and front view use roads drawn here, so no extra background is needed
+  const mkCanvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const x = cv.getContext('2d'); draw(x, w, h); const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; tx.wrapS = THREE.RepeatWrapping; return { tx, cv, x }; };
+  const drone = mkCanvasTex(2048, 1152, (x, w, h) => { x.fillStyle = '#5fa84a'; x.fillRect(0, 0, w, h); for (let i = 0; i < 40; i++) { x.fillStyle = i % 2 ? '#58a044' : '#66b050'; x.fillRect(i * 52, 0, 26, h); }
+    x.fillStyle = '#c9c2a8'; x.fillRect(0, h * 0.3, w, h * 0.4); x.fillStyle = '#4a4d55'; x.fillRect(0, h * 0.33, w, h * 0.34); x.fillStyle = '#f4f1e6'; x.fillRect(0, h * 0.345, w, 6); x.fillRect(0, h * 0.655 - 6, w, 6);
+    for (let i = 0; i < 20; i++) x.fillRect(i * 110 + 20, h * 0.5 - 4, 60, 8); for (let i = 0; i < 18; i++) for (const yy of [0.15, 0.85]) { const cx = i * 118 + (yy > 0.5 ? 60 : 0), cy = h * yy + Math.sin(i * 7) * 40; x.fillStyle = '#2f7d32'; x.beginPath(); x.arc(cx, cy, 52, 0, 7); x.fill(); x.strokeStyle = '#1d4f1f'; x.lineWidth = 5; x.stroke(); x.fillStyle = '#3f9442'; x.beginPath(); x.arc(cx - 12, cy - 12, 26, 0, 7); x.fill(); } });
+  drone.tx.repeat.set(1, 1);
+  const front = mkCanvasTex(1600, 900, () => {});
+  const drawFront = (t) => { const x = front.x, w = 1600, h = 900; const g = x.createLinearGradient(0, 0, 0, h * 0.42); g.addColorStop(0, '#7cc0f0'); g.addColorStop(1, '#d8ecf8'); x.fillStyle = g; x.fillRect(0, 0, w, h * 0.42);
+    x.fillStyle = '#7aa884'; x.beginPath(); x.moveTo(0, h * 0.42); for (let i = 0; i <= 8; i++) x.lineTo((i / 8) * w, h * (0.32 + (i % 2) * 0.07)); x.lineTo(w, h * 0.42); x.fill(); x.fillStyle = '#62a84c'; x.fillRect(0, h * 0.42, w, h * 0.58);
+    x.fillStyle = '#4a4d55'; x.beginPath(); x.moveTo(w * 0.47, h * 0.42); x.lineTo(w * 0.53, h * 0.42); x.lineTo(w * 1.05, h); x.lineTo(-w * 0.05, h); x.fill(); x.strokeStyle = '#f4f1e6'; x.lineWidth = 6; x.beginPath(); x.moveTo(w * 0.475, h * 0.42); x.lineTo(0, h); x.moveTo(w * 0.525, h * 0.42); x.lineTo(w, h); x.stroke();
+    x.fillStyle = '#f4f1e6'; for (let i = 0; i < 8; i++) { const k = ((i / 8) + t * 0.9) % 1; const kk = k * k; const y0 = h * 0.42 + kk * h * 0.58, y1 = h * 0.42 + Math.min(1, (k + 0.05) ** 2) * h * 0.58; const half = (yy) => 3 + ((yy - h * 0.42) / (h * 0.58)) * 14; x.beginPath(); x.moveTo(w / 2 - half(y0), y0); x.lineTo(w / 2 + half(y0), y0); x.lineTo(w / 2 + half(y1), y1); x.lineTo(w / 2 - half(y1), y1); x.fill(); }
+    for (let i = 0; i < 10; i++) { const k = ((i / 10) + t * 0.9) % 1; const kk = k * k; const y = h * 0.42 + kk * h * 0.58; const side = i % 2 ? 1 : -1; const xx = w / 2 + side * (w * 0.06 + kk * w * 0.7); const r = 8 + kk * 120; x.fillStyle = '#6b4426'; x.fillRect(xx - r * 0.12, y - r * 1.2, r * 0.24, r * 1.2); x.fillStyle = '#2f7d32'; x.beginPath(); x.arc(xx, y - r * 1.4, r * 0.7, 0, 7); x.fill(); }
+    front.tx.needsUpdate = true; };
   // effects + game props (v1.2)
   const fires = Array.from({ length: 3 }, () => { const f = makeFire(); f.group.visible = false; scene.add(f.group); return f; });
   const booms = Array.from({ length: 2 }, () => { const f = makeExplosion(); f.group.visible = false; scene.add(f.group); return f; });
   const splashes = Array.from({ length: 3 }, () => { const f = makeSplash(); f.group.visible = false; scene.add(f.group); return f; });
   const birds = makeBirds(9, grad); birds.group.visible = false; scene.add(birds.group);
   const GP = makeProps(toon); for (const p of Object.values(GP)) { p.visible = false; scene.add(p); }
-  const kiteLine = makeLine(0xffffff); kiteLine.obj.visible = false; scene.add(kiteLine.obj);
+  const kiteLine = makeCurve(16, 0xf4f4f4); kiteLine.obj.visible = false; kiteLine.obj.position.z = 45; scene.add(kiteLine.obj); const kite = makeKite(); kite.group.visible = false; scene.add(kite.group);
+  const charkhi = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.1, 12), toon('#d63a4a')); charkhi.rotation.x = Math.PI / 2; charkhi.visible = false; scene.add(charkhi);
+  const puffs = Array.from({ length: 4 }, () => { const m = new THREE.Mesh(new THREE.CircleGeometry(0.01, 10), new THREE.MeshBasicMaterial({ color: 0x9a9aa0, transparent: true, opacity: 0.5, depthWrite: false })); m.material.userData.outlineParameters = { visible: false }; m.visible = false; scene.add(m); return m; });
   const fworks = makeFireworks(5); fworks.group.visible = false; fworks.group.position.z = 6; scene.add(fworks.group);
   const diyas = makeDiyas(16); diyas.group.visible = false; scene.add(diyas.group); const lights = makeLights(44); lights.group.visible = false; lights.group.position.z = 46; scene.add(lights.group);
   const powder = makePowder(30); powder.group.visible = false; powder.group.position.z = 45; scene.add(powder.group);
@@ -267,21 +283,35 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
           const P0 = (i, x, face, row = 0) => { const cc = C[kids[i]]; if (!cc) return; cc.x = x; cc.face = face; cc.row = row; };
           if (e.game === 'cricket') { P0(0, 0.7, -1); P0(1, 0.26, 1); kids.slice(2).forEach((id, i) => P0(i + 2, 0.42 + i * 0.12, -1, 0.7)); const ph = ((t - e.t0) % 3.2) / 3.2;
             if (active) { C[kids[0]]._g = { name: 'bat', k: 1, ph }; if (kids[1]) { C[kids[1]]._g = { name: 'bowl', k: 1, ph }; C[kids[1]].walk = ph < 0.3 ? 1 : 0; C[kids[1]].x = 0.2 + Math.min(0.3, ph) * 0.25; } kids.slice(2).forEach((id) => { C[id]._g = { name: ph > 0.65 && ph < 0.95 ? 'clap' : 'look_around', k: 1 }; }); } }
-          else if (e.game === 'football') { P0(0, 0.3, 1); P0(1, 0.6, -1); kids.slice(2).forEach((id, i) => P0(i + 2, 0.45 + i * 0.15, -1, 0.6)); const ph = ((t - e.t0) % 2.4) / 2.4; const a = Math.floor((t - e.t0) / 2.4) % 2 === 0;
-            if (active) { const kk = a ? kids[0] : kids[1]; if (C[kk]) C[kk]._g = { name: 'kick', k: 1, ph }; const ot = a ? kids[1] : kids[0]; if (C[ot]) C[ot].walk = ph > 0.5 ? 1 : 0; kids.slice(2).forEach((id) => { C[id].run = 1; C[id].x += Math.sin(t * 1.3) * 0.05; }); } }
+          else if (e.game === 'football') { P0(0, 0.22, 1); P0(1, 0.58, -1); kids.slice(2).forEach((id, i) => P0(i + 2, 0.4 + i * 0.16, -1, 0.65)); const ph = ((t - e.t0) % 2.4) / 2.4; const a = Math.floor((t - e.t0) / 2.4) % 2 === 0;
+            const cyc = Math.floor((t - e.t0) / 2.4), shotCyc = Math.max(1, Math.floor(((e._until ?? e.t1) - e.t0) / 2.4) - 1); const goalNow = cyc > shotCyc || (cyc === shotCyc && ph > 0.85); if (cyc === shotCyc) { const sh = a ? kids[0] : kids[1]; if (C[sh]) C[sh].face = 1; } if (active && goalNow) kids.forEach((id) => { if (C[id]) C[id]._g = { name: 'hands_up', k: 1 }; });
+            if (active && !goalNow) { const kk = a ? kids[0] : kids[1]; if (C[kk]) C[kk]._g = { name: 'kick', k: 1, ph }; const ot = a ? kids[1] : kids[0]; if (C[ot]) C[ot].walk = ph > 0.5 ? 1 : 0; kids.slice(2).forEach((id) => { C[id].run = 1; C[id].x += Math.sin(t * 1.3) * 0.05; }); } }
           else if (e.game === 'kabaddi') { const ph = ((t - e.t0) % 6) / 6; const rx = ph < 0.35 ? lerp(0.25, 0.6, ph / 0.35) : ph < 0.45 ? 0.6 : ph < 0.75 ? lerp(0.6, 0.25, (ph - 0.45) / 0.3) : 0.25;
             P0(0, rx, ph < 0.45 ? 1 : -1); if (active && C[kids[0]]) { C[kids[0]].run = ph < 0.35 || (ph > 0.45 && ph < 0.75) ? 1 : 0; C[kids[0]]._g = { name: 'raid', k: 1 }; }
             kids.slice(1).forEach((id, i) => { const base = 0.68 + (i % 3) * 0.09; const chase = ph > 0.4 && ph < 0.7 ? -0.08 * Math.sin(((ph - 0.4) / 0.3) * Math.PI) : 0; P0(i + 1, base + chase, -1, (i % 2) * 0.4); if (active) C[id]._g = { name: ph > 0.35 && ph < 0.5 ? 'grab' : 'catch', k: 1 }; }); }
           else if (e.game === 'ball') { P0(0, 0.3, 1); P0(1, 0.66, -1); kids.slice(2).forEach((id, i) => P0(i + 2, 0.48, 1, 0.7)); const ph = ((t - e.t0) % 2.8) / 2.8; if (active) { const a = ph < 0.5; C[kids[0]]._g = { name: a ? 'throw' : 'catch', k: 1, ph: a ? ph * 2 : 0 }; if (kids[1]) C[kids[1]]._g = { name: a ? 'catch' : 'throw', k: 1, ph: a ? 0 : (ph - 0.5) * 2 }; } }
           else if (e.game === 'skip') { P0(0, 0.5, 1); kids.slice(1).forEach((id, i) => P0(i + 1, 0.25 + i * 0.5, i ? -1 : 1, 0.3)); if (active) { C[kids[0]]._g = { name: 'skip', k: 1 }; C[kids[0]].jump = Math.abs(Math.sin((t - e.t0) * Math.PI * 1.5)); kids.slice(1).forEach((id) => { C[id]._g = { name: 'clap', k: 1 }; }); } }
-          else if (e.game === 'kite') { P0(0, 0.35, 1); kids.slice(1).forEach((id, i) => P0(i + 1, 0.2 - i * 0.08, 1, 0.3)); if (active) { C[kids[0]]._g = { name: 'kite', k: 1 }; kids.slice(1).forEach((id) => { C[id]._g = { name: 'point', k: 1 }; }); } }
+          else if (e.game === 'kite') { P0(0, 0.3, 1); kids.slice(1).forEach((id, i) => P0(i + 1, 0.55 + i * 0.13, -1, (i % 2) * 0.4)); if (active) { C[kids[0]]._g = { name: 'kite', k: 1 }; kids.slice(1).forEach((id) => { C[id]._g = { name: 'point', k: 1 }; }); } }
           else { const n = kids.length; kids.forEach((id, i) => { const cc = C[id]; const a = (t - e.t0) * 1.1 + (i * Math.PI * 2) / n - (i === 0 ? 0.5 : 0); cc.x = 0.5 + Math.cos(a) * 0.3; cc.row = 0.35 + Math.sin(a) * 0.35; cc.face = -Math.sin(a) > 0 ? 1 : -1; cc.run = active ? 1 : 0; cc._g = active ? { name: 'laugh', k: 1 } : null; }); }
           break; }
-        case 'birthday': { const until = e._until ?? e.t1; const active = t < until; FX.birthday = { char: e.char, active, blown: t > until - 1.5, t0: e.t0 }; if (active) { c._g = t > until - 2.2 ? { name: 'blow', k: 1 } : null; for (const [id, o] of Object.entries(C)) if (id !== e.char && o.visible && !o.inV) o._g = { name: 'clap', k: 1 }; } break; }
+        case 'birthday': { const until = e._until ?? e.t1; const D = Math.max(4, until - e.t0); const q = Math.min(1, (t - e.t0) / D); const active = t < until;
+          free(c); c.visible = true; c.x = 0.5; c.row = 0.5; c.face = 1; c.frontal = true;
+          const others = Object.entries(C).filter(([id, o]) => id !== e.char && o.visible && !o.inV); others.forEach(([id, o], i) => { free(o); const side = i % 2 ? 1 : -1; const r = Math.floor(i / 2); o.x = 0.5 + side * (0.19 + r * 0.12); o.row = 0.32 + r * 0.25; o.face = side > 0 ? -1 : 1; });
+          const phase = q < 0.42 ? 'song' : q < 0.55 ? 'blow' : q < 0.76 ? 'cut' : 'feed'; FX.birthday = { char: e.char, active, phase, q, blown: q >= 0.52, cut: q >= 0.66, t0: e.t0, feedTo: others[0]?.[0] };
+          if (active) { c._g = phase === 'blow' ? { name: 'blow', k: 1 } : phase === 'cut' ? { name: 'cut', k: 1 } : phase === 'feed' ? { name: 'give', k: 1 } : { name: 'laugh', k: 1 };
+            others.forEach(([id, o], i) => { o._g = phase === 'feed' && i === 0 ? { name: 'receive', k: 1 } : { name: 'clap', k: 1 }; }); if (phase === 'feed' && others[0]) { others[0][1].x = 0.62; others[0][1].row = 0.45; others[0][1].face = -1; } }
+          break; }
         case 'sleep': c.lie = sm(0, 0.6, k); c.sit = 0; c.walk = c.run = 0; c.sleeping = true; break;
         default: break;
       }
     }
+    // keep people apart (except those touching on purpose)
+    { const TOUCH = new Set(['hug', 'punch', 'hit_back', 'grab', 'cuff', 'give', 'receive', 'push', 'slap']); const touching = new Set(Object.entries(C).filter(([, c]) => c.grab || c._cuff || (c._g && TOUCH.has(c._g.name))).map(([id]) => id));
+      const L = Object.entries(C).filter(([, c]) => c.visible && !c.inV && !c.lie && !c.swim && !c.climbed && !(c.anchor && SIT_TYPES.has(c.anchor.type)));
+      for (let it = 0; it < 5; it++) for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) { const [ia, A1] = L[i], [ib, B1] = L[j]; if (touching.has(ia) && touching.has(ib)) continue;
+        const fa = feet(A1), fb = feet(B1); if (Math.abs(fa - fb) > 0.3) continue; const gap = (0.42 * Math.max(heightAt(b, fa), heightAt(b, fb))) / AR; const dx = B1.x - A1.x; if (Math.abs(dx) >= gap) continue;
+        const push = (gap - Math.abs(dx)) / 2; const sgn = dx === 0 ? (ia < ib ? 1 : -1) : Math.sign(dx); const am = A1.anchor ? 0 : 1, bm = B1.anchor ? 0 : 1; const tot = Math.max(1, am + bm);
+        A1.x = Math.max(0.04, Math.min(0.96, A1.x - sgn * push * 2 * (am / tot))); B1.x = Math.max(0.04, Math.min(0.96, B1.x + sgn * push * 2 * (bm / tot))); } }
     return { C, V, A, FX, scroll, chasing, shake, crowd, baraat };
   }
   const TINT = { day: [0xffffff, 1.6, 1.3], morning: [0xfff1dc, 1.5, 1.2], evening: [0xffd2a0, 1.3, 1.0], night: [0x9fb2ff, 0.85, 0.55] };
@@ -289,7 +319,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
   // outline switches set on meshes → copy onto their materials (OutlineEffect reads the material)
   scene.traverse((o) => { if (o.isMesh && o.userData.outlineParameters) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => (m.userData.outlineParameters = o.userData.outlineParameters)); });
   function renderAt(t) {
-    const sc = sceneAt(t); const p = planOf(sc); const b = p.b; const tex = bgTex[sc.background] || null; bgMat.map = tex; bgMat.needsUpdate = true;
+    const sc = sceneAt(t); const p = planOf(sc); const b = p.b; const tex = bgTex[sc.background] || null; if (bgMat.map !== tex) { bgMat.map = tex; bgMat.needsUpdate = true; }
     const S = stateAt(sc, t);
     if (tex) { const f = fit[sc.background]; tex.offset.x = f.ox + S.scroll * f.rx; }
     for (const [id, g] of Object.entries(coverGroups)) g.visible = id === sc.background;
@@ -297,7 +327,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     const line = lineAt(t);
     // vehicles
     for (const [k, m] of Object.entries(vehicles)) { const v = S.V[k]; m.group.visible = !!(v && v.visible); if (!m.group.visible) continue;
-      const fy = rowY(b, v.row); const s = (heightAt(b, fy) / 1.7) * VSCALE; m.group.scale.setScalar(s); m.group.position.set(v.x * AR, 1 - fy + (v.alt || 0) + (m.floatY || 0) * s + (v.bob && !m.floatY && !m.air ? Math.abs(Math.sin(t * 17 + k.length)) * 0.004 : 0), zOf(fy) - 0.4); if (v.fly) { const ss = s * 0.22; m.group.scale.setScalar(ss); m.group.position.set(-0.4 * AR + v.fly.k * 2.0 * AR, 0.74 + Math.sin(v.fly.k * 3) * 0.02, 4); } m.set(t, { spin: v.spin, door: v.door, siren: v.siren, moving: v.bob ? 1 : 0 }); }
+      m.group.rotation.x = 0; m.group.rotation.y = 0; const fy = rowY(b, v.row); const s = (heightAt(b, fy) / 1.7) * VSCALE; m.group.scale.setScalar(s); m.group.position.set(v.x * AR, 1 - fy + (v.alt || 0) + (m.floatY || 0) * s + (v.bob && !m.floatY && !m.air ? Math.abs(Math.sin(t * 17 + k.length)) * 0.004 : 0), zOf(fy) - 0.4); if (v.fly) { const ss = s * 0.22; m.group.scale.setScalar(ss); m.group.position.set(-0.4 * AR + v.fly.k * 2.0 * AR, 0.74 + Math.sin(v.fly.k * 3) * 0.02, 4); } m.set(t, { spin: v.spin, door: v.door, siren: v.siren, moving: v.bob ? 1 : 0 }); }
     // characters
     for (const id of Object.keys(actors)) holders[id].h.visible = false;
     const st = S.C; const vis = [];
@@ -334,8 +364,8 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       const c = st[id]; const a = actors[id]; const speaking = line && line.char === id;
       const others = vis.filter((x) => x !== id);
       const lookId = c.grab || (line && line.char !== id && vis.includes(line.char) ? line.char : lastLine && lastLine.char !== id && vis.includes(lastLine.char) ? lastLine.char : others[0]);
-      if (!c.walk && !c.run && !c.inV && lookId && !c.lie && !c.swim) c.face = st[lookId].x > c.x ? 1 : -1;
-      const frontal = c.anchor && (c.anchor.type === 'judge' || c.anchor.type === 'desk' || c.anchor.type === 'board') ? 0.4 : 1;
+      if (!c.walk && !c.run && !c.inV && lookId && !c.lie && !c.swim && !c.frontal) c.face = st[lookId].x > c.x ? 1 : -1;
+      const frontal = c.frontal ? 0.15 : c.anchor && (c.anchor.type === 'judge' || c.anchor.type === 'desk' || c.anchor.type === 'board') ? 0.4 : 1;
       const yaw = c.swim ? c.face * Math.PI / 2 : c.lie ? Math.PI / 2 : c.inV ? (c.ride ? Math.PI / 2 - 0.35 : 1.3) : c.face * FACE * frontal;
       const pp = { visible: true, pos: V3(0, 0, 0), yaw, lie: c.lie > 0.5, walk: c.lie ? 0 : c.walk, run: c.lie ? 0 : c.run, sit: c.lie ? 0 : c.sit, drop: Math.max(0.2, a.hipY - 0.5), cuffed: c.cuffed, struggle: c.struggle, swim: c.swim, ride: c.ride || 0, pillion: c.pillion, rideType: c.rideType, moving: !!(c.inV && S.V[c.inV.key]?.bob) };
       pp.look = lookId && !c.lie ? headPos(actors[lookId]).clone() : null;
@@ -361,7 +391,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     // birds crossing the sky
     { const a = S.A.birds; const fl = a?.fly; birds.group.visible = !!(fl && t >= fl.t0 && t < fl.t1); if (birds.group.visible) { const k = (t - fl.t0) / (fl.t1 - fl.t0); birds.group.position.set(-0.15 + k * (AR + 0.3), 0.82 + Math.sin(k * 3) * 0.03, 47); birds.set(t); } }
     // game props
-    for (const p_ of Object.values(GP)) p_.visible = false; kiteLine.obj.visible = false;
+    for (const p_ of Object.values(GP)) p_.visible = false; kiteLine.obj.visible = false; kite.group.visible = false; charkhi.visible = false;
     for (const [id, c] of Object.entries(st)) if (c.climbed?.ladder && vis.includes(id)) { const L = GP.ladder; L.visible = true; const fy = c.climbed.ground; const s2 = heightAt(b, fy) / 1.7; L.position.set(c.climbed.x * AR, 1 - fy, zOf(fy) - 0.05); L.scale.setScalar(s2); }
     { const G = S.FX.game; if (G && G.active) { const k0 = G.kids[0], k1 = G.kids[1]; const hs = (id) => holders[id].h.scale.x;
         if (G.game === 'cricket' && vis.includes(k0)) { const ph = ((t - G.t0) % 3.2) / 3.2; const bat = GP.bat; bat.visible = true; const hp = handPos(actors[k0]); bat.position.copy(hp); bat.scale.setScalar(hs(k0)); bat.rotation.set(0, 0, st[k0].face > 0 ? -0.4 : 0.4);
@@ -371,7 +401,8 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
           else if (ph >= 0.62 && ph < 0.95) { const q = (ph - 0.62) / 0.33; ball.visible = true; ball.position.set(to.x - st[k0].face * q * 0.9, to.y + q * 0.5 - q * q * 0.1, to.z + 0.1); } }
         if (G.game === 'ball' && k1 && vis.includes(k0) && vis.includes(k1)) { const ph = ((t - G.t0) % 2.8) / 2.8; const a = ph < 0.5; const q = ((ph % 0.5) / 0.5 - 0.3) / 0.6; if (q > 0 && q < 1) { const p0 = handPos(actors[a ? k0 : k1]), p1 = handPos(actors[a ? k1 : k0]); const ball = GP.ball; ball.visible = true; ball.scale.setScalar(hs(k0) * 2); ball.position.lerpVectors(p0, p1, q); ball.position.y += Math.sin(q * Math.PI) * 0.12; ball.position.z += 0.1; } }
         if (G.game === 'skip' && vis.includes(k0)) { const rope = GP.rope; rope.visible = true; const h0 = holders[k0].h; rope.position.set(h0.position.x, h0.position.y + 0.85 * hs(k0) + (st[k0].jump || 0) * 0.05 * hs(k0) * 1.7, h0.position.z); rope.scale.set(hs(k0) * 0.55, hs(k0), hs(k0)); rope.rotation.set(0, (t - G.t0) * Math.PI * 3, 0); }
-        if (G.game === 'kite' && vis.includes(k0)) { const kite = GP.kite; kite.visible = true; const hp = handPos(actors[k0]); const kp = V3(hp.x + 0.42 + Math.sin(t * 0.9) * 0.05, 0.85 + Math.sin(t * 1.3) * 0.04, 45); kite.position.copy(kp); kite.scale.setScalar(0.25); kite.rotation.set(0, 0, Math.sin(t * 2) * 0.3); kiteLine.obj.visible = true; kiteLine.set(V3(hp.x, hp.y, 45), kp); } } }
+        if (G.game === 'kite' && vis.includes(k0)) { const hp = handPos(actors[k0]); const kp = V3(Math.min(AR - 0.1, hp.x + 0.75 + Math.sin(t * 0.7) * 0.06), 0.84 + Math.sin(t * 1.1) * 0.035, 45); kite.group.visible = true; kite.group.position.copy(kp); kite.group.scale.setScalar(0.075); kite.set(t); kiteLine.obj.visible = true; kiteLine.set(V3(hp.x, hp.y, 0), V3(kp.x, kp.y - 0.04, 0), 0.06);
+          const lh = handPos(actors[k0], 'Left'); charkhi.visible = true; charkhi.position.set(lh.x, lh.y, lh.z + 0.02); charkhi.scale.setScalar(holders[k0].h.scale.x); } } }
     // umbrellas (gesture "umbrella", or everyone outdoors when told by a "umbrella" event)
     for (const [id, u] of Object.entries(umbrellas)) u.visible = false;
     for (const id of vis) { const ev = sc.events.find((e) => e.kind === 'gesture' && e.name === 'umbrella' && e.char === id && t >= e.t0 && t < e.t1); if (!ev) continue; const u = umbrellaFor(id); u.visible = true; const hp = handPos(actors[id]); u.position.set(hp.x, hp.y - 0.02 * holders[id].h.scale.x, hp.z + 0.05); u.scale.setScalar(holders[id].h.scale.x); u.rotation.set(0, 0, -st[id].face * 0.12); }
@@ -391,14 +422,23 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       anaar.group.visible = false; for (const cr of S.FX.crackers || []) { if (cr.dt < 0 || cr.dt > cr.d) continue; const fy = b.groundNear - 0.02; if (cr.type === 'anaar') { anaar.group.visible = true; anaar.group.position.set(cr.x * AR, 1 - fy, 46); anaar.group.scale.setScalar(heightAt(b, fy) * 1.6); anaar.set(t, true); }
         else { const bm = booms[1]; bm.group.visible = cr.dt > 1 && cr.dt < 2.5; if (bm.group.visible) { bm.group.position.set(cr.x * AR, 1 - fy + 0.03, 46); bm.group.scale.setScalar(heightAt(b, fy) * 0.35); bm.set(cr.dt - 1); } } } }
     // birthday: cake in front of the person, balloons, confetti; candles go out at the end
-    { const B_ = S.FX.birthday; FP.cake.visible = FP.balloons.visible = false; if (B_ && vis.includes(B_.char)) { const h_ = holders[B_.char].h; const hs = h_.scale.x; FP.cake.visible = true; FP.cake.position.set(h_.position.x + st[B_.char].face * 0.32 * hs, h_.position.y + 0.62 * hs, h_.position.z + 0.2); FP.cake.scale.setScalar(hs * 1.1);
-        for (const cdl of FP.cake.userData.candles) cdl.children[1].visible = !B_.blown; FP.balloons.visible = true; FP.balloons.position.set(0.12 * AR, 0.82 + Math.sin(t * 1.2) * 0.01, 45); FP.balloons.scale.setScalar(1.6);
+    { const B_ = S.FX.birthday; FP.cake.visible = FP.balloons.visible = FP.table.visible = FP.knife.visible = FP.slice.visible = false; puffs.forEach((p_) => (p_.visible = false));
+      if (B_ && vis.includes(B_.char)) { const h_ = holders[B_.char].h; const hs = h_.scale.x; const tfy = rowY(b, 0.22); const ts = heightAt(b, tfy) / 1.7;
+        FP.table.visible = true; FP.table.position.set(0.5 * AR, 1 - tfy, zOf(tfy) + 0.5); FP.table.scale.setScalar(ts);
+        FP.cake.visible = true; FP.cake.position.set(0.5 * AR, 1 - tfy + 0.8 * ts, zOf(tfy) + 0.6); FP.cake.scale.setScalar(ts * 0.95); FP.cake.rotation.set(0.35, 0, 0);
+        for (const cdl of FP.cake.userData.candles) cdl.children[1].visible = !B_.blown;
+        if (B_.phase === 'blow' || (B_.blown && B_.q < 0.6)) puffs.forEach((p_, i) => { const life = ((t * 0.8) + i * 0.25) % 1; p_.visible = true; p_.position.set(0.5 * AR + (i - 1.5) * 0.012 * ts * 10 + life * 0.01, 1 - tfy + 1.35 * ts + life * 0.06, zOf(tfy) + 0.7); p_.scale.setScalar(1 + life * 2); p_.material.opacity = 0.5 * (1 - life); });
+        if (B_.phase === 'cut') { const ct = Math.max(0, Math.sin(t * 4)); FP.knife.visible = true; FP.knife.position.set(0.5 * AR + 0.06 * ts * 3, 1 - tfy + (1.25 - 0.25 * ct) * ts, zOf(tfy) + 0.9); FP.knife.scale.setScalar(ts * 1.6); FP.knife.rotation.set(0, 0, -1.25); }
+        if (B_.cut) { FP.slice.visible = true; const fe = B_.phase === 'feed' ? handPos(actors[B_.char]) : null; if (fe) FP.slice.position.set(fe.x, fe.y + 0.01, fe.z + 0.6); else FP.slice.position.set(0.5 * AR + 0.1 * ts * 3, 1 - tfy + 0.95 * ts, zOf(tfy) + 0.7); FP.slice.scale.setScalar(ts * 1.3); } FP.balloons.visible = true; FP.balloons.position.set(0.12 * AR, 0.82 + Math.sin(t * 1.2) * 0.01, 45); FP.balloons.scale.setScalar(1.6);
         confetti.forEach((m, i) => { m.visible = B_.active && i % 2 === 0; if (!m.visible) return; const y = 1.05 - (((t * (0.08 + (i % 5) * 0.01)) + i * 0.137) % 1.15); m.position.set(((i * 0.618) % 1) * AR, y, 44); m.rotation.set(t * 2 + i, t * 3, 0); }); } }
     // football / kabaddi props
     { const G = S.FX.game; FP.football.visible = FP.goal.visible = FP.line.visible = false;
       if (G && G.game === 'football' && G.active && vis.includes(G.kids[0]) && G.kids[1] && vis.includes(G.kids[1])) { const ph = ((t - G.t0) % 2.4) / 2.4; const a = Math.floor((t - G.t0) / 2.4) % 2 === 0; const h0 = holders[a ? G.kids[0] : G.kids[1]].h, h1_ = holders[a ? G.kids[1] : G.kids[0]].h;
-        const q = Math.max(0, Math.min(1, (ph - 0.25) / 0.6)); const bx = lerp(h0.position.x + (a ? 0.05 : -0.05), h1_.position.x + (a ? -0.05 : 0.05), q); FP.football.visible = true; FP.football.position.set(bx, h0.position.y + 0.11 * h0.scale.x, Math.max(h0.position.z, h1_.position.z) + 0.2); FP.football.scale.setScalar(h0.scale.x); FP.football.rotation.z = -q * 12;
-        const gfy = b.groundNear - 0.15; FP.goal.visible = true; FP.goal.position.set(0.93 * AR, 1 - gfy, zOf(gfy) - 0.5); FP.goal.scale.setScalar(heightAt(b, gfy) / 1.7); }
+        const kk = a ? G.kids[0] : G.kids[1], rr = a ? G.kids[1] : G.kids[0]; const f0 = footPos(actors[kk]), f1 = footPos(actors[rr]); const dir = Math.sign(h1_.position.x - h0.position.x) || 1; const br = 0.11 * h0.scale.x;
+        const cyc = Math.floor((t - G.t0) / 2.4), shotCyc = Math.max(1, Math.floor((G.until - G.t0) / 2.4) - 1); const lastShot = cyc >= shotCyc; const gx = 0.93 * AR; const q = Math.max(0, Math.min(1, (ph - 0.3) / 0.55)); let bx, by;
+        if (cyc > shotCyc) { bx = gx - 0.02; by = h0.position.y + br; } else if (ph < 0.3) { bx = f0.x + (lastShot ? 1 : dir) * 0.06 * h0.scale.x * 1.7; by = h0.position.y + br; } else if (lastShot) { bx = lerp(f0.x + 0.06, gx, q); by = h0.position.y + br + Math.sin(q * Math.PI) * 0.12; } else { bx = lerp(f0.x + dir * 0.06 * h0.scale.x * 1.7, f1.x - dir * 0.05 * h0.scale.x * 1.7, q); by = h0.position.y + br; }
+        FP.football.visible = true; FP.football.position.set(bx, by, Math.max(h0.position.z, h1_.position.z) + 0.2); FP.football.scale.setScalar(h0.scale.x); FP.football.rotation.z = -q * 14 * dir;
+        const gfy = b.groundNear - 0.02; FP.goal.visible = true; FP.goal.position.set(0.95 * AR, 1 - gfy, zOf(gfy) - 0.5); FP.goal.scale.setScalar(heightAt(b, gfy) / 1.7); FP.goal.rotation.y = -0.5; if (lastShot && q > 0.95) FP.goal.children[3].scale.x = 1 + Math.sin(t * 30) * 0.15; }
       if (G && G.game === 'kabaddi') { const fy = b.groundNear - 0.08; FP.line.visible = true; FP.line.position.set(0.5 * AR, 1 - fy, zOf(fy) - 1); FP.line.scale.set(1, (b.groundNear - b.groundFar + 0.1) * 4, 1); } }
     // speed lines
     for (let i = 0; i < speed.length; i++) { const l = speed[i]; l.visible = !!S.chasing; if (!l.visible) continue; const sp = S.chasing.kind === 'car' ? 3.2 : 1.8; const y = 0.15 + ((i * 0.618) % 1) * 0.75; l.position.x = AR + 0.3 - ((t * sp + i * 0.37) % 1) * (AR + 0.6); l.position.y = y; }
@@ -409,6 +449,18 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       const hp = headPos(actors[shot.char]);
       if (shot.type === 'speaker') { zoom = 1.75; cx = hp.x; cy = hp.y - 0.12; }
       else { const o = vis.filter((x) => x !== shot.char).sort((p_, q) => Math.abs(st[p_].x - st[shot.char].x) - Math.abs(st[q].x - st[shot.char].x))[0]; const ho = o ? headPos(actors[o]) : hp; zoom = 1.35; cx = (hp.x + ho.x) / 2; cy = (hp.y + ho.y) / 2 - 0.15; }
+    } else if (shot.type === 'wheels' && vehicles[shot.vehicle]?.group.visible) { const m = vehicles[shot.vehicle]; const s = m.group.scale.x; const wx = (m.wheels[0]?.position.x ?? m.len * 0.3); zoom = 3.4; cx = m.group.position.x + wx * s; cy = m.group.position.y + (m.wheelR || 0.3) * s * 1.6;
+    } else if ((shot.type === 'drone' || shot.type === 'front') && S.chasing && S.chasing.kind === 'car') { // special views: swap the road, turn the vehicles
+      for (const id of Object.keys(actors)) holders[id].h.visible = false; for (const e_ of extras) e_.group.visible = false; for (const a_ of Object.values(animals)) a_.group.visible = false;
+      const keys = [S.chasing.runner, S.chasing.chaser].filter((k) => vehicles[k]);
+      if (shot.type === 'drone') { bgMat.map = drone.tx; drone.tx.offset.x = (t * 0.9) % 1; bgMat.needsUpdate = true;
+        keys.forEach((k, i) => { const m = vehicles[k]; const v = S.V[k]; m.group.visible = true; const s = 0.06; m.group.scale.setScalar(s); m.group.rotation.set(Math.PI / 2, 0, 0); m.group.position.set((v.x - 0.05) * AR, 0.5 + (i ? -0.08 : 0.08), 40 + i); m.set(t, { spin: v.spin, siren: v.siren, moving: 1 }); });
+        for (const k of Object.keys(vehicles)) if (!keys.includes(k)) vehicles[k].group.visible = false; }
+      else { drawFront(t); bgMat.map = front.tx; front.tx.offset.x = 0; bgMat.needsUpdate = true; const main = shot.vehicle && vehicles[shot.vehicle] ? shot.vehicle : keys[0];
+        keys.forEach((k) => { const m = vehicles[k]; const v = S.V[k]; const isMain = k === main; m.group.visible = true; const s = isMain ? 0.11 : 0.05; m.group.scale.setScalar(s); m.group.rotation.set(0.12, -Math.PI / 2, 0); m.group.position.set(AR / 2 + (isMain ? 0.03 : -0.02) + Math.sin(t * 2) * 0.01, isMain ? 0.06 : 0.36, isMain ? 40 : 30); m.set(t, { spin: v.spin, siren: v.siren, moving: 1 }); });
+        for (const k of Object.keys(vehicles)) if (!keys.includes(k)) vehicles[k].group.visible = false; }
+      for (const l of speed) l.visible = shot.type === 'front' ? false : l.visible;
+      zoom = 1; cx = AR / 2; cy = 0.5;
     } else if (shot.type === 'vehicle' && vehicles[shot.vehicle]?.group.visible) { const m = vehicles[shot.vehicle]; zoom = 1.6; cx = m.group.position.x; cy = m.group.position.y + m.top * m.group.scale.x * 0.55; }
     else if (shot.type === 'hands' && shot.char && vis.includes(shot.char)) { const l = handPos(actors[shot.char], 'Left'), r = handPos(actors[shot.char], 'Right'); zoom = 2.8; cx = (l.x + r.x) / 2; cy = (l.y + r.y) / 2 + 0.02; }
     if (S.shake) { cx += Math.sin(t * 23) * 0.003; cy += Math.sin(t * 31) * 0.003; }

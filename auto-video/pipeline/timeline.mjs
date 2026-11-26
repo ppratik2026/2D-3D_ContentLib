@@ -86,10 +86,10 @@ export function buildTimeline(story, opts) {
 function actionCues(e, t, sc, cues, shots) {
   const T = t + e.d;
   const two = /^(bike|scooter)/.test(e.vehicle || ''), cyc = /^cycle/.test(e.vehicle || ''), hor = /^horse/.test(e.vehicle || '');
-  if (e.kind === 'birthday') { let i = 0; for (let x = t; x < T - 0.3; x += 2.5, i++) shots.push({ t0: x, t1: Math.min(T, x + 2.5), ...(i % 2 ? { type: 'speaker', char: e.char } : { type: 'wide' }) }); }
+  if (e.kind === 'birthday') shots.push({ t0: t, t1: T, type: 'wide' });
   if ((e.kind === 'drive_in' || e.kind === 'drive_away') && /^heli/.test(e.vehicle || '')) { cues.push({ t, t1: T + 1, kind: 'heli' }); return; }
   if (e.kind === 'explosion') { cues.push({ t, kind: 'boom' }); shots.push({ t0: t, t1: T, type: 'wide' }); }
-  if (e.kind === 'game') { const kids = [e.char, ...(e.with || [])]; let i = 0; for (let x = t; x < T - 0.3; x += 2.4, i++) shots.push({ t0: x, t1: Math.min(T, x + 2.4), ...(i % 2 === 0 ? { type: 'wide' } : { type: 'speaker', char: kids[(i >> 1) % kids.length] }) }); }
+  if (e.kind === 'game') { const kids = [e.char, ...(e.with || [])]; const wideOnly = ['kite', 'football', 'kabaddi', 'tag', 'cricket'].includes(e.game); let i = 0; for (let x = t; x < T - 0.3; x += 2.4, i++) shots.push({ t0: x, t1: Math.min(T, x + 2.4), ...(wideOnly || i % 2 === 0 ? { type: 'wide' } : { type: 'speaker', char: kids[(i >> 1) % kids.length] }) }); }
   if ((e.kind === 'drive_in' || e.kind === 'drive_away') && /^train/.test(e.vehicle || '')) { cues.push({ t, t1: T + 1, kind: 'train', horn: true }); return; }
   if ((e.kind === 'drive_in' || e.kind === 'drive_away') && /^boat/.test(e.vehicle || '')) { cues.push({ t, t1: T, kind: 'paddle' }); return; }
   if (e.kind === 'baraat') { let i = 0; for (let x = t; x < T - 0.3; x += 2.2, i++) shots.push({ t0: x, t1: Math.min(T, x + 2.2), ...[{ type: 'wide' }, { type: 'speaker', char: e.char }, { type: 'wide' }, ...(e.with || []).slice(0, 2).map((c) => ({ type: 'speaker', char: c }))][i % (3 + Math.min(2, (e.with || []).length))] }); }
@@ -110,10 +110,10 @@ function actionCues(e, t, sc, cues, shots) {
   if (e.kind === 'go_to' && e.place === 'cell') cues.push({ t: T - 0.2, kind: 'clank' });
 }
 function chaseShots(e, t0, t1, shots, cont) {
-  const seq = e.kind === 'car_chase' ? [{ type: 'wide' }, { type: 'vehicle', vehicle: e.vehicle }, { type: 'vehicle', vehicle: e.chaser }, { type: 'wide' }, { type: 'speaker', char: e.char }, { type: 'vehicle', vehicle: e.chaser }]
+  const seq = e.kind === 'car_chase' ? [{ type: 'wide' }, { type: 'drone' }, { type: 'front', vehicle: e.vehicle }, { type: 'wheels', vehicle: e.vehicle }, { type: 'vehicle', vehicle: e.chaser }, { type: 'front', vehicle: e.chaser }, { type: 'drone' }, { type: 'speaker', char: e.char }]
     : [{ type: 'wide' }, { type: 'speaker', char: e.char }, { type: 'wide' }, ...(e.chasers || []).slice(0, 2).map((c) => ({ type: 'speaker', char: c }))];
   if (cont) return; // lines during the chase use their own speaker shots
-  let i = 0; for (let x = t0; x < t1 - 0.3; x += 1.6, i++) shots.push({ t0: x, t1: Math.min(t1, x + 1.6), ...seq[i % seq.length] });
+  let i = 0; for (let x = t0; x < t1 - 0.3; x += 1.8, i++) shots.push({ t0: x, t1: Math.min(t1, x + 1.8), ...seq[i % seq.length] });
 }
 
 // Second pass once every line has a duration: lay out the real times.
@@ -178,13 +178,13 @@ export function finalize(tl) {
   shots.sort((a, b) => a.t0 - b.t0);
   const clean = [];
   for (const s of shots) {
-    if (s.type === 'vehicle' || s.type === 'hands') { const prev = clean[clean.length - 1]; if (prev && s.t0 < prev.t1) prev.t1 = Math.max(prev.t0 + 0.01, s.t0); clean.push({ ...s }); continue; }
+    if (['vehicle', 'hands', 'drone', 'front', 'wheels'].includes(s.type)) { const prev = clean[clean.length - 1]; if (prev && s.t0 < prev.t1) prev.t1 = Math.max(prev.t0 + 0.01, s.t0); clean.push({ ...s }); continue; }
     const prev = clean[clean.length - 1];
     if (prev && s.t0 < prev.t1) prev.t1 = Math.max(prev.t0 + 0.01, s.t0);
     if (prev && prev.type === s.type && prev.char === s.char && s.t0 - prev.t1 < 0.05) { prev.t1 = s.t1; continue; }
     clean.push({ ...s });
   }
-  for (let i = 1; i < clean.length; i++) if (clean[i].t1 - clean[i].t0 < 1.2 && !['wide', 'vehicle', 'hands'].includes(clean[i].type)) clean[i].type = clean[i - 1].type, clean[i].char = clean[i - 1].char;
+  for (let i = 1; i < clean.length; i++) if (clean[i].t1 - clean[i].t0 < 1.2 && !['wide', 'vehicle', 'hands', 'drone', 'front', 'wheels'].includes(clean[i].type)) clean[i].type = clean[i - 1].type, clean[i].char = clean[i - 1].char;
   tl.shots = clean.filter((s) => s.t1 > s.t0);
   for (const l of tl.lines) { delete l._beat; delete l._pending; delete l._shot; }
   return tl;

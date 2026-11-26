@@ -38,6 +38,6 @@ export function deleteBackground(id) { if (!/^bg_/.test(id)) throw new Error('ba
 // best background for a scene when the AI's choice is missing
 export function pickBackground(list, want = {}) {
   let best = null, bs = -1e9;
-  for (const b of list) { let s = 0; if (b.id === want.background) s += 100; if (b.place === want.place) s += 30; if (b.time === want.time) s += 10; if (want.text) for (const t of [...(b.tags || []), b.name]) if (String(want.text).toLowerCase().includes(String(t).toLowerCase())) s += 3; s -= (want.used?.get(b.id) || 0) * 2; if (s > bs) { bs = s; best = b; } }
+  for (const b of list) { let s = 0; if (b.id === want.background) s += 100; if (b.place === want.place) s += 30; if (b.time === want.time) s += 10; if (want.text) for (const t of [...(b.tags || []), b.name]) if (String(want.text).toLowerCase().includes(String(t).toLowerCase())) s += 3; if (want.weather === 'snow') s += /snow|hill|mountain|pahad|barf|himal/i.test([b.name, ...(b.tags || [])].join(' ')) ? 40 : -20; s -= (want.used?.get(b.id) || 0) * 2; if (s > bs) { bs = s; best = b; } }
   return best;
 }

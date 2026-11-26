@@ -1,4 +1,4 @@
-# What Auto Video Studio can animate (v1.3)
+# What Auto Video Studio can animate (v1.4)
 
 The story AI uses these automatically. You can also write them yourself in a pasted story.
 
@@ -61,6 +61,22 @@ Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren)
 | helicopter | lands (drive_in), people get in / out, takes off (drive_away); rotor spins in flight |
 | Monkey / tiger | monkey jumps and chatters; tiger (stripes) roars and runs |
 | Snow | weather "snow" — snowfall with wind |
+
+## Camera and staging (v1.4)
+
+- **Chase camera angles:**
+  - side view;
+  - **drone view from above** (road with trees, roofs and the siren light);
+  - **chase cam** on a perspective road, with the car coming towards the camera and the police behind;
+  - **wheel close-up**;
+  - driver close-ups.
+
+  The drone and chase-cam roads are drawn by the app, so no extra background is needed.
+- **People keep their distance:** nobody stands inside somebody else any more, except when they touch on purpose (hug, fight, catch, give).
+- **Football:** a real kick (back-swing, then strike). The ball leaves the foot and rolls to the other player. The last shot goes into the goal net and everybody celebrates.
+- **Birthday:** a table with the cake in the middle. The birthday person stands behind it facing the camera, and the others stand on both sides. The order is song + clapping → blowing the candles (smoke) → cutting the cake with a knife → feeding a piece.
+- **Kite:** a real patang (two colours, sticks, tail with bows), high in the sky, a sagging string, and a charkhi in the other hand.
+- **Snow scenes:** the app picks a snowy / hill background. If you have none, TO-DO.txt asks for one.
 
 ## Places you mark on a background
 
