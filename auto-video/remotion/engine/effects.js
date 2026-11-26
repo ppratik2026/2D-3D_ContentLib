@@ -116,3 +116,27 @@ export function makeFestProps(toon) {
   P.diya = grp(mesh(new THREE.SphereGeometry(0.05, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), '#b5562a'), mesh(new THREE.ConeGeometry(0.018, 0.06, 8), basic(0xffb02e, 1, true), 0, 0.035, 0));
   return P;
 }
+
+// ---------- v1.5: festivals, travel interiors, underwater ----------
+export function makeFestPack(toon) {
+  const P = {}; const mesh = (geo, c, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, typeof c === 'string' ? toon(c) : c); m.position.set(x, y, z); return m; }; const grp = (...ms) => { const g = new THREE.Group(); ms.forEach((m) => g.add(m)); return g; };
+  P.dandiya = () => grp(mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.42, 8), '#e8b923', 0, 0.12, 0), mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.05, 8), '#d63a4a', 0, 0.3, 0), mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.05, 8), '#2f8f3a', 0, -0.05, 0));
+  P.rakhi = () => grp(mesh(new THREE.TorusGeometry(0.045, 0.008, 6, 18), '#d63a4a'), mesh(new THREE.CircleGeometry(0.035, 10), basic(0xffd23f), 0, 0, 0.012), mesh(new THREE.CircleGeometry(0.015, 8), basic(0xff3d8b), 0, 0, 0.014));
+  P.laddu = () => mesh(new THREE.SphereGeometry(0.035, 10, 8), '#f2a03a');
+  P.santa = () => grp(mesh(new THREE.ConeGeometry(0.11, 0.24, 14), '#d61f26', 0, 0.12, 0), mesh(new THREE.TorusGeometry(0.1, 0.03, 8, 18), '#f4f4f2', 0, 0, 0), mesh(new THREE.SphereGeometry(0.035, 8, 8), '#f4f4f2', 0.02, 0.25, 0)); 
+  P.tree = () => { const g = grp(mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.35, 8), '#6b4426', 0, 0.17, 0), ...[0, 1, 2, 3].map((i) => mesh(new THREE.ConeGeometry(0.75 - i * 0.15, 0.7, 12), '#1f7a3a', 0, 0.55 + i * 0.42, 0)), mesh(new THREE.OctahedronGeometry(0.13), basic(0xffd23f), 0, 2.2, 0));
+    const lights = []; for (let i = 0; i < 26; i++) { const a = i * 2.4, h = 0.5 + (i / 26) * 1.5, r = 0.72 - (h - 0.5) * 0.4; const m = mesh(new THREE.SphereGeometry(0.04, 8, 6), basic(FW_COLS[i % FW_COLS.length], 1, true), Math.cos(a) * r, h, Math.sin(a) * r + 0.1); g.add(m); lights.push(m); }
+    for (const [x, c] of [[-0.55, '#d63a4a'], [0.15, '#2b59c3'], [0.6, '#2f8f3a']]) { g.add(mesh(new THREE.BoxGeometry(0.32, 0.26, 0.3), c, x, 0.13, 0.55)); g.add(mesh(new THREE.BoxGeometry(0.34, 0.05, 0.32), '#ffd23f', x, 0.13, 0.55)); }
+    g.userData.lights = lights; return g; };
+  P.moon = () => { const g = new THREE.Group(); const m = new THREE.Mesh(new THREE.CircleGeometry(0.06, 28), basic(0xfff3b0)); const cut = new THREE.Mesh(new THREE.CircleGeometry(0.055, 28), basic(0x1a2240)); cut.position.set(0.028, 0.012, 0.001); g.add(m, cut); const star = new THREE.Mesh(new THREE.CircleGeometry(0.012, 5), basic(0xfff3b0)); star.position.set(0.07, 0.02, 0); g.add(star); return g; };
+  P.lantern = (c) => grp(mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.12, 8), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.9 })), mesh(new THREE.ConeGeometry(0.06, 0.06, 8), '#d4a017', 0, 0.09, 0), mesh(new THREE.CircleGeometry(0.09, 12), basic(c, 0.25, true), 0, 0, -0.01));
+  return P;
+}
+export function makeFish(n = 8) { const g = new THREE.Group(); const cols = [0xff8c2a, 0xffd23f, 0x4cc9f0, 0xf72585, 0x06d6a0]; const fish = [];
+  for (let i = 0; i < n; i++) { const f = new THREE.Group(); const body = new THREE.Mesh(new THREE.CircleGeometry(0.03, 14), basic(cols[i % cols.length])); body.scale.set(1.6, 1, 1); const tail = new THREE.Mesh(new THREE.CircleGeometry(0.02, 3), basic(cols[(i + 2) % cols.length])); tail.position.x = -0.055; tail.rotation.z = Math.PI; const eye = new THREE.Mesh(new THREE.CircleGeometry(0.005, 6), basic(0x111111)); eye.position.set(0.03, 0.008, 0.001); f.add(body, tail, eye); g.add(f); fish.push(f); }
+  return { group: g, set(t, AR) { fish.forEach((f, i) => { const sp = 0.05 + h1(i, 2) * 0.05; const dir = i % 2 ? 1 : -1; const x = (((h1(i, 3) * AR + dir * t * sp) % (AR + 0.3)) + AR + 0.3) % (AR + 0.3) - 0.15; f.position.set(x, 0.25 + h1(i, 4) * 0.55 + Math.sin(t * 1.5 + i) * 0.015, 0); f.scale.set(dir, 1, 1); f.children[1].rotation.y = Math.sin(t * 12 + i) * 0.6; }); } };
+}
+export function makeWeeds(n = 10) { const g = new THREE.Group(); const blades = [];
+  for (let i = 0; i < n; i++) { const b = new THREE.Group(); for (let k = 0; k < 5; k++) { const s = new THREE.Mesh(new THREE.PlaneGeometry(0.018, 0.05), basic(k % 2 ? 0x2f9e5a : 0x23864a)); s.position.y = k * 0.045 + 0.025; b.add(s); } g.add(b); blades.push(b); }
+  return { group: g, set(t, AR) { blades.forEach((b, i) => { const left = i < n / 2; b.position.set(left ? 0.02 + (i % 5) * 0.035 : AR - 0.02 - (i % 5) * 0.035, 0, 0); b.children.forEach((s, k) => { s.position.x = Math.sin(t * 1.4 + i + k * 0.6) * 0.006 * k; s.rotation.z = Math.sin(t * 1.4 + i + k * 0.6) * 0.15; }); b.scale.setScalar(1.6 + (i % 3) * 0.5); }); } };
+}

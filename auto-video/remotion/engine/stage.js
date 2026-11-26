@@ -7,7 +7,7 @@ import { OutlineEffect } from 'three/examples/jsm/effects/OutlineEffect.js';
 import { loadActorKit, createActor, poseActor, headPos, handPos, footPos } from './actors.js';
 import { makeVehicle } from './vehicles.js';
 import { makeAnimal, makeExtra, makeSafa, makeBirds } from './creatures.js';
-import { makeKite, makeCurve } from './effects.js';
+import { makeKite, makeCurve, makeFestPack, makeFish, makeWeeds } from './effects.js';
 import { makeFire, makeExplosion, makeSplash, makeProps, makeLine, makeFireworks, makeDiyas, makeLights, makePowder, makeSpark, makeFestProps } from './effects.js';
 
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -66,7 +66,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
         for (const yy of [top + 0.015, lerp(top, m.y, 0.45), m.y - 0.02]) { const h = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0 + 0.02, 0.012, 0.012), mat); h.position.set((x0 + x1) / 2, 1 - yy, z); g.add(h); }
         continue;
       }
-      if (m.cover == null || !w) continue;
+      if (m.cover == null || !w || m.type === 'window' || m.type === 'climb') continue;
       const x0 = m.x - w / 2, x1 = m.x + w / 2, y0 = m.cover, y1 = Math.min(1, m.y + (m.type === 'bed' ? 0.2 : 0.04));
       const geo = new THREE.PlaneGeometry((x1 - x0) * AR, y1 - y0); const uv = geo.attributes.uv;
       for (let k = 0; k < uv.count; k++) { const u = uv.getX(k) ? x1 : x0, v = uv.getY(k) ? y0 : y1; uv.setXY(k, f.ox + f.rx * u, f.oy + f.ry * (1 - v)); }
@@ -95,6 +95,14 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
   const extras = []; for (let i = 0; i < Math.min(14, tl.crowdMax || 0); i++) { const e = makeExtra(i + 1, grad); e.group.visible = false; scene.add(e.group); extras.push(e); }
   const safa = makeSafa(grad); safa.visible = false; scene.add(safa);
   const confetti = []; { const cols = [0xff4d6d, 0xffd166, 0x06d6a0, 0x4cc9f0, 0xf72585, 0xffffff]; for (let i = 0; i < 46; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.012, 0.018), new THREE.MeshBasicMaterial({ color: cols[i % cols.length], side: THREE.DoubleSide, depthTest: false, toneMapped: false })); m.userData.outlineParameters = { visible: false }; m.visible = false; m.position.z = 44; scene.add(m); confetti.push(m); } }
+  // cinematic rig (far away from the stage): the speaker faces a perspective camera, the listener's shoulder in front,
+  // a blurred copy of the background behind them — over-the-shoulder, close-up and reaction shots like TV serials
+  const rigCam = new THREE.PerspectiveCamera(30, AR, 0.05, 80); const RIG = new THREE.Vector3(1000, 0, 0);
+  const blurTex = {}; for (const [id, t0] of Object.entries(bgTex)) { const img = t0.image; const cv = document.createElement('canvas'); cv.width = 800; cv.height = 450; const x = cv.getContext('2d'); x.filter = 'blur(10px) saturate(1.08)';
+    const ia = img.width / img.height; const sw = ia > AR ? img.height * AR : img.width, sh = ia > AR ? img.height : img.width / AR; x.drawImage(img, (img.width - sw) / 2, (img.height - sh) * 0.35, sw, sh * 0.75, -20, -20, 840, 490); const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; blurTex[id] = tx; }
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(16, 9), new THREE.MeshBasicMaterial({ toneMapped: false })); board.material.userData.outlineParameters = { visible: false }; board.position.set(RIG.x, 1.9, -6); scene.add(board);
+  const bench = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.78, 0.4), toon('#7a4a2a')); bench.position.set(RIG.x, 0.39, 0.55); bench.visible = false; scene.add(bench);
+  const benchTop = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.07, 0.55), toon('#5a3520')); benchTop.position.set(RIG.x, 0.8, 0.55); benchTop.visible = false; scene.add(benchTop);
   // camera angles for chases: drone (top view) and front view use roads drawn here, so no extra background is needed
   const mkCanvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const x = cv.getContext('2d'); draw(x, w, h); const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; tx.wrapS = THREE.RepeatWrapping; return { tx, cv, x }; };
   const drone = mkCanvasTex(2048, 1152, (x, w, h) => { x.fillStyle = '#5fa84a'; x.fillRect(0, 0, w, h); for (let i = 0; i < 40; i++) { x.fillStyle = i % 2 ? '#58a044' : '#66b050'; x.fillRect(i * 52, 0, 26, h); }
@@ -108,6 +116,19 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     x.fillStyle = '#f4f1e6'; for (let i = 0; i < 8; i++) { const k = ((i / 8) + t * 0.9) % 1; const kk = k * k; const y0 = h * 0.42 + kk * h * 0.58, y1 = h * 0.42 + Math.min(1, (k + 0.05) ** 2) * h * 0.58; const half = (yy) => 3 + ((yy - h * 0.42) / (h * 0.58)) * 14; x.beginPath(); x.moveTo(w / 2 - half(y0), y0); x.lineTo(w / 2 + half(y0), y0); x.lineTo(w / 2 + half(y1), y1); x.lineTo(w / 2 - half(y1), y1); x.fill(); }
     for (let i = 0; i < 10; i++) { const k = ((i / 10) + t * 0.9) % 1; const kk = k * k; const y = h * 0.42 + kk * h * 0.58; const side = i % 2 ? 1 : -1; const xx = w / 2 + side * (w * 0.06 + kk * w * 0.7); const r = 8 + kk * 120; x.fillStyle = '#6b4426'; x.fillRect(xx - r * 0.12, y - r * 1.2, r * 0.24, r * 1.2); x.fillStyle = '#2f7d32'; x.beginPath(); x.arc(xx, y - r * 1.4, r * 0.7, 0, 7); x.fill(); }
     front.tx.needsUpdate = true; };
+  // v1.5: garba, rakhi, Eid, Christmas, travel windows, underwater
+  const FPK = makeFestPack(toon); const pool = {}; const take = (kind, id, make) => { const k = kind + ':' + id; if (!pool[k]) { pool[k] = make(); scene.add(pool[k]); } return pool[k]; };
+  const xtree = FPK.tree(); xtree.visible = false; scene.add(xtree); const moon = FPK.moon(); moon.visible = false; moon.position.z = 6; scene.add(moon);
+  const lanterns = [0xff8c2a, 0xffd23f, 0x06d6a0, 0xf72585, 0x4cc9f0, 0xff8c2a, 0xffd23f].map((c) => { const l = FPK.lantern(c); l.visible = false; scene.add(l); return l; });
+  const fish = makeFish(9); fish.group.visible = false; fish.group.position.z = 44; scene.add(fish.group); const weeds = makeWeeds(10); weeds.group.visible = false; weeds.group.position.z = 46; scene.add(weeds.group);
+  const winCv = document.createElement('canvas'); winCv.width = 2048; winCv.height = 512; const winTex = new THREE.CanvasTexture(winCv); winTex.colorSpace = THREE.SRGBColorSpace; winTex.wrapS = THREE.RepeatWrapping; let winKind = null;
+  const drawWin = (kind) => { if (winKind === kind) return; winKind = kind; const x = winCv.getContext('2d'), w = 2048, h = 512; const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, kind === 'plane' ? '#4f8fd8' : '#7cc0f0'); g.addColorStop(1, kind === 'plane' ? '#cfe6fb' : '#e2f1fb'); x.fillStyle = g; x.fillRect(0, 0, w, h);
+    if (kind === 'plane') { for (let i = 0; i < 14; i++) { x.fillStyle = 'rgba(255,255,255,0.9)'; const cx = i * 150 + 40, cy = 120 + (i % 4) * 80; for (let k = 0; k < 4; k++) { x.beginPath(); x.arc(cx + k * 30, cy + (k % 2) * 10, 28 + k * 4, 0, 7); x.fill(); } } }
+    else { x.fillStyle = '#7aa884'; x.beginPath(); x.moveTo(0, h * 0.55); for (let i = 0; i <= 16; i++) x.lineTo((i / 16) * w, h * (0.42 + (i % 2) * 0.1)); x.lineTo(w, h); x.lineTo(0, h); x.fill(); x.fillStyle = '#62a84c'; x.fillRect(0, h * 0.62, w, h);
+      if (kind === 'bus' || kind === 'car') for (let i = 0; i < 16; i++) { x.fillStyle = ['#d9a441', '#c0574a', '#5a87b8', '#e2c9a0'][i % 4]; const bh = 120 + (i % 3) * 60; x.fillRect(i * 128, h * 0.7 - bh, 110, bh); x.fillStyle = '#fff6c8'; for (let r = 0; r < 4; r++) x.fillRect(i * 128 + 15 + (r % 2) * 50, h * 0.7 - bh + 20 + Math.floor(r / 2) * 40, 30, 22); }
+      else for (let i = 0; i < 18; i++) { const cx = i * 114 + 30; x.fillStyle = '#6b4426'; x.fillRect(cx - 6, h * 0.5, 12, 90); x.fillStyle = '#2f7d32'; x.beginPath(); x.arc(cx, h * 0.48, 40, 0, 7); x.fill(); if (i % 3 === 0) { x.fillStyle = '#555'; x.fillRect(cx + 50, h * 0.28, 6, h * 0.5); } } }
+    winTex.needsUpdate = true; };
+  const winMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: winTex, toneMapped: false })); winMesh.material.userData.outlineParameters = { visible: false }; winMesh.visible = false; scene.add(winMesh);
   // effects + game props (v1.2)
   const fires = Array.from({ length: 3 }, () => { const f = makeFire(); f.group.visible = false; scene.add(f.group); return f; });
   const booms = Array.from({ length: 2 }, () => { const f = makeExplosion(); f.group.visible = false; scene.add(f.group); return f; });
@@ -145,7 +166,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
   P.type = grp(mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24), '#3a3d45', 0, 0, 0), mesh(new THREE.BoxGeometry(0.34, 0.22, 0.015), '#3a3d45', 0, 0.11, -0.12, 0, -0.25), mesh(new THREE.PlaneGeometry(0.3, 0.18), new THREE.MeshBasicMaterial({ color: 0x9fd0ff, toneMapped: false }), 0, 0.11, -0.11, 0, -0.25)); P.type.userData.mid = true;
   P.give = grp(mesh(new THREE.BoxGeometry(0.14, 0.12, 0.12), '#d63a4a', 0, 0, 0), mesh(new THREE.BoxGeometry(0.15, 0.025, 0.125), '#ffd166', 0, 0, 0));
   P.money = mesh(new THREE.BoxGeometry(0.16, 0.08, 0.02), '#5aa55a');
-  P.receive = P.give;
+  P.receive = P.give; P.laddu = FPK.laddu();
   for (const p of Object.values(P)) { p.visible = false; scene.add(p); }
   const cuffs = {}; const cuffMesh = () => { const g = new THREE.Group(); const m = toon('#c9ccd4'); for (const dx of [-0.05, 0.05]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.009, 8, 20), m); r.position.x = dx; g.add(r); } const c = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.008, 0.008), m); g.add(c); g.visible = false; scene.add(g); return g; };
   // speed lines for chases
@@ -182,7 +203,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     const parked = vkeys.some((k) => { const f = ev.find((e) => e.vehicle === k || e.chaser === k); return f && f.kind !== 'drive_in' && f.kind !== 'car_chase'; });
     const free = sc.cast.filter((c) => !anchor[c]); const busy = Object.values(anchor).map((m) => { const w = m.w || 0.12; return [m.x - w / 2, m.x + w / 2]; }); const sp = spots(free, parked, busy);
     // when a chase ends, the next movement of the scene
-    for (const e of ev) if (['car_chase', 'foot_chase', 'baraat', 'game', 'swim', 'birthday'].includes(e.kind)) { const nx = ev.find((x) => x.t0 >= e.t1 - 0.01 && x !== e && !['gesture', 'animal', 'crowd', 'fire', 'fire_out', 'holi', 'diwali', 'cracker', 'fly_by'].includes(x.kind)); e._until = Math.max(e.t1, nx ? nx.t0 : sc.end - 0.4); }
+    for (const e of ev) if (['car_chase', 'foot_chase', 'baraat', 'game', 'swim', 'birthday', 'garba'].includes(e.kind)) { const nx = ev.find((x) => x.t0 >= e.t1 - 0.01 && x !== e && !['gesture', 'animal', 'crowd', 'fire', 'fire_out', 'holi', 'diwali', 'cracker', 'fly_by', 'eid', 'christmas', 'moving_view'].includes(x.kind)); e._until = Math.max(e.t1, nx ? nx.t0 : sc.end - 0.4); }
     const p = { b, ms, ev, vkeys, akeys, chase, involved, inside, anchor, sp, parked }; plan.set(sc, p); return p;
   }
   const PARK = { x: 0.8, row: 1 }; const VSCALE = 0.85;
@@ -206,7 +227,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     for (const e of p.ev) {
       if (t < e.t0) break; const until = e._until ?? e.t1; const k = Math.min(1, (t - e.t0) / Math.max(0.01, e.t1 - e.t0)), done = t >= e.t1;
       const c = C[e.char];
-      const go = (cc, x0, x1, run, kk = k) => { cc.x = lerp(x0, x1, kk); if (kk < 1 && Math.abs(x1 - x0) > 0.005) { cc.face = x1 > x0 ? 1 : -1; cc[run ? 'run' : 'walk'] = 1; } else cc.walk = cc.run = 0; };
+      const go = (cc, x0, x1, run, kk = k) => { cc.x = lerp(x0, x1, kk); cc.walkDist = (Math.abs(x1 - x0) * kk * AR) / Math.max(0.05, heightAt(b, feet(cc)) / 1.7); if (kk < 1 && Math.abs(x1 - x0) > 0.005) { cc.face = x1 > x0 ? 1 : -1; cc[run ? 'run' : 'walk'] = 1; } else cc.walk = cc.run = 0; };
       const free = (cc) => { cc.anchor = null; cc.feetY = null; cc.sit = 0; cc.lie = 0; cc.swim = 0; cc.climbed = null; };
       if (e.kind === 'gesture') continue;
       if (e.kind === 'animal' && e.animal === 'birds') { const a = A.birds; if (a && e.act === 'fly') { a.fly = { t0: e.t0, t1: e.t1 }; } continue; }
@@ -218,6 +239,9 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
         else if (e.act === 'sit') a.act = 'sit';
         continue; }
       if (e.kind === 'fly_by') { const v = V[e.vehicle]; if (v) { v.visible = t < e.t1; v.fly = { k }; v.spin = k * 40; v.bob = 1; } continue; }
+      if (e.kind === 'eid') { FX.eid = { k: sm(e.t0, e.t0 + 1.5, t) }; continue; }
+      if (e.kind === 'christmas') { FX.xmas = { k: sm(e.t0, e.t0 + 1.5, t), caps: e.caps !== false }; continue; }
+      if (e.kind === 'moving_view') { FX.moving = { kind: e.vkind || 'train' }; shake = Math.max(shake, 0.25); continue; }
       if (e.kind === 'holi') { FX.holi = { k: sm(e.t0, e.t0 + 3, t), t0: e.t0 }; continue; }
       if (e.kind === 'diwali') { FX.diwali = { k: sm(e.t0, e.t0 + 1.5, t), lights: e.lights !== false, fireworks: e.fireworks !== false, diyas: e.diyas !== false }; continue; }
       if (e.kind === 'cracker') { FX.crackers = [...(FX.crackers || []), { x: { left: 0.25, center: 0.5, right: 0.75 }[e.where] ?? 0.62, type: e.type || 'anaar', dt: t - e.t0, d: e.t1 - e.t0 }]; if (e.type === 'bomb' && t - e.t0 > 1 && t - e.t0 < 1.5) shake = 0.8; continue; }
@@ -295,18 +319,26 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
           else { const n = kids.length; kids.forEach((id, i) => { const cc = C[id]; const a = (t - e.t0) * 1.1 + (i * Math.PI * 2) / n - (i === 0 ? 0.5 : 0); cc.x = 0.5 + Math.cos(a) * 0.3; cc.row = 0.35 + Math.sin(a) * 0.35; cc.face = -Math.sin(a) > 0 ? 1 : -1; cc.run = active ? 1 : 0; cc._g = active ? { name: 'laugh', k: 1 } : null; }); }
           break; }
         case 'birthday': { const until = e._until ?? e.t1; const D = Math.max(4, until - e.t0); const q = Math.min(1, (t - e.t0) / D); const active = t < until;
-          free(c); c.visible = true; c.x = 0.5; c.row = 0.5; c.face = 1; c.frontal = true;
-          const others = Object.entries(C).filter(([id, o]) => id !== e.char && o.visible && !o.inV); others.forEach(([id, o], i) => { free(o); const side = i % 2 ? 1 : -1; const r = Math.floor(i / 2); o.x = 0.5 + side * (0.19 + r * 0.12); o.row = 0.32 + r * 0.25; o.face = side > 0 ? -1 : 1; });
+          { const x0 = c.x, r0 = c.row; free(c); c.visible = true; const kk = sm(e.t0, e.t0 + 1.8, t); c.x = lerp(x0, 0.5, kk); c.row = lerp(r0, 0.5, kk); if (kk < 1 && Math.abs(0.5 - x0) > 0.01) { c.walk = 1; c.face = 0.5 > x0 ? 1 : -1; c.walkDist = (Math.abs(0.5 - x0) * kk * AR) / (heightAt(b, feet(c)) / 1.7); } else { c.face = 1; c.frontal = true; } }
+          const others = Object.entries(C).filter(([id, o]) => id !== e.char && o.visible && !o.inV);           const kIn = sm(e.t0, e.t0 + 1.8, t); others.forEach(([id, o], i) => { const x0 = o.x, r0 = o.row; free(o); const side = i % 2 ? 1 : -1; const r = Math.floor(i / 2); const tx = 0.5 + side * (0.19 + r * 0.12); o.x = lerp(x0, tx, kIn); o.row = lerp(r0, 0.32 + r * 0.25, kIn); if (kIn < 1 && Math.abs(tx - x0) > 0.01) { o.walk = 1; o.face = tx > x0 ? 1 : -1; o.walkDist = (Math.abs(tx - x0) * kIn * AR) / (heightAt(b, feet(o)) / 1.7); } else o.face = side > 0 ? -1 : 1; });
           const phase = q < 0.42 ? 'song' : q < 0.55 ? 'blow' : q < 0.76 ? 'cut' : 'feed'; FX.birthday = { char: e.char, active, phase, q, blown: q >= 0.52, cut: q >= 0.66, t0: e.t0, feedTo: others[0]?.[0] };
           if (active) { c._g = phase === 'blow' ? { name: 'blow', k: 1 } : phase === 'cut' ? { name: 'cut', k: 1 } : phase === 'feed' ? { name: 'give', k: 1 } : { name: 'laugh', k: 1 };
-            others.forEach(([id, o], i) => { o._g = phase === 'feed' && i === 0 ? { name: 'receive', k: 1 } : { name: 'clap', k: 1 }; }); if (phase === 'feed' && others[0]) { others[0][1].x = 0.62; others[0][1].row = 0.45; others[0][1].face = -1; } }
+            others.forEach(([id, o], i) => { o._g = phase === 'feed' && i === 0 ? { name: 'receive', k: 1 } : { name: 'clap', k: 1 }; }); if (phase === 'feed' && others[0]) { const o = others[0][1]; const kf = sm(0.76, 0.82, q); const x0 = o.x; o.x = lerp(x0, 0.62, kf); o.row = lerp(o.row, 0.45, kf); if (kf < 1) { o.walk = 1; o.face = 0.62 > x0 ? 1 : -1; } else o.face = -1; } }
           break; }
+        case 'garba': { const until = e._until ?? e.t1; const active = t < until; const ds = [e.char, ...(e.with || [])].filter((id) => C[id]); const n = ds.length;
+          ds.forEach((id, i) => { const cc = C[id]; free(cc); cc.inV = null; cc.visible = true; const a0 = (i / n) * Math.PI * 2, sp = 0.45; const a = a0 + (Math.min(t, until) - e.t0) * sp; cc.x = 0.5 + Math.cos(a) * 0.26; cc.row = 0.4 + Math.sin(a) * 0.36;
+            cc.face = -Math.sin(a) > 0 ? 1 : -1; cc.walk = active ? 1 : 0; cc.walkDist = (Math.min(t, until) - e.t0) * sp * 0.26 * AR / Math.max(0.05, heightAt(b, feet(cc)) / 1.7); if (active) cc._g = { name: 'dandiya', k: 1 }; });
+          FX.garba = { active, ds }; if (active) crowd = { mood: 'dance', count: Math.max(crowd.count, Math.min(extras.length, 8)) }; break; }
+        case 'rakhi': { const tc = C[e.target]; if (!tc) break; const q = k; const x0 = c.x; free(c); c.row = tc.row; const x1 = tc.x + (x0 < tc.x ? -0.085 : 0.085); const kw = sm(0, 0.18, q); c.x = lerp(x0, x1, kw); c.walk = kw < 1 && Math.abs(x1 - x0) > 0.01 ? 1 : 0;
+          if (kw >= 1) { c.face = tc.x > c.x ? 1 : -1; tc.face = -c.face; }
+          if (!done) { if (q > 0.2 && q < 0.4) c._g = { name: 'aarti', k: 1 }; if (q >= 0.4 && q < 0.65) { c._g = { name: 'cuff', k: 1 }; tc._g = { name: 'give', k: 1 }; } if (q >= 0.65 && q < 0.82) { c._g = { name: 'give', k: 1, item: 'laddu' }; tc._g = { name: 'receive', k: 1 }; } if (q >= 0.82) { tc._g = { name: 'give', k: 1, item: 'give' }; c._g = { name: 'receive', k: 1 }; } }
+          if (q >= 0.55) tc.rakhi = true; break; }
         case 'sleep': c.lie = sm(0, 0.6, k); c.sit = 0; c.walk = c.run = 0; c.sleeping = true; break;
         default: break;
       }
     }
     // keep people apart (except those touching on purpose)
-    { const TOUCH = new Set(['hug', 'punch', 'hit_back', 'grab', 'cuff', 'give', 'receive', 'push', 'slap']); const touching = new Set(Object.entries(C).filter(([, c]) => c.grab || c._cuff || (c._g && TOUCH.has(c._g.name))).map(([id]) => id));
+    { const TOUCH = new Set(['hug', 'punch', 'hit_back', 'grab', 'cuff', 'give', 'receive', 'push', 'slap', 'aarti', 'dandiya']); const touching = new Set(Object.entries(C).filter(([, c]) => c.grab || c._cuff || (c._g && TOUCH.has(c._g.name))).map(([id]) => id));
       const L = Object.entries(C).filter(([, c]) => c.visible && !c.inV && !c.lie && !c.swim && !c.climbed && !(c.anchor && SIT_TYPES.has(c.anchor.type)));
       for (let it = 0; it < 5; it++) for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) { const [ia, A1] = L[i], [ib, B1] = L[j]; if (touching.has(ia) && touching.has(ib)) continue;
         const fa = feet(A1), fb = feet(B1); if (Math.abs(fa - fb) > 0.3) continue; const gap = (0.42 * Math.max(heightAt(b, fa), heightAt(b, fb))) / AR; const dx = B1.x - A1.x; if (Math.abs(dx) >= gap) continue;
@@ -330,7 +362,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       m.group.rotation.x = 0; m.group.rotation.y = 0; const fy = rowY(b, v.row); const s = (heightAt(b, fy) / 1.7) * VSCALE; m.group.scale.setScalar(s); m.group.position.set(v.x * AR, 1 - fy + (v.alt || 0) + (m.floatY || 0) * s + (v.bob && !m.floatY && !m.air ? Math.abs(Math.sin(t * 17 + k.length)) * 0.004 : 0), zOf(fy) - 0.4); if (v.fly) { const ss = s * 0.22; m.group.scale.setScalar(ss); m.group.position.set(-0.4 * AR + v.fly.k * 2.0 * AR, 0.74 + Math.sin(v.fly.k * 3) * 0.02, 4); } m.set(t, { spin: v.spin, door: v.door, siren: v.siren, moving: v.bob ? 1 : 0 }); }
     // characters
     for (const id of Object.keys(actors)) holders[id].h.visible = false;
-    const st = S.C; const vis = [];
+    const st = S.C; const vis = []; const yawOf = {}; const ppOf = {};
     for (const [id, c] of Object.entries(st)) {
       const { h, pivot, sh, clip } = holders[id]; const a = actors[id]; clip.constant = 1e5;
       let show = c.visible; let px, py, pz, sc_;
@@ -342,10 +374,11 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
           const hip = a.hipY * (s * 1.7 * (a.height / 1.7) / a.height) * 0.94; py = 1 - fy + lerp(0, seat[1] * s - hip, c.inK) + (v.bob ? Math.abs(Math.sin(t * 17)) * 0.004 : 0); pz = zOf(fy) - 0.4 + lerp(0.6, 0.05, c.inK) * s; c.sit = 0; c.ride = c.inK; c.pillion = c.inV.seat > 0; c.rideType = m.type;
         } else clip.constant = -(1 - fy + (v.alt || 0) + (m.floor ?? 0.36) * s); }
       else { const fy = c.feetY ?? rowY(b, c.row); sc_ = c.anchor && c.anchor.type === 'bed' ? ((c.anchor.w || 0.3) * AR * 0.8) / 1.7 : heightAt(b, fy) / 1.7; px = c.x * AR; py = 1 - fy; pz = zOf(fy); sh.visible = c.lie < 0.5; }
-      if (c.swim && !c.inV) { py -= 0.02 * sc_ * 1.7; clip.constant = -(py + 0.13 * sc_); }
-      if (c.jump) py += c.jump * 0.05 * sc_ * 1.7;
+      if (c.swim && !c.inV) { py -= 0.02 * sc_ * 1.7; if (sc.weather !== 'underwater') clip.constant = -(py + 0.13 * sc_); else py += 0.12; }
+      if (c.jump) py += c.jump * 0.05 * sc_ * 1.7; if (S.FX.moving && !c.walk) py += Math.abs(Math.sin(t * 9 + px * 7)) * 0.0025;
+      if (sc.weather === 'underwater' && !c.inV) { py += 0.01 + Math.sin(t * 1.3 + px * 5) * 0.006; }
       if (!show) continue; h.visible = true; vis.push(id);
-      const childK = a.height / 1.7; h.scale.setScalar((sc_ * 1.7 * childK) / a.height); h.position.set(px, py, pz);
+      const childK = a.height / 1.7; h.scale.setScalar((sc_ * 1.7 * childK) / a.height); h.position.set(px, py, pz); h.rotation.y = 0;
       // lying down: roll the body flat, head towards the left
       pivot.rotation.z = c.swim ? -c.face * Math.PI / 2 * 0.92 : c.lie * Math.PI / 2; pivot.position.set(c.swim ? -c.face * 0.8 : c.lie * 0.85, c.swim ? 0.15 : c.lie * 0.12, 0);
     }
@@ -366,19 +399,19 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       const lookId = c.grab || (line && line.char !== id && vis.includes(line.char) ? line.char : lastLine && lastLine.char !== id && vis.includes(lastLine.char) ? lastLine.char : others[0]);
       if (!c.walk && !c.run && !c.inV && lookId && !c.lie && !c.swim && !c.frontal) c.face = st[lookId].x > c.x ? 1 : -1;
       const frontal = c.frontal ? 0.15 : c.anchor && (c.anchor.type === 'judge' || c.anchor.type === 'desk' || c.anchor.type === 'board') ? 0.4 : 1;
-      const yaw = c.swim ? c.face * Math.PI / 2 : c.lie ? Math.PI / 2 : c.inV ? (c.ride ? Math.PI / 2 - 0.35 : 1.3) : c.face * FACE * frontal;
-      const pp = { visible: true, pos: V3(0, 0, 0), yaw, lie: c.lie > 0.5, walk: c.lie ? 0 : c.walk, run: c.lie ? 0 : c.run, sit: c.lie ? 0 : c.sit, drop: Math.max(0.2, a.hipY - 0.5), cuffed: c.cuffed, struggle: c.struggle, swim: c.swim, ride: c.ride || 0, pillion: c.pillion, rideType: c.rideType, moving: !!(c.inV && S.V[c.inV.key]?.bob) };
+      const yaw = c.swim ? c.face * Math.PI / 2 : c.lie ? Math.PI / 2 : (c.walk || c.run) && !c.inV ? c.face * 1.4 : c.inV ? (c.ride ? Math.PI / 2 - 0.35 : 1.3) : c.face * FACE * frontal;
+      const pp = { visible: true, pos: V3(0, 0, 0), yaw, lie: c.lie > 0.5, walk: c.lie ? 0 : c.walk, run: c.lie ? 0 : c.run, sit: c.lie ? 0 : c.sit, drop: Math.max(0.2, a.hipY - 0.5), cuffed: c.cuffed, struggle: c.struggle, swim: c.swim, walkDist: c.walkDist ?? (c.run || c.walk ? t * 1.3 : null), ride: c.ride || 0, pillion: c.pillion, rideType: c.rideType, moving: !!(c.inV && S.V[c.inV.key]?.bob) };
       pp.look = lookId && !c.lie ? headPos(actors[lookId]).clone() : null;
       if (speaking) { const f = Math.floor((t - line.start) * 30); pp.mouth = line.mouth[f] || 0; pp.talk = c.walk || c.run || c.cuffed || c.inV || c.lie ? 0 : 0.5 * sm(line.start, line.start + 0.3, t) * (1 - sm(line.end - 0.3, line.end, t)); pp.emotion = line.emotion; }
       else if (lastLine && lastLine.char === id && t - lastLine.end < 2) pp.emotion = lastLine.emotion;
       const g = sc.events.find((e) => e.kind === 'gesture' && e.char === id && t >= e.t0 && t < e.t1); if (g) pp.gesture = { name: g.name, k: sm(g.t0, g.t0 + 0.3, t) * (1 - sm(g.t1 - 0.3, g.t1, t)) };
       if (c.grab) pp.gesture = { name: 'grab', k: 1 }; if (c._cuff) pp.gesture = { name: 'cuff', k: 1 }; if (c._g && c._g.k > 0) pp.gesture = c._g; if (c.swim && !c.inV) pp.gesture = { name: 'swim', k: 1 }; if (c.sleeping && c.lie > 0.5) pp.emotion = 'sleep';
-      poseActor(a, t, pp);
+      poseActor(a, t, pp); yawOf[id] = pp.yaw; ppOf[id] = pp;
     }
     safa.visible = false; if (S.baraat && vis.includes(S.baraat.groom)) { const hp = headPos(actors[S.baraat.groom]); const hs = holders[S.baraat.groom].h.scale.x; safa.visible = true; safa.position.set(hp.x, hp.y + 0.15 * hs, hp.z + 0.01); safa.scale.setScalar(hs * 1.05); }
     // props + handcuffs
     for (const p_ of Object.values(P)) p_.visible = false;
-    for (const id of vis) { const ev = sc.events.find((e) => e.kind === 'gesture' && e.char === id && t >= e.t0 && t < e.t1); const g = st[id]._g?.item ? { name: st[id]._g.item === 'money' ? 'money' : 'give' } : ev; const pr = g && P[g.name]; if (!pr || pr.visible) continue;
+    for (const id of vis) { const ev = sc.events.find((e) => e.kind === 'gesture' && e.char === id && t >= e.t0 && t < e.t1); const g = st[id]._g?.item ? { name: st[id]._g.item === 'money' ? 'money' : st[id]._g.item === 'laddu' ? 'laddu' : 'give' } : ev || (st[id]._g && P[st[id]._g.name] ? { name: st[id]._g.name } : null); const pr = g && P[g.name]; if (!pr || pr.visible) continue;
       const hp = pr.userData.mid ? handPos(actors[id], 'Left').add(handPos(actors[id])).multiplyScalar(0.5) : handPos(actors[id], pr.userData.hand || 'Right'); const s = holders[id].h.scale.x; pr.visible = true; pr.position.copy(hp); pr.scale.setScalar(s * (actors[id].height / 1.7)); pr.position.z += 0.02;
       if (pr.userData.rot) { pr.rotation.set(0, 0, pr.userData.rot * st[id].face); continue; }
       pr.rotation.set(0, 0, g.name === 'torch' ? (st[id].face > 0 ? -0.35 : Math.PI + 0.35) : 0); if (g.name === 'gavel') pr.rotation.z = 0.6; }
@@ -440,6 +473,16 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
         FP.football.visible = true; FP.football.position.set(bx, by, Math.max(h0.position.z, h1_.position.z) + 0.2); FP.football.scale.setScalar(h0.scale.x); FP.football.rotation.z = -q * 14 * dir;
         const gfy = b.groundNear - 0.02; FP.goal.visible = true; FP.goal.position.set(0.95 * AR, 1 - gfy, zOf(gfy) - 0.5); FP.goal.scale.setScalar(heightAt(b, gfy) / 1.7); FP.goal.rotation.y = -0.5; if (lastShot && q > 0.95) FP.goal.children[3].scale.x = 1 + Math.sin(t * 30) * 0.15; }
       if (G && G.game === 'kabaddi') { const fy = b.groundNear - 0.08; FP.line.visible = true; FP.line.position.set(0.5 * AR, 1 - fy, zOf(fy) - 1); FP.line.scale.set(1, (b.groundNear - b.groundFar + 0.1) * 4, 1); } }
+    // v1.5 festivals / travel / underwater
+    { for (const m of Object.values(pool)) m.visible = false;
+      if (S.FX.garba?.active) for (const id of S.FX.garba.ds) { if (!vis.includes(id)) continue; const sticks = [take('dl', id, FPK.dandiya), take('dr', id, FPK.dandiya)]; ['Left', 'Right'].forEach((sd, i) => { const hp = handPos(actors[id], sd); const m = sticks[i]; m.visible = true; m.position.set(hp.x, hp.y, hp.z + 0.03); m.scale.setScalar(holders[id].h.scale.x); m.rotation.z = (i ? -1 : 1) * (0.7 + Math.sin(t * 6) * 0.3); }); }
+      for (const id of vis) if (st[id].rakhi && !st[id].inV) { const r = take('rk', id, FPK.rakhi); const hp = handPos(actors[id]); r.visible = true; r.position.set(hp.x, hp.y + 0.006, hp.z + 0.04); r.scale.setScalar(holders[id].h.scale.x * 1.1); }
+      const X = S.FX.xmas; xtree.visible = !!X; if (X) { const fy = rowY(b, 0.85); const s2 = heightAt(b, fy) / 1.7; xtree.position.set(0.86 * AR, 1 - fy, zOf(fy)); xtree.scale.setScalar(s2 * X.k); xtree.userData.lights.forEach((l, i) => { l.material.opacity = (Math.floor(t * 3) + i) % 3 ? 1 : 0.3; });
+        if (X.caps) for (const id of vis) { const cap = take('cap', id, FPK.santa); const hp = headPos(actors[id]); const hs = holders[id].h.scale.x; cap.visible = true; cap.position.set(hp.x, hp.y + 0.16 * hs, hp.z + 0.01); cap.scale.setScalar(hs); cap.rotation.z = -st[id].face * 0.25; } }
+      lights.group.visible = lights.group.visible || !!X || !!S.FX.garba?.active; if (X || S.FX.garba?.active) lights.set(t, AR);
+      const E = S.FX.eid; moon.visible = !!E; lanterns.forEach((l, i) => { l.visible = !!E; if (E) { l.position.set(((i + 0.5) / lanterns.length) * AR, 0.9 - (i % 2) * 0.03 + Math.sin(t * 1.2 + i) * 0.004, 46); l.scale.setScalar(0.9); } }); if (E) { moon.position.set(0.82 * AR, 0.86, 6); moon.scale.setScalar(1.3); }
+      const M = S.FX.moving; const wm = M && p.ms.find((m) => m.type === 'window'); winMesh.visible = !!wm; if (wm) { drawWin(M.kind); const w = wm.w || 0.3, top = wm.cover ?? wm.y - 0.25; winMesh.position.set(wm.x * AR, 1 - (top + wm.y) / 2, -99); winMesh.scale.set(w * AR, wm.y - top, 1); winTex.offset.x = (t * (M.kind === 'plane' ? 0.03 : 0.25)) % 1; winTex.repeat.x = Math.min(1, (w * AR) / (wm.y - top) / 4); }
+      const UW = sc.weather === 'underwater'; fish.group.visible = weeds.group.visible = UW; if (UW) { fish.set(t, AR); weeds.set(t, AR); } }
     // speed lines
     for (let i = 0; i < speed.length; i++) { const l = speed[i]; l.visible = !!S.chasing; if (!l.visible) continue; const sp = S.chasing.kind === 'car' ? 3.2 : 1.8; const y = 0.15 + ((i * 0.618) % 1) * 0.75; l.position.x = AR + 0.3 - ((t * sp + i * 0.37) % 1) * (AR + 0.6); l.position.y = y; }
     // camera: wide / two-shot / speaker / vehicle / hands (cuts, like TV cartoons)
@@ -466,6 +509,24 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     if (S.shake) { cx += Math.sin(t * 23) * 0.003; cy += Math.sin(t * 31) * 0.003; }
     const hw = AR / 2 / zoom, hh = 0.5 / zoom; cx = Math.min(AR - hw, Math.max(hw, cx)); cy = Math.min(1 - hh, Math.max(hh, cy));
     cam.left = cx - hw; cam.right = cx + hw; cam.top = cy + hh; cam.bottom = cy - hh; cam.updateProjectionMatrix();
+    // cinematic shots (fall back to the stage camera when the people are in vehicles, lying, swimming…)
+    const cine = ['ots', 'cu', 'react'].includes(shot.type) && shot.char && vis.includes(shot.char) && !st[shot.char].inV && !st[shot.char].lie && !st[shot.char].swim && !st[shot.char].climbed && !S.chasing;
+    if (cine) { const sid = shot.char; const lid = shot.listener && vis.includes(shot.listener) && !st[shot.listener].inV && !st[shot.listener].lie ? shot.listener : null; const ots = shot.type === 'ots' && lid;
+      for (const id of Object.keys(actors)) holders[id].h.visible = id === sid || (ots && id === lid);
+      const side = lid ? (st[lid].x < st[sid].x ? -1 : 1) : (st[sid].face > 0 ? -1 : 1); // where the listener is (camera side)
+      const place = (id, pos, yaw) => { const { h, pivot } = holders[id]; h.scale.setScalar(1); h.position.copy(pos); pivot.rotation.z = 0; pivot.position.set(0, 0, 0); h.rotation.y = yaw - (yawOf[id] || 0); h.updateMatrixWorld(true); };
+      const lSat = lid && st[lid].sit > 0.5; place(sid, RIG.clone(), side * 0.38); if (ots) place(lid, RIG.clone().add(V3(side * 0.6, lSat ? 0.35 : 0, 1.25)), Math.PI + side * 0.5);
+      // re-pose with the new positions: the speaker looks at the listener (or near the camera), the listener at the speaker
+      const repose = (id, target) => { const pp = ppOf[id]; if (!pp) return; pp.look = target; poseActor(actors[id], t, pp); };
+      repose(sid, lid && ots ? headPos(actors[lid]) : V3(RIG.x + side * 0.6, headPos(actors[sid]).y, 2.5)); if (ots) repose(lid, headPos(actors[sid]));
+      const sat = st[sid].anchor && (st[sid].anchor.type === 'judge' || st[sid].anchor.type === 'desk'); bench.visible = benchTop.visible = !!sat;
+      board.material.map = blurTex[sc.background] || null; board.material.needsUpdate = true; board.material.color.set(tint[0]).lerp(new THREE.Color(0xffffff), 0.55);
+      const hp = headPos(actors[sid]); const look = hp.clone().add(V3(0, -0.04, 0));
+      look.y = hp.y + 0.02; if (ots) { rigCam.fov = 30; rigCam.position.set(RIG.x + side * 0.95, Math.max(hp.y, headPos(actors[lid]).y) + 0.08, 2.9); }
+      else { rigCam.fov = shot.type === 'react' ? 24 : 26; rigCam.position.set(RIG.x + side * 0.45, hp.y + 0.06, 2.15); look.y = hp.y - 0.06; }
+      rigCam.aspect = AR; rigCam.updateProjectionMatrix(); rigCam.lookAt(look); outline.render(scene, rigCam); return; }
+    bench.visible = benchTop.visible = false;
+    if (shot.type === 'cake' && S.FX.birthday) { const tfy = rowY(b, 0.22); const ts = heightAt(b, tfy) / 1.7; zoom = 2.6; cx = 0.5 * AR; cy = 1 - tfy + 1.0 * ts; const hw2 = AR / 2 / zoom, hh2 = 0.5 / zoom; cam.left = cx - hw2; cam.right = cx + hw2; cam.top = cy + hh2; cam.bottom = cy - hh2; cam.updateProjectionMatrix(); }
     outline.render(scene, cam);
   }
   function doorWorld(m, seat) { if (m.doors) { const sx = m.seats[Math.min(seat, m.seats.length - 1)][0]; return m.doors.reduce((b_, d) => (Math.abs(d - sx) < Math.abs(b_ - sx) ? d : b_), m.doors[0]); } return seat > 0 && m.seats[1] ? m.seats[1][0] : m.doorX; }

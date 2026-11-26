@@ -84,7 +84,7 @@ function normalizeOutline(o, totalSec) {
   const idList = o.characters.map((c) => c.id);
   o.scenes = (o.scenes || []).filter(Boolean).map((s) => ({
     location: LOCATIONS[s.location] ? s.location : 'street', time_of_day: TIMES_OF_DAY.includes(s.time_of_day) ? s.time_of_day : 'day',
-    background: s.background ? String(s.background) : '', weather: ['rain', 'storm', 'fog', 'wind', 'snow'].includes(s.weather) ? s.weather : 'none',
+    background: s.background ? String(s.background) : '', weather: ['rain', 'storm', 'fog', 'wind', 'snow', 'underwater'].includes(s.weather) ? s.weather : 'none',
     present: (Array.isArray(s.present) ? s.present : []).map((x) => matchId(x, o.characters)).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).slice(0, 6),
     summary: String(s.summary || ''), seconds: Math.max(12, Number(s.seconds) || 30) }));
   if (!o.scenes.length) throw new Error('Gemini returned no scenes');
@@ -100,7 +100,7 @@ export function normalizeBeats(beats, chars, sc) {
     if (b.type === 'narration' || /^narrat|^sutradhar|^सूत्रधार/i.test(String(b.char || ''))) {
       const hindi = String(b.hindi || b.hinglish || '').trim(), hinglish = String(b.hinglish || b.hindi || '').trim(); if (hindi) out.push({ type: 'line', char: 'narrator', emotion: 'neutral', hindi, hinglish, english: String(b.english || hinglish) });
       continue; }
-    if (['fire', 'fire_out', 'explosion', 'holi', 'diwali', 'cracker', 'fly_by'].includes(b.action) && !matchId(b.char, chars)) { out.push({ type: 'action', char: null, action: b.action, target: matchId(b.target, chars) || null, where: b.where, size: b.size, small: b.small, vehicle: b.vehicle, cracker: b.cracker || b.kind, lights: b.lights, fireworks: b.fireworks, diyas: b.diyas }); continue; }
+    if (['fire', 'fire_out', 'explosion', 'holi', 'diwali', 'cracker', 'fly_by', 'eid', 'christmas', 'moving_view'].includes(b.action) && !matchId(b.char, chars)) { out.push({ type: 'action', char: null, action: b.action, target: matchId(b.target, chars) || null, where: b.where, size: b.size, small: b.small, vehicle: b.vehicle, cracker: b.cracker || b.kind, lights: b.lights, fireworks: b.fireworks, diyas: b.diyas }); continue; }
     if (b.action === 'animal' || b.action === 'crowd') { // no character needed
       out.push({ type: 'action', char: null, action: b.action, animal: ['dog', 'cow', 'horse', 'goat', 'cat', 'elephant', 'birds', 'monkey', 'tiger'].includes(b.animal) ? b.animal : 'dog', act: String(b.act || 'enter'), target: matchId(b.target, chars) || null, mood: ['dance', 'cheer', 'clap', 'watch', 'walk', 'none'].includes(b.mood) ? b.mood : 'watch', count: Number(b.count) || 8 }); continue; }
     const char = matchId(b.char, chars);
@@ -157,6 +157,12 @@ function actionHelp(stage) { return `Between dialogue lines add actions (only th
 - More games: "game":"football" (passing, goal post) and "game":"kabaddi" (raider crosses the line, defenders try to catch).
 - Animals: monkey (jump, chatter), tiger (roar, run).
 - Weather "snow" for snowfall (hill stories).
+- Navratri: {"type":"action","char":"id","action":"garba","with":["dancer ids"],"seconds":12} (circle dance with dandiya sticks, garba beat, lights, crowd dances).
+- Raksha Bandhan: {"type":"action","char":"sister id","action":"rakhi","target":"brother id"} (aarti, ties the rakhi — it stays on his wrist — feeds a laddu, he gives a gift).
+- Eid: {"type":"action","action":"eid"} (crescent moon, lanterns), gesture salaam, then hugs.
+- Christmas: {"type":"action","action":"christmas"} (decorated tree with lights and gifts, Santa caps, jingle bells).
+- Travelling inside a train / plane / bus: background of the inside with a "window" place, then {"type":"action","action":"moving_view","vehicle":"train|plane|bus|car"} (the view outside moves, people rock gently, train / plane sound).
+- Under water: scene "weather":"underwater" (blue light, bubbles, fish, sea grass); use swim for people.
 - Wedding procession: {"type":"action","action":"baraat","char":"groom id","with":["dancing relatives"],"seconds":12} — the groom rides a decorated horse with a safa, dhol and shehnai play, the crowd dances.
 ${stage ? `- Places in the background (if the background has them): {"action":"go_to","char":"id","place":"${Object.keys(MARKS).join('|')}"}. People whose role fits (judge, inspector at desk, patient in bed, prisoner in cell, accused in witness box, teacher at board, scientist at lab counter) start there automatically.
 - "faint" = falls down (or a dead body lying), "lie" = lies down; "stand" gets up again.

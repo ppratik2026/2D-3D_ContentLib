@@ -1,0 +1,51 @@
+{
+  "title": "Tyohaar Aur Safar",
+  "title_hindi": "त्योहार और सफ़र",
+  "logline": "Garba, Rakhi, Eid, Christmas, ek train ka safar aur samandar ki sair.",
+  "moral": "Har tyohaar pyaar baantna sikhata hai.",
+  "category": "drama",
+  "characters": [
+    { "id": "pinky", "name": "Pinky", "gender": "female", "age": "young", "role": "sister", "top_color": "#e67ab4", "bottom_color": "#f2c418", "hair_color": "#1c1612", "personality": "cheerful" },
+    { "id": "raju", "name": "Raju", "gender": "male", "age": "young", "role": "brother", "top_color": "#c0392b", "bottom_color": "#2b2b30", "hair_color": "#1c1612", "personality": "kind" },
+    { "id": "maa", "name": "Maa", "gender": "female", "age": "adult", "role": "mother", "top_color": "#2f8f3a", "bottom_color": "#f2c418", "hair_color": "#1c1612", "personality": "loving" },
+    { "id": "golu", "name": "Golu", "gender": "male", "age": "child", "role": "boy", "top_color": "#2f6fb5", "bottom_color": "#2b2b30", "hair_color": "#1c1612", "personality": "naughty" }
+  ],
+  "scenes": [
+    { "background": "bg_ground", "time_of_day": "evening", "present": ["pinky", "raju", "maa", "golu"], "summary": "Garba night.", "seconds": 16,
+      "beats": [
+        { "type": "card", "text": "Navratri" },
+        { "type": "action", "char": "pinky", "action": "garba", "with": ["raju", "maa", "golu"], "seconds": 10 },
+        { "type": "line", "char": "pinky", "emotion": "happy", "hindi": "चलो, सब गरबा करो!", "hinglish": "Chalo, sab garba karo!", "english": "Come on, everyone dance garba!" }
+      ] },
+    { "background": "bg_inside", "time_of_day": "day", "present": ["pinky", "raju"], "summary": "Raksha Bandhan.", "seconds": 14,
+      "beats": [
+        { "type": "card", "text": "Raksha Bandhan" },
+        { "type": "action", "char": "pinky", "action": "rakhi", "target": "raju" },
+        { "type": "line", "char": "raju", "emotion": "happy", "hindi": "मेरी प्यारी बहन, हमेशा तेरी रक्षा करूँगा।", "hinglish": "Meri pyaari behen, hamesha teri raksha karunga.", "english": "My dear sister, I will always protect you." }
+      ] },
+    { "background": "bg_front", "time_of_day": "night", "present": ["raju", "golu"], "summary": "Eid.", "seconds": 12,
+      "beats": [
+        { "type": "action", "action": "eid" },
+        { "type": "action", "char": "raju", "action": "salaam" },
+        { "type": "line", "char": "raju", "emotion": "happy", "hindi": "ईद मुबारक, गोलू!", "hinglish": "Eid Mubarak, Golu!", "english": "Eid Mubarak, Golu!" },
+        { "type": "action", "char": "golu", "action": "hug", "target": "raju" }
+      ] },
+    { "background": "bg_inside", "time_of_day": "night", "present": ["pinky", "golu", "maa"], "summary": "Christmas.", "seconds": 12,
+      "beats": [
+        { "type": "action", "action": "christmas" },
+        { "type": "line", "char": "golu", "emotion": "happy", "hindi": "मेरी क्रिसमस! कितना सुंदर पेड़ है!", "hinglish": "Merry Christmas! Kitna sundar ped hai!", "english": "Merry Christmas! What a beautiful tree!" },
+        { "type": "action", "char": "pinky", "action": "clap" }
+      ] },
+    { "background": "bg_train_inside", "time_of_day": "day", "present": ["raju", "pinky"], "summary": "On the train.", "seconds": 12,
+      "beats": [
+        { "type": "action", "action": "moving_view", "vehicle": "train" },
+        { "type": "action", "char": "raju", "action": "sit" },
+        { "type": "line", "char": "pinky", "emotion": "happy", "hindi": "खिड़की से देखो, खेत भाग रहे हैं!", "hinglish": "Khidki se dekho, khet bhaag rahe hain!", "english": "Look out the window, the fields are running!" }
+      ] },
+    { "background": "bg_underwater", "time_of_day": "day", "weather": "underwater", "present": ["raju"], "summary": "Under the sea.", "seconds": 12,
+      "beats": [
+        { "type": "action", "char": "raju", "action": "swim", "seconds": 6 },
+        { "type": "line", "char": "raju", "emotion": "surprised", "hindi": "वाह! कितनी रंग-बिरंगी मछलियाँ!", "hinglish": "Waah! Kitni rang-birangi machhliyaan!", "english": "Wow! So many colourful fish!" }
+      ] }
+  ]
+}

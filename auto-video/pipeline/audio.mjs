@@ -163,6 +163,11 @@ function bdaySong(dur) { const o = new Float32Array(Math.ceil(dur * SR)); const 
   const beat = 0.42; let t = 0.3; while (t < dur - 1) { for (const [m, d] of N) { if (t > dur - 0.5) break; add(o, tone(mtof(m), d * beat + 0.2, { type: 'bell', decay: 2.5 }), t, 0.16); add(o, tone(mtof(m - 12), d * beat, { decay: 3 }), t, 0.05); t += d * beat; } t += 1.2; } return o; }
 function chatter() { const o = new Float32Array(Math.floor(1.0 * SR)); for (let s = 0; s < 0.9; s += 0.11) add(o, tone(900 + rnd() * 700, 0.08, { type: 'saw', decay: 30, detune: 0.05 }), s, 0.25); return lowpass(o, 0.5); }
 function roar() { const n = Math.floor(2.0 * SR), o = new Float32Array(n); let ph = 0; for (let i = 0; i < n; i++) { const t = i / SR; ph += 2 * Math.PI * (90 + 40 * Math.sin(Math.PI * t / 2)) / SR; const saw = ((ph / (2 * Math.PI)) % 1) * 2 - 1; o[i] = (saw * 0.6 + noise() * 0.5) * Math.sin(Math.PI * Math.min(1, t / 2)) ; } return lowpass(lowpass(o, 0.12), 0.25); }
+function garbaMusic(dur) { const o = new Float32Array(Math.ceil(dur * SR)); const b = 0.18; for (let i = 0, t = 0; t < dur; i++, t += b) { const pos = i % 6; if (pos === 0 || pos === 3) add(o, drum('kick'), t, 0.5); if (pos === 2 || pos === 5) add(o, drum('snare'), t, 0.25); add(o, drum('hat'), t, 0.1); if (pos === 0) add(o, tone(mtof(74 + [0, 2, 4, 2][Math.floor(i / 6) % 4]), 0.6, { type: 'bell', decay: 3 }), t, 0.08); if (pos === 3) add(o, tone(2400, 0.1, { decay: 30 }), t, 0.1); } return o; }
+function jingle(dur) { const o = new Float32Array(Math.ceil(dur * SR)); const N = [[64, 1], [64, 1], [64, 2], [64, 1], [64, 1], [64, 2], [64, 1], [67, 1], [60, 1.5], [62, 0.5], [64, 4], [65, 1], [65, 1], [65, 1.5], [65, 0.5], [65, 1], [64, 1], [64, 1], [64, 0.5], [64, 0.5], [64, 1], [62, 1], [62, 1], [64, 1], [62, 2], [67, 2]]; const beat = 0.3; let t = 0.2;
+  while (t < dur - 1) { for (const [m, d] of N) { if (t > dur - 0.5) break; add(o, tone(mtof(m + 12), d * beat + 0.3, { type: 'bell', decay: 2 }), t, 0.13); t += d * beat; } t += 0.8; } for (let x = 0; x < dur; x += 0.3) add(o, tone(5200, 0.12, { decay: 25 }), x, 0.03); return o; }
+function hum(dur) { const n = Math.ceil(dur * SR), o = new Float32Array(n); let a = 0; for (let i = 0; i < n; i++) { a += 0.02 * (noise() - a); o[i] = (a * 3 + Math.sin(2 * Math.PI * 110 * i / SR) * 0.05) * Math.min(1, i / SR / 1, (n - i) / SR / 1); } return o; }
+function bubbles(dur) { const o = new Float32Array(Math.ceil(dur * SR)); for (let t = 0; t < dur; t += 0.15 + rnd() * 0.4) { let ph = 0; const k = new Float32Array(Math.floor(0.06 * SR)); const f0 = 400 + rnd() * 700; for (let i = 0; i < k.length; i++) { ph += 2 * Math.PI * f0 * (1 + i / k.length) / SR; k[i] = Math.sin(ph) * Math.exp(-i / k.length * 4); } add(o, k, t, 0.25); } const lo = new Float32Array(o.length); let a = 0; for (let i = 0; i < lo.length; i++) { a += 0.005 * (noise() - a); lo[i] = a * 4; } for (let i = 0; i < o.length; i++) o[i] += lo[i]; return o; }
 function sting() { const o = new Float32Array(Math.floor(3 * SR)); for (const m of [50, 57, 62, 66]) add(o, tone(mtof(m), 3, { type: 'bell', decay: 1.1 }), 0, 0.15); return o; }
 
 export function mixAll(tl, mood, outFile) {
@@ -183,6 +188,7 @@ export function mixAll(tl, mood, outFile) {
   for (const sc of tl.scenes) {
     const d = sc.end - sc.start + 0.6; const fade = (x) => { for (let i = 0; i < x.length; i++) { const tt = i / SR; x[i] *= Math.min(1, tt / 0.6, (x.length / SR - tt) / 0.6); } return x; };
     if (sc.weather === 'rain' || sc.weather === 'storm') add(mix, fade(rainLoop(d, sc.weather === 'storm')), sc.start - 0.3, sc.weather === 'storm' ? 0.22 : 0.16);
+    if (sc.weather === 'underwater') add(mix, fade(bubbles(d)), sc.start - 0.3, 0.3);
     if (['wind', 'storm', 'fog', 'snow'].includes(sc.weather)) add(mix, fade(windLoop(d)), sc.start - 0.3, sc.weather === 'fog' ? 0.08 : 0.12);
     for (const e of sc.events || []) if (e.kind === 'gesture' && e.name === 'shock' && /horror|thriller|crime|mystery/.test(mood)) add(mix, heartbeat(), e.t0, 0.5);
     for (const e of sc.events || []) if (e.kind === 'gesture' && e.name === 'gavel') add(mix, gavel(), e.t0 + 0.25, 0.7);
@@ -212,6 +218,7 @@ export function mixAll(tl, mood, outFile) {
     if (c.kind === 'clank') add(mix, clank(), c.t, 0.5);
     if (c.kind === 'grab' || c.kind === 'fall') add(mix, thud(), c.t, 0.6);
     if (c.kind === 'hit') add(mix, hitSnd(), c.t, 0.55);
+    if (c.kind === 'garba') add(mix, garbaMusic(c.t1 - c.t), c.t, 0.55); if (c.kind === 'jingle') add(mix, jingle(c.t1 - c.t), c.t, 0.8); if (c.kind === 'ride') add(mix, c.vkind === 'plane' ? hum(c.t1 - c.t) : trainSnd(c.t1 - c.t, false), c.t, c.vkind === 'plane' ? 0.3 : 0.2); if (c.kind === 'eidcheer') add(mix, cheer(c.t1 - c.t), c.t, 0.08);
     if (c.kind === 'heli') add(mix, heli(c.t1 - c.t), c.t, 0.45); if (c.kind === 'jet') add(mix, jet(c.t1 - c.t), c.t, 0.4);
     if (c.kind === 'holi') { const d = c.t1 - c.t; add(mix, dhol(d), c.t, 0.4); add(mix, cheer(d), c.t, 0.12); }
     if (c.kind === 'diwali') for (let x = c.t + 0.4; x < c.t1 - 1; x += 1.3) add(mix, popWhistle(), x, 0.3);

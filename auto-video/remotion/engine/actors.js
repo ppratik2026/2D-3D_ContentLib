@@ -208,7 +208,7 @@ export function poseActor(a, t, st) {
   // st: {visible,pos,yaw,walk,run,sit,drop,look,gesture:{name,k},mouth,emotion,talk,cuffed,struggle}
   a.o.visible = st.visible !== false; if (!a.o.visible) return;
   const w = { walk: st.walk || 0, run: st.run || 0 }; w.idle = Math.max(0, 1 - w.walk - w.run);
-  for (const [k, act] of Object.entries(a.actions)) { act.weight = w[k] || 0; act.time = (t * (k === 'idle' ? 1 : 1.05) + a.id.length * 0.37) % act.getClip().duration; }
+  for (const [k, act] of Object.entries(a.actions)) { act.weight = w[k] || 0; const dur = act.getClip().duration; act.time = st.walkDist != null && (k === 'walk' || k === 'run') ? ((st.walkDist / (k === 'run' ? 2.6 : 1.45)) * dur + a.id.length * 0.37) % dur : (t * (k === 'idle' ? 1 : 1.05) + a.id.length * 0.37) % dur; }
   if (!a._legRest) { a._legRest = {}; for (const b of ['LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RightUpLeg', 'RightLeg', 'RightFoot', 'Spine', 'Spine1', 'Hips']) if (a.bones[b]) a._legRest[b] = a.bones[b].quaternion.clone(); }
   a.mix.update(0); a.bones.Hips.position.copy(a.hipRest); if (a.jaw) a.jaw.quaternion.copy(a.jawRest);
   if (st.lie) { for (const [b, q] of Object.entries(a._legRest)) a.bones[b].quaternion.copy(q); } // lying: straight legs and back
@@ -274,6 +274,8 @@ export function poseActor(a, t, st) {
     if (n === 'sparkler') { const c = t * 5; arm('Right', (1.1 + 0.3 * Math.sin(c)) * k, (0.5 + 0.3 * Math.cos(c)) * k, 0.2 * k); face = 'happy'; }
     if (n === 'blow') { rotW(a, 'Spine1', R, 0.3 * k); rotW(a, 'Head', R, 0.2 * k); arm('Right', 0.3 * k, 0.4 * k, 0.2 * k); arm('Left', 0.3 * k, 0.4 * k, 0.2 * k); }
     if (n === 'gulal') { const w = Math.sin(Math.min(1, ((t * 0.8) % 1) / 0.3) * Math.PI); arm('Right', (0.6 + 1.0 * w) * k, (1.2 - 0.9 * w) * k, 0.3 * k); face = 'happy'; }
+    if (n === 'dandiya') { const c = Math.sin(t * 6); arm('Right', (1.0 + 0.35 * c) * k, (1.1 - 0.4 * c) * k, (0.5 + 0.25 * c) * k); arm('Left', (1.0 - 0.35 * c) * k, (1.1 + 0.4 * c) * k, (0.5 - 0.25 * c) * k); rotW(a, 'Spine', UP, 0.25 * c * k); face = 'happy'; }
+    if (n === 'salaam') { arm('Right', 1.1 * k, 2.3 * k, 0.75 * k); rotW(a, 'Spine1', R, 0.18 * k); rotW(a, 'Head', R, 0.15 * k); face = 'happy'; }
     if (n === 'umbrella') { arm('Right', 0.85 * k, 1.75 * k, 0.55 * k); rotW(a, 'RightArm', F, -0.35 * k); }
     if (n === 'bat') { const sw = Math.sin(Math.min(1, Math.max(0, (ph - 0.55) / 0.25)) * Math.PI); arm('Right', (0.6 + 0.9 * sw) * k, (0.5 - 0.3 * sw) * k, (0.7 - 1.2 * sw) * k); arm('Left', (0.6 + 0.9 * sw) * k, (0.5 - 0.3 * sw) * k, (0.7 - 1.2 * sw) * k); rotW(a, 'Spine', UP, (0.5 - 1.0 * sw) * k); rotW(a, 'Spine1', R, 0.2 * k); }
     if (n === 'bowl') { const w = Math.min(1, Math.max(0, (ph - 0.3) / 0.25)); rotW(a, 'RightArm', R, (-0.4 - 3.4 * w) * k); arm('Left', 0.9 * k, 0.3 * k, 0); rotW(a, 'Spine1', R, 0.25 * w * k); }

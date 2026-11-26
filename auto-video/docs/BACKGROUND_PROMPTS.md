@@ -135,6 +135,18 @@ The app draws vehicles, jail bars and handcuffs itself, so keep these scenes **e
 | 64 | Classroom (front) | school | An Indian classroom seen from the students' side: a big green blackboard, the teacher's table in front of it, empty floor in front |
 | 65 | Parking / godown outside | other | An empty open area in front of an old warehouse at night, a single lamp, open ground for a vehicle to stop |
 
+## Travel interiors and under water (v1.5)
+
+| # | Name in app | Place | Prompt |
+|---|---|---|---|
+| 66 | Train coach inside | railway | Inside an Indian railway coach seen from the aisle side: blue seats in a row, a long window across the upper half showing **plain grey glass**, luggage rack, fan, empty floor in front, no people |
+| 67 | Aeroplane cabin | other | Inside an aeroplane cabin seen from the aisle: a row of seats, oval windows with **plain light-blue glass**, overhead bins, carpet aisle in front, no people |
+| 68 | Bus inside | other | Inside an Indian city bus seen from the aisle: seats, big windows with **plain glass**, hand rails, empty floor in front, no people |
+| 69 | Under the sea | river | Under the sea, sandy sea floor with rocks, corals and shells across the bottom, deep blue water above, soft light from the top, no fish, no people |
+| 70 | Snowy hill village | other | A small hill village in heavy snow, snow on roofs and pine trees, snowy path in front, mountains behind, no people |
+
+For the travel backgrounds, mark the window as a **Window** place: click 1 at the bottom middle of the window, click 2 at its top edge, then set the width. The app plays the moving view outside inside that window.
+
 ## Marking places (desk, judge, witness box, bed, jail cell…)
 
 After importing, open **Backgrounds**, select the image, pick the type in **Places in this background** and click **Add place**:
@@ -149,6 +161,8 @@ After importing, open **Backgrounds**, select the image, pick the type in **Plac
 | Bed | middle of the mattress (then set the width to the bed length) | – | the patient (lies down) |
 | Jail cell | floor inside the cell | where the bars should start at the top | the thief / prisoner (bars are drawn in front) |
 | Blackboard spot | floor in front of the board | – | the teacher |
+| Climb to | top of the tree / wall / roof | – | whoever "climbs" |
+| Window | bottom middle of the window | top edge of the window | (the moving view outside) |
 
 Everything below the top edge you click hides the person, so they look like they are really behind the desk, bench or box.
 

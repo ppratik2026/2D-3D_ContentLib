@@ -1,4 +1,4 @@
-# What Auto Video Studio can animate (v1.4)
+# What Auto Video Studio can animate (v1.5)
 
 The story AI uses these automatically. You can also write them yourself in a pasted story.
 
@@ -62,6 +62,28 @@ Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren)
 | Monkey / tiger | monkey jumps and chatters; tiger (stripes) roars and runs |
 | Snow | weather "snow" — snowfall with wind |
 
+## Cinematic camera (v1.5)
+
+- **Over-the-shoulder shots:** the listener's shoulder and head are in the foreground (seen from behind) and the speaker faces the camera, with the background softly blurred.
+- **Close-ups** of the speaker's face, and **reaction shots** of the listener during long lines.
+- **Court:**
+  - when anybody else speaks, the camera is behind the judge;
+  - when the judge speaks, the camera is behind the police / lawyer, and the judge sits behind the bench.
+- **Shot order in a scene:** the first line is an establishing two-shot, then over-the-shoulder → close-up → over-the-shoulder → side two-shot …
+- **Walking:** steps match the distance travelled (no sliding feet), and walkers are seen in profile.
+- **Birthday:** people walk to their places. The camera goes wide → close-up of the birthday person → blowing the candles → cake close-up while cutting → two-shot while feeding.
+
+## Festivals, travel and under water (v1.5)
+
+| What | How it looks |
+|---|---|
+| garba | dancers circle with dandiya sticks, garba beat, lights, the crowd dances |
+| rakhi | the sister walks to the brother, does aarti and ties the rakhi (close-up of the wrist; it stays on), feeds a laddu, and he gives a gift |
+| eid | crescent moon and star, hanging lanterns; gesture salaam; hugs |
+| christmas | decorated tree with blinking lights and gifts, Santa caps on everybody, jingle bells |
+| moving_view | inside a train / plane / bus / car: the view outside the marked **Window** moves (fields, trees and poles / clouds / buildings), people rock gently, train or plane sound |
+| underwater | weather "underwater": blue light, light rays, bubbles, fish, sea grass, bubbling sound; swimming without a water line |
+
 ## Camera and staging (v1.4)
 
 - **Chase camera angles:**
@@ -80,7 +102,7 @@ Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren)
 
 ## Places you mark on a background
 
-Seat, behind desk (sits), judge bench, witness box, behind counter (stands: kitchen, lab, shop, bank), bed (lies), jail cell (bars), blackboard, climb to (tree / wall / roof top).
+Seat, behind desk (sits), judge bench, witness box, behind counter (stands: kitchen, lab, shop, bank), bed (lies), jail cell (bars), blackboard, climb to (tree / wall / roof top), window (the moving view outside a train / plane / bus).
 
 The person is hidden behind the desk, bench, box or counter. People go to the right place by their role:
 
@@ -127,4 +149,4 @@ The video is rendered clean, then the subtitles are added on top. That means you
 
 ## Not yet (send your TO-DO lists)
 
-Inside a moving train / plane, underwater scenes, other festivals (Navratri garba, Raksha Bandhan, Eid, Christmas). Send your TO-DO lists for more.
+Multi-angle backgrounds for talk scenes (front / reverse painted views of the same place), Ganesh Chaturthi, Durga Puja, Onam, Pongal. Send your TO-DO lists for more.
