@@ -186,14 +186,14 @@ const H = {
     let model = c.model; if (!model) { try { model = ai.defaultModel(name, await ai.listModels({ provider: name, key: k, baseUrl: c.baseUrl })); } catch (e) { return { ok: false, msg: 'Key rejected: ' + e.message }; } }
     try { const t = await ai.chat({ provider: name, key: k, model, baseUrl: c.baseUrl }, { user: 'Reply with this JSON only: {"ok": true}', temperature: 0, maxTokens: 50 }); ai.parseJSON(t); return { ok: true, msg: `✓ ${model} works` }; }
     catch (e) { const q = e.status === 429 && /quota|billing|credit/i.test(e.message); return { ok: false, msg: `✗ ${model}: ${e.message.replace(/For more information.*$/, '').slice(0, 220)}${q ? ' → no quota left on this key today; pick another provider/model or wait for the reset.' : ''}` }; } },
-  'story:prompt': async (o) => (await import('../pipeline/story.mjs')).buildPastePrompt({ category: o.category, minutes: Number(o.minutes) || 1, idea: o.idea || '', chars: o.chars || 'auto', backgrounds: o.style === 'cartoon2d' ? bgs.listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags })) : [], actors: lib.actorsFor(o.style === 'cartoon2d' ? 'toon' : o.style || 'toon').map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })) }),
+  'story:prompt': async (o) => o.myStory ? (await import('../pipeline/story.mjs')).buildAdaptPrompt({ text: o.myStory, category: o.category, backgrounds: o.style === 'cartoon2d' ? bgs.listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [], actors: lib.actorsFor(o.style === 'cartoon2d' ? 'toon' : o.style || 'toon').map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })) }) : (await import('../pipeline/story.mjs')).buildPastePrompt({ category: o.category, minutes: Number(o.minutes) || 1, idea: o.idea || '', chars: o.chars || 'auto', backgrounds: o.style === 'cartoon2d' ? bgs.listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [], actors: lib.actorsFor(o.style === 'cartoon2d' ? 'toon' : o.style || 'toon').map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })) }),
   'story:parse': async (o) => { try { const st = (await import('../pipeline/story.mjs')).parsePastedStory(o.text, Number(o.minutes) || 1); return { ok: true, title: st.title, scenes: st.scenes.length, lines: st.scenes.reduce((n, sc) => n + sc.beats.filter((b) => b.type === 'line').length, 0), chars: st.characters.map((c) => c.name).join(', ') }; } catch (e) { return { ok: false, msg: e.message }; } },
   'setup:status': () => setupStatus(),
   'setup:run': async (_o, e) => runSetup((p) => e.sender.send('setup:progress', p)),
   'queue:get': () => queueView(),
   'queue:add': async (o) => { const n = Math.max(1, Math.min(20, Number(o.count) || 1)); const ideas = String(o.idea || '').split('\n').map((x) => x.trim()).filter(Boolean);
     let storyJson = null; if (o.pasted) { storyJson = (await import('../pipeline/story.mjs')).parsePastedStory(o.pasted, Number(o.minutes) || 1); }
-    for (let i = 0; i < (storyJson ? 1 : n); i++) { const opts = { category: o.category, idea: storyJson ? storyJson.title : ideas[i] ?? (n > 1 ? '' : o.idea || ''), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs, demo: !!o.demo, storyJson, storyAI: o.storyAI || 'auto', chars: o.chars || 'auto' };
+    for (let i = 0; i < (storyJson || o.myStory ? 1 : n); i++) { const opts = { category: o.category, idea: storyJson ? storyJson.title : ideas[i] ?? (n > 1 ? '' : o.idea || ''), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs, demo: !!o.demo, storyJson, storyAI: o.storyAI || 'auto', chars: o.chars || 'auto', myStory: storyJson ? '' : o.myStory || '' };
       const est = estimate({ style: opts.style, minutes: opts.minutes, renderer: readSettings().renderer });
       queue.push({ id: newJobId(o.category) + (n > 1 ? `_${i + 1}` : ''), opts, status: 'queued', progress: 0, estimate: est, created: Date.now(), msg: 'Queued', session: SESSION }); }
     if (o.start) autoRun = true; broadcast(true); pump(); return queueView(); },
@@ -238,6 +238,7 @@ function createWindow() {
   win.__ui = true; win.loadURL('av://app/app/ui/index.html'); win.webContents.on('console-message', (_e, level, msg, line, src) => { if (level >= 2) console.log('[ui]', msg, src, line); });
   if (shots > 0) win.webContents.once('did-finish-load', async () => { // dev: screenshots of every tab
     const dir = process.argv[shots + 1]; const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); await wait(2500);
+    if (process.argv.includes('--mystory-ui')) { await win.webContents.executeJavaScript(`document.querySelector('#storyMode [data-m=mine]').click(); const t=document.querySelector('#myStory'); t.value='Inspector Arjun: "Raka, gaadi roko!"\\n\\n'+'Raka laal car me highway par bhaag raha tha. '.repeat(120); t.dispatchEvent(new Event('input'));`); await wait(2000); fs.writeFileSync(path.join(dir, 'mystory_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
     if (process.argv.includes('--paste-ui')) { const demo = fs.readFileSync(path.join(APP_DIR, 'pipeline', 'demo-story.json'), 'utf8');
       await win.webContents.executeJavaScript(`const ss=document.querySelector('#storySrc'); ss.value='paste'; ss.onchange(); const t=document.querySelector('#pasted'); t.value = ${JSON.stringify('Sure! Here is the story:\n' + demo)}; t.dispatchEvent(new Event('input'));`);
       await wait(2500); fs.writeFileSync(path.join(dir, 'paste_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
@@ -273,7 +274,8 @@ async function demoTest() {
   const t0 = Date.now();
   try {
     const arg = (n, d) => (process.argv.includes(n) ? process.argv[process.argv.indexOf(n) + 1] : d);
-    const r = await makeVideo({ demo: true, demoFile: arg('--demo-file'), category: arg('--category', 'romance'), style, renderFn: chromeRender }, (e) => console.log(`[${fmt(e.elapsed)}] ${e.step}: ${e.msg}`));
+    const mine = arg('--my-story') ? fs.readFileSync(arg('--my-story'), 'utf8') : '';
+    const r = await makeVideo({ demo: !mine, myStory: mine, chain: mine ? [{ provider: 'custom', baseUrl: arg('--ai-url'), key: 'x', model: 'fake' }] : undefined, minutes: 2, demoFile: arg('--demo-file'), category: arg('--category', 'romance'), style, renderFn: chromeRender }, (e) => console.log(`[${fmt(e.elapsed)}] ${e.step}: ${e.msg}`));
     console.log('DEMO OK', r.file, fmt((Date.now() - t0) / 1000));
   } catch (e) { console.error('DEMO FAIL', e); }
   app.quit();

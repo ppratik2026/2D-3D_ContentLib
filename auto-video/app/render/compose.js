@@ -22,11 +22,13 @@ export function makeComposer(W, H) {
   function subtitle(ctx, tl, t) {
     const style = tl.subs; if (style === 'none') return;
     const l = tl.lines.find((x) => t >= x.start - 0.05 && t < x.end + 0.25); if (!l) return;
-    const who = tl.story.characters.find((c) => c.id === l.char); const name = who ? who.name : l.char;
+    const who = tl.story.characters.find((c) => c.id === l.char); const nar = l.char === 'narrator'; const name = who ? who.name : l.char;
     const a = Math.min(lerpk(t, l.start - 0.05, l.start + 0.1), 1 - lerpk(t, l.end + 0.1, l.end + 0.25));
     const text = style === 'hindi' ? l.hindi : l.hinglish; const bottom = H * (tl.look === 'film' ? 0.9 : 0.93);
     ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    if (style === 'youtube') { ctx.font = `900 46px ${FONT}`; const lines = wrap(ctx, `${name}: ${text}`, W * 0.86); lines.forEach((ln, i) => { const y = bottom - (lines.length - 1 - i) * 54;
+    if (nar && style !== 'none') { ctx.font = `italic 600 36px ${FONT}`; const lines = wrap(ctx, text, W * 0.82); const lh = 46; const bw = Math.max(...lines.map((x) => ctx.measureText(x).width)) + 40;
+      box(ctx, W / 2 - bw / 2, bottom - 38 - (lines.length - 1) * lh, bw, lines.length * lh + 16, 8, 'rgba(20,14,0,0.62)'); ctx.fillStyle = '#ffe9a8'; lines.forEach((ln, i) => ctx.fillText(ln, W / 2, bottom - (lines.length - 1 - i) * lh)); }
+    else if (style === 'youtube') { ctx.font = `900 46px ${FONT}`; const lines = wrap(ctx, `${name}: ${text}`, W * 0.86); lines.forEach((ln, i) => { const y = bottom - (lines.length - 1 - i) * 54;
         ctx.lineWidth = 8; ctx.strokeStyle = '#000'; ctx.lineJoin = 'round'; ctx.strokeText(ln, W / 2, y); ctx.fillStyle = i === 0 ? '#fff' : '#fff'; ctx.fillText(ln, W / 2, y); });
       // name in yellow on the first line
       const first = lines[0]; if (first.startsWith(name + ':')) { const full = ctx.measureText(first).width, nw = ctx.measureText(name + ': ').width; const y = bottom - (lines.length - 1) * 54; ctx.textAlign = 'left'; ctx.lineWidth = 8; ctx.strokeText(name + ':', W / 2 - full / 2, y); ctx.fillStyle = '#ffd400'; ctx.fillText(name + ':', W / 2 - full / 2, y); void nw; } }
@@ -42,6 +44,11 @@ export function makeComposer(W, H) {
       lines.forEach((ln, i) => { const y = bottom - (lines.length - 1 - i) * lh; ctx.fillStyle = '#fff'; ctx.fillText(ln, W / 2, y); });
       const first = lines[0]; if (first.startsWith(name + ':')) { const full = ctx.measureText(first).width; ctx.textAlign = 'left'; ctx.fillStyle = '#ffd166'; ctx.fillText(name + ':', W / 2 - full / 2, bottom - (lines.length - 1) * lh); } }
     ctx.restore();
+  }
+  function sceneCard(ctx, tl, t) { // "Agle din…" cards inside the story
+    for (const c of tl.cards || []) { if (t < c.t0 || t >= c.t1) continue; const o = Math.min(lerpk(t, c.t0, c.t0 + 0.35), 1 - lerpk(t, c.t1 - 0.35, c.t1));
+      ctx.save(); ctx.globalAlpha = o; ctx.fillStyle = 'rgba(5,6,10,0.82)'; ctx.fillRect(0, 0, W, H); ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = `800 60px ${FONT}`; ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 16;
+      const lines = wrap(ctx, c.text, W * 0.8); lines.forEach((ln, i) => ctx.fillText(ln, W / 2, H / 2 + 20 - (lines.length - 1) * 36 + i * 72)); ctx.restore(); }
   }
   function titleCard(ctx, tl, t) {
     const o = 1 - lerpk(t, 2.7, 3.2); if (o <= 0) return; const s = tl.story; const sc = 1 + 0.06 * clamp(t / 3.2);
@@ -85,6 +92,6 @@ export function makeComposer(W, H) {
     if (look === 'dreamy') { const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, H); g.addColorStop(0, 'rgba(255,230,240,0)'); g.addColorStop(1, 'rgba(255,225,235,0.28)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
     if (look === 'horror') { vignette(ctx, 0.75); ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = 'rgba(20,60,90,0.25)'; ctx.fillRect(0, 0, W, H); ctx.restore(); grain(ctx, frame, 0.3); }
     if (look === 'vivid') vignette(ctx, 0.2);
-    subtitle(ctx, tl, t); titleCard(ctx, tl, t); endCard(ctx, tl, t);
+    subtitle(ctx, tl, t); sceneCard(ctx, tl, t); titleCard(ctx, tl, t); endCard(ctx, tl, t);
   };
 }

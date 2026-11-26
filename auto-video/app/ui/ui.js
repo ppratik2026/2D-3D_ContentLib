@@ -26,9 +26,17 @@ async function est() {
   $('#estNote').textContent = e.measured ? 'Based on the real speed of this PC.' : 'Rough estimate — it becomes exact after the first video on this PC.';
   $('#estSum').textContent = n > 1 ? `${n} videos ≈ ${fmt(e.total * n)} (one after another)` : '';
 }
+let mode2 = 'idea';
+$('#storyMode').onclick = (e) => { const c = e.target.closest('.chip'); if (!c) return; mode2 = c.dataset.m; $$('#storyMode .chip').forEach((x) => x.classList.toggle('on', x === c)); $('#ideaBox').hidden = mode2 !== 'idea'; $('#mineBox').hidden = mode2 !== 'mine'; $('#count').disabled = mode2 === 'mine'; if (mode2 === 'mine') $('#count').value = 1; storyInfo(); };
+function storyInfo() { const t = $('#myStory').value.trim(); if (!t) { $('#storyInfo').textContent = ''; return; }
+  const words = t.split(/\s+/).length; const min = Math.max(0.5, Math.min(30, Math.round((words / 95) * 2) / 2)); // ~95 spoken words a minute with acting
+  $('#storyInfo').className = 'small muted'; $('#storyInfo').textContent = `${words} words · about ${min} min of video`; $('#min').max = Math.max(20, min); $('#min').value = min; est(); }
+$('#myStory').oninput = storyInfo;
+$('#loadStory').onclick = () => $('#storyFile').click();
+$('#storyFile').onchange = () => { const f = $('#storyFile').files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { $('#myStory').value = String(r.result || ''); storyInfo(); }; r.readAsText(f, 'utf-8'); $('#storyFile').value = ''; };
 const src = () => { const v = $('#storySrc').value || 'auto'; return v === 'paste' || v === 'demo' ? v : 'api'; };
 $('#storySrc').onchange = () => { $('#pasteBox').hidden = src() !== 'paste'; $('#demo').checked = src() === 'demo'; $('#keyWarn').hidden = src() !== 'api' || S?.hasKey; };
-$('#copyPrompt').onclick = async () => { const p = await api.call('story:prompt', { category: cat, minutes: $('#min').value, idea: $('#idea').value, style: $('#style').value, chars: $('#chars').value });
+$('#copyPrompt').onclick = async () => { const p = await api.call('story:prompt', { category: cat, minutes: $('#min').value, idea: $('#idea').value, style: $('#style').value, chars: $('#chars').value, myStory: mode2 === 'mine' ? $('#myStory').value : '' });
   try { await navigator.clipboard.writeText(p); $('#copyMsg').textContent = 'Copied ✓ — now paste it in the Gemini app'; } catch { $('#pasted').value = p; $('#copyMsg').textContent = 'Prompt placed in the box below — copy it from there'; } };
 let pasteOk = false;
 $('#pasted').oninput = async () => { const t = $('#pasted').value.trim(); if (!t) { $('#pasteMsg').textContent = ''; pasteOk = false; return; }
@@ -37,6 +45,7 @@ $('#pasted').oninput = async () => { const t = $('#pasted').value.trim(); if (!t
 async function add(start) {
   const mode = src();
   const o = { category: cat, idea: $('#idea').value, minutes: $('#min').value, count: $('#count').value, style: $('#style').value, look: $('#look').value, subs: $('#subs').value, chars: $('#chars').value, demo: mode === 'demo', storyAI: mode === 'api' ? $('#storySrc').value : null, start };
+  if (mode2 === 'mine') { o.myStory = $('#myStory').value.trim(); o.idea = ''; o.count = 1; if (!o.myStory && mode !== 'paste' && mode !== 'demo') { $('#storyInfo').className = 'small warn'; $('#storyInfo').textContent = 'Paste your story first.'; return; } }
   if (mode === 'paste') { if (!pasteOk) { $('#pasteMsg').className = 'small warn'; $('#pasteMsg').textContent = 'Paste Gemini\'s answer first.'; return; } o.pasted = $('#pasted').value; }
   if (mode === 'api' && !S?.hasKey) { $('#keyWarn').hidden = false; return; }
   renderQueue(await api.call('queue:add', o)); if (mode === 'paste') { $('#pasted').value = ''; $('#pasteMsg').textContent = ''; pasteOk = false; } $('[data-tab=queue]').click();
@@ -63,7 +72,7 @@ function renderQueue(q) {
   $('#qStart').disabled = q.autoRun; $('#qPause').disabled = !q.autoRun;
   $('#qList').innerHTML = q.jobs.slice().reverse().map((j) => { const o = j.opts || {}; const p = Math.round(overall(j) * 100);
     return `<div class="card job"><div><span class="t">${esc(j.title || (O?.categories[o.category]?.label || o.category))}</span><span class="pill ${j.status}">${STATUS[j.status] || j.status}${j.status === 'running' ? ' ' + p + '%' : ''}</span>
-      <div class="meta">${esc(O?.categories[o.category]?.label || '')} · ${o.minutes} min · ${esc(o.style)}${o.idea ? ' · ' + esc(o.idea.slice(0, 60)) : ''}${o.demo ? ' · demo' : ''}</div>
+      <div class="meta">${esc(O?.categories[o.category]?.label || '')} · ${o.minutes} min · ${esc(o.style)}${o.myStory ? ' · my story (' + o.myStory.split(/\s+/).length + ' words)' : o.idea ? ' · ' + esc(o.idea.slice(0, 60)) : ''}${o.demo ? ' · demo' : ''}</div>
       ${j.status === 'running' ? `<div class="bar"><div style="width:${p}%"></div></div>${stepper(j)}<div class="meta">${esc(j.msg || '')}</div><div class="meta">Elapsed ${fmt(j.elapsed)}${j.eta ? ' · about ' + fmt(j.eta) + ' left' : ''}</div>` : ''}
       ${j.status === 'queued' ? `<div class="meta">${j.retryAt ? esc(j.msg) : 'Estimate: ' + fmt(j.estimate?.total)}</div>${j.retryAt && j.error ? `<div class="meta warn">${esc(j.error)}</div>` : ''}` : ''}
       ${j.status === 'done' ? `<div class="meta">Made in ${fmt(j.elapsed)}${j.duration ? ' · video ' + fmt(j.duration) : ''}</div>` : ''}

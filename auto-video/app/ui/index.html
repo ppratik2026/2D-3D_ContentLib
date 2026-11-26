@@ -22,8 +22,14 @@
     <div class="grid2">
       <div class="card">
         <h3>1. Category</h3><div id="cats" class="chips"></div>
-        <h3>2. Idea / title <small>(optional · one line = one video)</small></h3>
-        <textarea id="idea" rows="3" placeholder="Leave empty and Gemini will invent an idea&#10;e.g. A theft in the village"></textarea>
+        <h3>2. Story</h3>
+        <div class="chips" id="storyMode"><span class="chip on" data-m="idea">AI writes it from my idea</span><span class="chip" data-m="mine">My full story (I wrote it)</span></div>
+        <div id="ideaBox"><textarea id="idea" rows="3" placeholder="Leave empty and the AI will invent an idea&#10;e.g. A theft in the village   (one line = one video)"></textarea></div>
+        <div id="mineBox" hidden>
+          <div class="muted small">Paste your whole story (Hindi, Hinglish or English, any length). The AI keeps your events and dialogue, picks backgrounds, actions and camera, and adds a narrator only where something cannot be acted.</div>
+          <textarea id="myStory" rows="12" placeholder="Paste your story here…"></textarea>
+          <div class="btns"><button id="loadStory" class="ghost" type="button">Load .txt file</button><input type="file" id="storyFile" accept=".txt,text/plain" hidden><span id="storyInfo" class="small muted"></span></div>
+        </div>
         <div class="row">
           <div><h3>3. Minutes</h3><div class="range"><input type="range" id="min" min="0.5" max="20" step="0.5" value="2"><b id="minv">2 min</b></div></div>
           <div><h3>Number of videos</h3><input type="number" id="count" min="1" max="20" value="1"></div>

@@ -40,6 +40,7 @@ export async function createEngine({ canvas, width, height, tl, url }) {
   // actors
   const akit = await loadActorKit(url); const actors = {};
   for (const ch of tl.story.characters) {
+    if (ch.hidden || ch.id === 'narrator') continue;
     const cast = (tl.cast && tl.cast[ch.id]) || { file: 'assets/AvatarSample_C.vrm', type: 'vrm' };
     try { actors[ch.id] = await createActor(akit, scene, ch, cast, { simpleMat: perf.simpleMat ? kit.grad : null, toon: kit.toon ? kit.grad : null }); }
     catch (e) { console.warn('Actor failed, using fallback:', e.message); actors[ch.id] = await createActor(akit, scene, ch, ch.gender === 'female' ? { file: 'assets/AvatarSample_A.vrm', type: 'vrm' } : { file: 'assets/AvatarSample_C.vrm', type: 'vrm' }, { simpleMat: perf.simpleMat ? kit.grad : null }); }

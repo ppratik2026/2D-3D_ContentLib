@@ -9,6 +9,7 @@ import { ROOT, JOBS, OUTPUT, STATE } from './paths.mjs';
 import { writeStory, normalizeBeats } from './story.mjs';
 import { castVoices, speakAll } from './tts.mjs';
 import { buildTimeline, finalize } from './timeline.mjs';
+import { adaptStory } from './story.mjs';
 import { mixAll } from './audio.mjs';
 import { estimate, fmt } from './estimate.mjs';
 import { actorsFor, assignActors, listCharacters } from './library.mjs';
@@ -43,7 +44,9 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   else {
     let chain = opts.chain;
     if (!chain) { const key = opts.key || process.env.GEMINI_API_KEY; chain = key ? [{ provider: 'gemini', key, model: opts.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite' }] : []; }
-    story = await writeStory({ category, minutes, idea: opts.idea || '', chain, chars: opts.chars || 'auto', backgrounds: style === 'cartoon2d' ? listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [],
+    const bgList = style === 'cartoon2d' ? listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [];
+    if (opts.myStory) story = await adaptStory({ text: opts.myStory, category, minutes, chain, backgrounds: bgList, actors: actorsFor(style === 'cartoon2d' ? 'toon' : style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
+    else story = await writeStory({ category, minutes, idea: opts.idea || '', chain, chars: opts.chars || 'auto', backgrounds: style === 'cartoon2d' ? listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [],
       actors: actorsFor(style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
   }
   check();
@@ -53,9 +56,14 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   let stageBgs = null;
   if (style === 'cartoon2d') { const all = listBackgrounds(); if (!all.length) throw new Error('2D Cartoon Stage needs backgrounds. Add some in the Backgrounds tab.');
     const used = new Map(); stageBgs = {};
-    for (const sc of story.scenes) { const b = all.find((x) => x.id === sc.background) || pickBackground(all, { place: sc.location, time: sc.time_of_day, text: sc.summary, used });
+    for (const sc of story.scenes) { const want = /^new\s*:/i.test(sc.background || '') ? sc.background.replace(/^new\s*:\s*/i, '') : ''; const b = all.find((x) => x.id === sc.background) || pickBackground(all, { place: sc.location, time: sc.time_of_day, text: `${want} ${sc.summary}`, used });
       sc.background = b.id; used.set(b.id, (used.get(b.id) || 0) + 1); stageBgs[b.id] = b; if (!sc.time_of_day || sc.time_of_day === 'day') sc.time_of_day = b.time || sc.time_of_day; } }
   fs.writeFileSync(path.join(work, 'story.json'), JSON.stringify(story, null, 2));
+  // what the app could not show yet → a to-do list next to the video
+  const notes = [];
+  if (story.unsupported?.length) { notes.push('Actions the story needs that the app cannot animate yet (the narrator tells them instead):', ...story.unsupported.map((a) => '  - ' + a), ''); step('story', `⚠ Not animated yet (narrator tells them): ${story.unsupported.join(', ')}`); }
+  if (story.newBackgrounds?.length) { notes.push('Backgrounds to make (a similar one was used this time). Prompts:', ...story.newBackgrounds.map((d) => `  - ${d}. Indian 2D cartoon animation background, hand-painted digital art, soft cel shading, clean outlines, warm vivid colours, wide shot at eye level, flat open ground in the lower third, completely empty scene, no people, no animals, no text, 16:9`), ''); step('story', `⚠ Missing backgrounds (used the closest): ${story.newBackgrounds.join('; ')}`); }
+  if (notes.length) fs.writeFileSync(path.join(work, 'TO-DO.txt'), notes.join('\r\n'));
   step('story', `Story ready: "${story.title}" (${story.scenes.length} scenes, ${story.characters.length} characters)`, { title: story.title });
 
   // 2. voices
@@ -66,6 +74,7 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   // fixed voices: a library character can have its own voice (first story character played by it gets it)
   const libById = Object.fromEntries(listCharacters().map((c) => [c.id, c])); const pinned = {}; const pinUsed = new Set();
   for (const ch of story.characters) { const v = libById[cast[ch.id]?.actor]?.voice; if (v && !pinUsed.has(v)) { pinned[ch.id] = v; pinUsed.add(v); } }
+  if (story.characters.some((c) => c.id === 'narrator') && !pinned.narrator) pinned.narrator = 'm_psi'; // calm storyteller voice
   const voices = castVoices(story.characters, pinned);
   stage('voice', 0, tl.lines.length, `Voices 0/${tl.lines.length} lines`);
   await speakAll(tl.lines, voices, path.join(work, 'voice'), (m) => step('voice', m), (d, n) => stage('voice', d, n, `Voices ${d}/${n} lines`));

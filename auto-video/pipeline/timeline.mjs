@@ -20,8 +20,9 @@ export function buildTimeline(story, opts) {
   story.scenes.forEach((sc, si) => {
     const start = t; const events = []; const present = [...sc.present];
     const enterers = new Set(sc.beats.filter((b) => b.type === 'action' && b.action === 'enter').map((b) => b.char));
+    const present0 = present.filter((c) => c !== 'narrator'); present.length = 0; present.push(...present0);
     const initial = present.filter((c) => !enterers.has(c));
-    const all = [...new Set([...present, ...enterers, ...sc.beats.flatMap((b) => [b.char, ...(Array.isArray(b.with) ? b.with : []), ...(Array.isArray(b.chasers) ? b.chasers : [])])])].filter(Boolean).slice(0, 8);
+    const all = [...new Set([...present, ...enterers, ...sc.beats.flatMap((b) => [b.char === 'narrator' ? null : b.char, ...(Array.isArray(b.with) ? b.with : []), ...(Array.isArray(b.chasers) ? b.chasers : [])])])].filter(Boolean).slice(0, 8);
     cues.push({ t: start, kind: 'scene', location: sc.location });
     t += si === 0 ? 1.8 : 1.4; // establishing shot
     shots.push({ t0: start, t1: t, type: 'wide' });
@@ -31,10 +32,12 @@ export function buildTimeline(story, opts) {
         const l = { id: lineId++, scene: si, char: b.char, emotion: b.emotion, hindi: b.hindi, hinglish: b.hinglish, english: b.english, start: t };
         lines.push(l); l._beat = b;
         // camera: first line of a scene = two-shot, then mostly the speaker, a wide every 5th line
-        const type = lineInScene === 0 ? 'two' : lineInScene % 5 === 4 ? 'wide' : 'speaker';
+        const type = b.char === 'narrator' ? 'wide' : lineInScene === 0 ? 'two' : lineInScene % 5 === 4 ? 'wide' : 'speaker';
         l._shot = { type, char: b.char }; lineInScene++;
         t += 0.0; l._pending = true; // duration filled after TTS (see finalize)
         events.push({ kind: 'line', ref: l });
+      } else if (b.type === 'card') {
+        events.push({ kind: 'card', text: b.text, d: 2.6 });
       } else if (b.action in DUR) {
         let act = b.action;
         if (!stage && act in SIMPLE) { act = SIMPLE[act]; if (!act) continue; }
@@ -78,6 +81,7 @@ function chaseShots(e, t0, t1, shots, cont) {
 
 // Second pass once every line has a duration: lay out the real times.
 export function finalize(tl) {
+  tl.cards = [];
   let t = TITLE; const shots = []; const cues = [];
   for (const sc of tl.scenes) {
     sc.start = t; cues.push({ t, kind: 'scene', location: sc.location });
@@ -87,6 +91,8 @@ export function finalize(tl) {
       if (e.kind === 'line') {
         const l = e.ref; l.start = t; l.end = t + l.duration; t = l.end + 0.32;
         shots.push({ t0: l.start - 0.15, t1: t, type: l._shot.type, char: l.char });
+      } else if (e.kind === 'card') {
+        (tl.cards ||= []).push({ text: e.text, t0: t, t1: t + e.d }); shots.push({ t0: t, t1: t + e.d, type: 'wide' }); t += e.d;
       } else if (e.kind === 'gesture') {
         sc.events.push({ kind: 'gesture', name: e.name, char: e.char, t0: t, t1: t + e.d }); t += 0.25;
       } else {

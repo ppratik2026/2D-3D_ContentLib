@@ -76,6 +76,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
   const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false }); shadowMat.userData.outlineParameters = { visible: false };
   const roleOf = {};
   for (const ch of tl.story.characters) {
+    if (ch.hidden || ch.id === 'narrator') continue;
     roleOf[ch.id] = `${ch.role || ''} ${ch.name || ''}`;
     const cast = (tl.cast && tl.cast[ch.id]) || { file: 'assets/AvatarSample_C.vrm', type: 'vrm' };
     let a; try { a = await createActor(kit, scene, ch, cast, { simpleMat: grad, toon: grad }); } catch (e) { console.warn(e.message); a = await createActor(kit, scene, ch, ch.gender === 'female' ? { file: 'assets/AvatarSample_A.vrm', type: 'vrm' } : { file: 'assets/AvatarSample_C.vrm', type: 'vrm' }, { simpleMat: grad }); }

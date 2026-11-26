@@ -11,7 +11,7 @@ Everything except the story step (Gemini, Groq, OpenRouter, Mistral, Cerebras, a
 3. **Settings → Story AI** → pick a provider, paste your own key → **Test**. Keys are stored encrypted on that PC only. No key? Use **Story source → Paste from Gemini app**.
 4. **Backgrounds** → import empty painted scenes for the 2D Cartoon Stage (prompts: [docs/BACKGROUND_PROMPTS.md](docs/BACKGROUND_PROMPTS.md)).
 5. **Characters** → import your VRoid characters ([docs/VROID_GUIDE.md](docs/VROID_GUIDE.md)) and give each one a fixed voice.
-6. **New Video** → category, idea (one per line for several videos), minutes, characters, style, look, subtitles → **Add & start**.
+6. **New Video** → category, then either an idea (one per line for several videos) or **your own full story** ([docs/MY_STORY_GUIDE.md](docs/MY_STORY_GUIDE.md)), minutes, characters, style, look, subtitles → **Add & start**.
 7. **Queue** shows progress, time left and the finish time. **Library** plays the finished videos.
 
 Files: `Documents\AutoVideo\Videos\<date>_<category>_<title>\` → `final.mp4`, `subtitles.srt`, `story.json`, `timeline.json`.
@@ -33,6 +33,7 @@ Files: `Documents\AutoVideo\Videos\<date>_<category>_<title>\` → `final.mp4`, 
 - **Voices:** 20 Hindi voices (Piper + Kokoro-82M, with pitch/speed variants): men, women, old people, kids, a deep inspector voice and a heavy villain voice. Each character keeps one voice for the whole video; characters with a fixed voice in the Characters tab always use it.
 - **Action scenes (v0.7):** cartoon vehicles drawn by the app (car, taxi, police jeep with flashing lights, ambulance, auto rickshaw, van): drive in, get out, get in, drive away, car chase with a scrolling road and speed lines, foot chase, catch, handcuffs with a close-up, faint / lie down, people lying in a hospital bed. Gestures with props: magnifying glass, torch, test tube, file, notepad, judge's gavel, salute, namaste, hands up, crying.
 - **Places:** mark a desk, judge bench, witness box, counter, bed, jail cell or blackboard on a background. People go there by their role (judge, inspector, patient, prisoner, teacher…) and are hidden behind the desk or box, or behind jail bars.
+- **Your own story:** paste a story of any length. The AI keeps your events and dialogue, adds a narrator and "Agle din…" cards where needed, and writes `TO-DO.txt` next to the video with actions and backgrounds the app does not have yet.
 - **Effects:** the story AI chooses weather per scene: rain, storm (lightning flashes + thunder), fog or wind, plus camera shake on shocks. Sound: siren, engine, brakes and tyre screech, car doors, handcuff click, gavel, jail door; music by mood, ambience by place (village birds, city traffic, night crickets, jungle), rain/wind loops, thunder, heartbeat in horror/crime scenes, dog barks and owls at night.
 
 ## Renderers
