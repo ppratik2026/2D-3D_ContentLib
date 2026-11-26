@@ -15,6 +15,8 @@ const SPECS = {
   goat: { len: 0.75, hip: 0.42, legR: 0.04, body: 0.2, neck: 0.2, head: [0.22, 0.16, 0.14], snout: 0.08, colors: ['#f2efe6', '#3a2c22', '#8a5a2b', '#d9c9a8'], ears: 'side', horns: true, beard: true, tail: 0.1 },
   cat: { len: 0.42, hip: 0.2, legR: 0.025, body: 0.1, neck: 0.08, head: [0.13, 0.11, 0.12], snout: 0.03, colors: ['#f2a950', '#3a3a3e', '#e9e4da', '#9b8a7a'], ears: 'cat', tail: 0.32 },
   elephant: { len: 2.6, hip: 1.35, legR: 0.21, body: 0.78, neck: 0.15, head: [0.75, 0.8, 0.7], snout: 0.0, colors: ['#8e8e96', '#7d7d86'], ears: 'big', trunk: true, tusks: true, tail: 0.6 },
+  monkey: { len: 0.42, hip: 0.3, legR: 0.03, body: 0.13, neck: 0.06, head: [0.15, 0.15, 0.15], snout: 0.05, colors: ['#8a5a32', '#6b4426', '#a0703c'], ears: 'side', tail: 0.55, face: '#e8c0a0' },
+  tiger: { len: 1.7, hip: 0.6, legR: 0.08, body: 0.3, neck: 0.18, head: [0.36, 0.3, 0.3], snout: 0.1, colors: ['#e8862a', '#f09a3a'], stripes: true, ears: 'cat', tail: 0.8 },
   horse: { len: 1.6, hip: 0.95, legR: 0.07, body: 0.34, neck: 0.55, head: [0.48, 0.22, 0.2], snout: 0.12, colors: ['#f3f1ec', '#8b5a32', '#3b2a1e'], ears: 'up', mane: true, tail: 0.7 },
 };
 
@@ -36,6 +38,8 @@ export function makeAnimal(type, seed = 1, opts = {}) {
   for (const z of [hz * 0.35, -hz * 0.35]) { const ear = new THREE.Mesh(new THREE.BoxGeometry(hx * 0.22, hy * (S.ears === 'flop' ? 0.6 : 0.45), 0.02), S.ears === 'flop' ? dark : mat);
     if (S.ears === 'flop') { ear.position.set(hx * 0.05, -hy * 0.05, z * 1.5); } else if (S.ears === 'side') { ear.position.set(0, hy * 0.25, z * 1.9); ear.rotation.x = z > 0 ? 1.2 : -1.2; } else { ear.position.set(0, hy * 0.62, z); } head.add(ear); }
   if (S.horns) for (const z of [hz * 0.3, -hz * 0.3]) { const h = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.16, 8), toon('#e8e0c8')); h.position.set(-hx * 0.05, hy * 0.62, z); h.rotation.x = z > 0 ? 0.6 : -0.6; head.add(h); }
+  if (S.stripes) for (let i = 0; i < 6; i++) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.05, S.body * 1.5, S.body * 2.06), toon('#1c1612')); st.position.set(-L * 0.35 + i * L * 0.13, H + S.body * 0.75, 0); st.rotation.z = 0.25; st.userData.outlineParameters = { visible: false }; body.add(st); }
+  if (S.face) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.02, hy * 0.75, hz * 0.75), toon(S.face)); f.position.set(hx * 0.8, -hy * 0.05, 0); f.userData.outlineParameters = { visible: false }; head.add(f); }
   if (S.beard) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.05), toon('#d9d3c4')); b.position.set(hx * 0.55, -hy * 0.6, 0); head.add(b); }
   if (S.ears === 'cat') for (const z of [hz * 0.3, -hz * 0.3]) { const e = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.06, 4), mat); e.position.set(hx * 0.1, hy * 0.6, z); head.add(e); }
   if (S.ears === 'big') for (const z of [hz * 0.52, -hz * 0.52]) { const e = new THREE.Mesh(new THREE.CircleGeometry(0.42, 16), mat); e.material = mat.clone(); e.material.side = THREE.DoubleSide; e.position.set(-hx * 0.15, -hy * 0.05, z); e.rotation.y = z > 0 ? 0.25 : -0.25; head.add(e); }
@@ -50,7 +54,7 @@ export function makeAnimal(type, seed = 1, opts = {}) {
   }
   // tail
   const tail = new THREE.Group(); tail.position.set(-L / 2 + S.body * 0.1, H + S.body * 1.1, 0); body.add(tail);
-  const tm = new THREE.Mesh(new THREE.CylinderGeometry(type === 'elephant' ? 0.03 : 0.02, type === 'horse' ? 0.06 : 0.025, S.tail, 8), type === 'horse' ? toon('#3b2a1e') : mat); tm.position.y = -S.tail / 2; tail.add(tm); tail.rotation.z = type === 'dog' ? -2.3 : type === 'cat' ? -2.6 : type === 'goat' ? -2.0 : -0.25;
+  const tm = new THREE.Mesh(new THREE.CylinderGeometry(type === 'elephant' ? 0.03 : 0.02, type === 'horse' ? 0.06 : 0.025, S.tail, 8), type === 'horse' ? toon('#3b2a1e') : mat); tm.position.y = -S.tail / 2; tail.add(tm); tail.rotation.z = type === 'dog' ? -2.3 : type === 'cat' ? -2.6 : type === 'goat' ? -2.0 : type === 'monkey' ? -2.8 : type === 'tiger' ? -0.9 : -0.25;
   const height = H + S.body * 1.1 + S.neck;
   return {
     type, group: g, height, len: L, back: H + S.body * 1.1,
@@ -64,6 +68,8 @@ export function makeAnimal(type, seed = 1, opts = {}) {
       tail.rotation.x = Math.sin(t * (type === 'dog' ? 14 : 3) + seed) * (type === 'dog' ? 0.5 : 0.2);
       if (head.userData.trunk) head.userData.trunk.forEach((g2, i) => { g2.rotation.z = (i === 0 ? 0.25 : 0.08) + Math.sin(t * 1.6 + i * 0.6) * 0.08 + (act === 'bark' ? -0.35 * Math.max(0, Math.sin(t * 4)) : 0); });
       if (type === 'cat') tail.rotation.z = -2.6 + Math.sin(t * 2) * 0.2;
+      if (type === 'monkey') { tail.rotation.z = -2.8 + Math.sin(t * 3) * 0.3; if (act === 'jump') body.position.y = Math.abs(Math.sin(t * 6)) * 0.35; }
+      if (type === 'tiger' && act === 'bark') { neck.rotation.z = 0.35; body.position.y = 0; }
       if (act === 'bark') { body.position.y += Math.abs(Math.sin(t * 9)) * 0.05 * H; neck.rotation.z += Math.abs(Math.sin(t * 9)) * 0.25; }
       if (act === 'sit' && type === 'dog') { body.rotation.z = 0.45; body.position.y = -0.08; legs[2].up.rotation.z = -1.2; legs[3].up.rotation.z = -1.2; legs[2].low.rotation.z = 2.2; legs[3].low.rotation.z = 2.2; }
     },

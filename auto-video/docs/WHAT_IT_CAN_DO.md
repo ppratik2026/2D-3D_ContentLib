@@ -1,4 +1,4 @@
-# What Auto Video Studio can animate (v1.2)
+# What Auto Video Studio can animate (v1.3)
 
 The story AI uses these automatically. You can also write them yourself in a pasted story.
 
@@ -46,6 +46,21 @@ Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren)
 | swim | swimming strokes in water, the body half under water, splashes |
 | climb / climb_down | up a ladder, or up to the tree / wall / roof top you mark as a "Climb to" place |
 | More animals | goat (bleat), cat (meow), elephant (trunk, trumpet), birds (a flock flies across the sky with chirping) |
+
+## Festivals, sports, sky, more animals (v1.3)
+
+| What | How it looks |
+|---|---|
+| holi | coloured powder clouds around everybody, people slowly get coloured, dhol + cheering; gestures gulal (throws colour) and pichkari (water gun with a coloured stream) |
+| diwali | a row of diyas along the front, blinking string lights, fireworks bursting in the sky with whistles and pops; gestures diya (holds a lamp) and sparkler (phuljhadi) |
+| cracker | anaar (golden fountain with hiss) or bomb (flash and bang) on the ground |
+| birthday | cake with candles in front of the birthday person, balloons, confetti, the birthday song, everyone claps, candles are blown out |
+| game: football | passing with kicks, the ball rolls, goal post with net |
+| game: kabaddi | raider crosses the middle line with arms out, defenders try to catch |
+| fly_by | an aeroplane or helicopter flies across the sky (jet / rotor sound) |
+| helicopter | lands (drive_in), people get in / out, takes off (drive_away); rotor spins in flight |
+| Monkey / tiger | monkey jumps and chatters; tiger (stripes) roars and runs |
+| Snow | weather "snow" — snowfall with wind |
 
 ## Places you mark on a background
 
@@ -96,4 +111,4 @@ The video is rendered clean, then the subtitles are added on top. That means you
 
 ## Not yet (send your TO-DO lists)
 
-Football / kabaddi, a moving train seen from inside, underwater scenes, flying (plane / helicopter), monkeys and tigers, festivals (Holi colours, Diwali diyas / crackers). Send your TO-DO lists for more.
+Inside a moving train / plane, underwater scenes, other festivals (Navratri garba, Raksha Bandhan, Eid, Christmas). Send your TO-DO lists for more.

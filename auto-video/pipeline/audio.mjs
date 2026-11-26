@@ -155,6 +155,14 @@ function batHit() { const o = new Float32Array(Math.floor(0.3 * SR)); for (let i
 function bleat() { const n = Math.floor(0.9 * SR), o = new Float32Array(n); let ph = 0; for (let i = 0; i < n; i++) { const t = i / SR; ph += 2 * Math.PI * (430 + 30 * Math.sin(t * 50)) / SR; o[i] = (Math.sin(ph) + 0.5 * Math.sin(2 * ph) + 0.3 * Math.sin(3 * ph)) * Math.sin(Math.PI * t / 0.9) * 0.5; } return lowpass(o, 0.4); }
 function meow() { const n = Math.floor(0.7 * SR), o = new Float32Array(n); let ph = 0; for (let i = 0; i < n; i++) { const t = i / SR; ph += 2 * Math.PI * (600 + 300 * Math.sin(Math.PI * t / 0.7)) / SR; o[i] = (Math.sin(ph) + 0.4 * Math.sin(2 * ph)) * Math.sin(Math.PI * t / 0.7) * 0.5; } return o; }
 function trumpet() { const n = Math.floor(1.6 * SR), o = new Float32Array(n); let ph = 0; for (let i = 0; i < n; i++) { const t = i / SR; ph += 2 * Math.PI * (520 + 80 * Math.sin(t * 7)) / SR; const saw = (ph / (2 * Math.PI)) % 1 * 2 - 1; o[i] = (saw * 0.6 + noise() * 0.2) * Math.min(1, t / 0.1, (1.6 - t) / 0.4); } return lowpass(o, 0.35); }
+function heli(dur) { const n = Math.ceil(dur * SR), o = new Float32Array(n); let a = 0; for (let i = 0; i < n; i++) { const t = i / SR; a += 0.05 * (noise() - a); const wop = Math.pow(Math.max(0, Math.sin(2 * Math.PI * 11 * t)), 6); o[i] = a * 3 * (0.3 + wop) * Math.min(1, t / 0.6, (dur - t) / 0.8); } return lowpass(o, 0.3); }
+function jet(dur) { const n = Math.ceil(dur * SR), o = new Float32Array(n); let a = 0, b = 0; for (let i = 0; i < n; i++) { const t = i / SR; const w = noise(); a += 0.08 * (w - a); b += 0.01 * (w - b); o[i] = (a - b) * 3 * Math.sin(Math.PI * t / dur) ** 2; } return o; }
+function popWhistle() { const o = new Float32Array(Math.floor(1.6 * SR)); let ph = 0; for (let i = 0; i < 0.6 * SR; i++) { const t = i / SR; ph += 2 * Math.PI * (1800 + 1600 * t) / SR; o[i] = Math.sin(ph) * 0.15 * Math.min(1, t / 0.05); } const pop = boom(); for (let i = 0; i < Math.min(pop.length, o.length - 0.6 * SR); i++) o[Math.floor(0.6 * SR) + i] += pop[i] * 0.35; for (let i = Math.floor(0.7 * SR); i < o.length; i++) if (rnd() < 0.004) o[i] += noise() * 0.6; return o; }
+function hiss(dur) { const n = Math.ceil(dur * SR), o = new Float32Array(n); let a = 0; for (let i = 0; i < n; i++) { const w = noise(); a += 0.6 * (w - a); o[i] = (w - a) * 0.8 * Math.min(1, i / SR / 0.2, (n - i) / SR / 0.4) + (rnd() < 0.002 ? noise() : 0); } return o; }
+function bdaySong(dur) { const o = new Float32Array(Math.ceil(dur * SR)); const N = [[67, 0.75], [67, 0.25], [69, 1], [67, 1], [72, 1], [71, 2], [67, 0.75], [67, 0.25], [69, 1], [67, 1], [74, 1], [72, 2], [67, 0.75], [67, 0.25], [79, 1], [76, 1], [72, 1], [71, 1], [69, 2], [77, 0.75], [77, 0.25], [76, 1], [72, 1], [74, 1], [72, 2]];
+  const beat = 0.42; let t = 0.3; while (t < dur - 1) { for (const [m, d] of N) { if (t > dur - 0.5) break; add(o, tone(mtof(m), d * beat + 0.2, { type: 'bell', decay: 2.5 }), t, 0.16); add(o, tone(mtof(m - 12), d * beat, { decay: 3 }), t, 0.05); t += d * beat; } t += 1.2; } return o; }
+function chatter() { const o = new Float32Array(Math.floor(1.0 * SR)); for (let s = 0; s < 0.9; s += 0.11) add(o, tone(900 + rnd() * 700, 0.08, { type: 'saw', decay: 30, detune: 0.05 }), s, 0.25); return lowpass(o, 0.5); }
+function roar() { const n = Math.floor(2.0 * SR), o = new Float32Array(n); let ph = 0; for (let i = 0; i < n; i++) { const t = i / SR; ph += 2 * Math.PI * (90 + 40 * Math.sin(Math.PI * t / 2)) / SR; const saw = ((ph / (2 * Math.PI)) % 1) * 2 - 1; o[i] = (saw * 0.6 + noise() * 0.5) * Math.sin(Math.PI * Math.min(1, t / 2)) ; } return lowpass(lowpass(o, 0.12), 0.25); }
 function sting() { const o = new Float32Array(Math.floor(3 * SR)); for (const m of [50, 57, 62, 66]) add(o, tone(mtof(m), 3, { type: 'bell', decay: 1.1 }), 0, 0.15); return o; }
 
 export function mixAll(tl, mood, outFile) {
@@ -175,7 +183,7 @@ export function mixAll(tl, mood, outFile) {
   for (const sc of tl.scenes) {
     const d = sc.end - sc.start + 0.6; const fade = (x) => { for (let i = 0; i < x.length; i++) { const tt = i / SR; x[i] *= Math.min(1, tt / 0.6, (x.length / SR - tt) / 0.6); } return x; };
     if (sc.weather === 'rain' || sc.weather === 'storm') add(mix, fade(rainLoop(d, sc.weather === 'storm')), sc.start - 0.3, sc.weather === 'storm' ? 0.22 : 0.16);
-    if (sc.weather === 'wind' || sc.weather === 'storm' || sc.weather === 'fog') add(mix, fade(windLoop(d)), sc.start - 0.3, sc.weather === 'fog' ? 0.08 : 0.12);
+    if (['wind', 'storm', 'fog', 'snow'].includes(sc.weather)) add(mix, fade(windLoop(d)), sc.start - 0.3, sc.weather === 'fog' ? 0.08 : 0.12);
     for (const e of sc.events || []) if (e.kind === 'gesture' && e.name === 'shock' && /horror|thriller|crime|mystery/.test(mood)) add(mix, heartbeat(), e.t0, 0.5);
     for (const e of sc.events || []) if (e.kind === 'gesture' && e.name === 'gavel') add(mix, gavel(), e.t0 + 0.25, 0.7);
     for (const e of sc.events || []) { if (e.kind !== 'gesture') continue; const d = e.t1 - e.t0;
@@ -204,6 +212,11 @@ export function mixAll(tl, mood, outFile) {
     if (c.kind === 'clank') add(mix, clank(), c.t, 0.5);
     if (c.kind === 'grab' || c.kind === 'fall') add(mix, thud(), c.t, 0.6);
     if (c.kind === 'hit') add(mix, hitSnd(), c.t, 0.55);
+    if (c.kind === 'heli') add(mix, heli(c.t1 - c.t), c.t, 0.45); if (c.kind === 'jet') add(mix, jet(c.t1 - c.t), c.t, 0.4);
+    if (c.kind === 'holi') { const d = c.t1 - c.t; add(mix, dhol(d), c.t, 0.4); add(mix, cheer(d), c.t, 0.12); }
+    if (c.kind === 'diwali') for (let x = c.t + 0.4; x < c.t1 - 1; x += 1.3) add(mix, popWhistle(), x, 0.3);
+    if (c.kind === 'anaar') add(mix, hiss(c.t1 - c.t), c.t, 0.35); if (c.kind === 'bang') add(mix, boom(), c.t, 0.6); if (c.kind === 'bday') { add(mix, bdaySong(c.t1 - c.t), c.t, 1.0); add(mix, cheer(c.t1 - c.t), c.t, 0.06); }
+    if (c.kind === 'kick') add(mix, thud(), c.t, 0.5); if (c.kind === 'chatter') add(mix, chatter(), c.t, 0.5); if (c.kind === 'roar') add(mix, roar(), c.t, 0.7);
     if (c.kind === 'fire') add(mix, crackle((c.t1 || c.t + 5) - c.t), c.t, 0.3); if (c.kind === 'boom') add(mix, boom(), c.t, 1.0);
     if (c.kind === 'train') add(mix, trainSnd(c.t1 - c.t, c.horn), c.t, 0.45); if (c.kind === 'paddle') add(mix, paddle(c.t1 - c.t), c.t, 0.35); if (c.kind === 'swim') add(mix, swimSnd(c.t1 - c.t), c.t, 0.35);
     if (c.kind === 'bat') add(mix, batHit(), c.t, 0.7); if (c.kind === 'kids') add(mix, cheer(c.t1 - c.t), c.t, 0.08); if (c.kind === 'chirps') add(mix, birds(c.t1 - c.t), c.t, 1.4);

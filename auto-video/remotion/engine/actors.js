@@ -265,6 +265,12 @@ export function poseActor(a, t, st) {
     if (n === 'slap') { const c = Math.min(1, Math.max(0, (Math.sin(t * 5) + 0.2))); arm('Right', 1.3 * k, 0.3 * k, (-0.6 + 1.6 * c) * k); face = 'angry'; }
     if (n === 'give' || n === 'receive') arm('Right', 1.1 * k, 0.35 * k, 0.3 * k);
     const ph = g.ph ?? ((t * 0.7) % 1);
+    if (n === 'kick') { const w = Math.sin(Math.min(1, ph / 0.3) * Math.PI); rotW(a, 'RightUpLeg', R, (-0.3 + 1.3 * w) * k); rotW(a, 'RightLeg', R, (-0.6 * (1 - w)) * k); arm('Left', 0.5 * k, 0.3 * k, -0.3 * k); arm('Right', -0.2 * k, 0.3 * k, 0); }
+    if (n === 'raid') { arm('Right', 1.2 * k, 0.2 * k, -0.2 * k); arm('Left', 1.2 * k, 0.2 * k, -0.2 * k); rotW(a, 'Spine1', R, 0.25 * k); face = 'angry'; }
+    if (n === 'pichkari') { arm('Right', 1.2 * k, 0.4 * k, 0.4 * k); arm('Left', 1.2 * k, 0.5 * k, 0.6 * k); face = 'happy'; }
+    if (n === 'sparkler') { const c = t * 5; arm('Right', (1.1 + 0.3 * Math.sin(c)) * k, (0.5 + 0.3 * Math.cos(c)) * k, 0.2 * k); face = 'happy'; }
+    if (n === 'blow') { rotW(a, 'Spine1', R, 0.3 * k); rotW(a, 'Head', R, 0.2 * k); arm('Right', 0.3 * k, 0.4 * k, 0.2 * k); arm('Left', 0.3 * k, 0.4 * k, 0.2 * k); }
+    if (n === 'gulal') { const w = Math.sin(Math.min(1, ((t * 0.8) % 1) / 0.3) * Math.PI); arm('Right', (0.6 + 1.0 * w) * k, (1.2 - 0.9 * w) * k, 0.3 * k); face = 'happy'; }
     if (n === 'umbrella') { arm('Right', 0.85 * k, 1.75 * k, 0.55 * k); rotW(a, 'RightArm', F, -0.35 * k); }
     if (n === 'bat') { const sw = Math.sin(Math.min(1, Math.max(0, (ph - 0.55) / 0.25)) * Math.PI); arm('Right', (0.6 + 0.9 * sw) * k, (0.5 - 0.3 * sw) * k, (0.7 - 1.2 * sw) * k); arm('Left', (0.6 + 0.9 * sw) * k, (0.5 - 0.3 * sw) * k, (0.7 - 1.2 * sw) * k); rotW(a, 'Spine', UP, (0.5 - 1.0 * sw) * k); rotW(a, 'Spine1', R, 0.2 * k); }
     if (n === 'bowl') { const w = Math.min(1, Math.max(0, (ph - 0.3) / 0.25)); rotW(a, 'RightArm', R, (-0.4 - 3.4 * w) * k); arm('Left', 0.9 * k, 0.3 * k, 0); rotW(a, 'Spine1', R, 0.25 * w * k); }

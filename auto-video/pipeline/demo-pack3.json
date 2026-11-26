@@ -1,0 +1,62 @@
+{
+  "title": "Tyohaaron Ka Saal",
+  "title_hindi": "त्योहारों का साल",
+  "logline": "Ek saal ke khel, tyohaar aur janmdin.",
+  "moral": "Har din ek tyohaar hai jab parivaar saath ho.",
+  "category": "kids",
+  "characters": [
+    { "id": "golu", "name": "Golu", "gender": "male", "age": "child", "role": "boy", "top_color": "#2f6fb5", "bottom_color": "#2b2b30", "hair_color": "#1c1612", "personality": "naughty" },
+    { "id": "pinky", "name": "Pinky", "gender": "female", "age": "young", "role": "girl", "top_color": "#e67ab4", "bottom_color": "#f2c418", "hair_color": "#1c1612", "personality": "smart" },
+    { "id": "raju", "name": "Raju", "gender": "male", "age": "young", "role": "elder brother", "top_color": "#c0392b", "bottom_color": "#2b2b30", "hair_color": "#1c1612", "personality": "kind" },
+    { "id": "maa", "name": "Maa", "gender": "female", "age": "adult", "role": "mother", "top_color": "#2f8f3a", "bottom_color": "#f2c418", "hair_color": "#1c1612", "personality": "loving" }
+  ],
+  "scenes": [
+    { "background": "bg_ground", "time_of_day": "day", "present": ["golu", "raju", "pinky", "maa"], "summary": "Football, kabaddi, a monkey, a tiger and a plane.", "seconds": 40,
+      "beats": [
+        { "type": "action", "char": "golu", "action": "game", "game": "football", "with": ["raju", "pinky"], "seconds": 7 },
+        { "type": "line", "char": "golu", "emotion": "happy", "hindi": "गोल! गोल!", "hinglish": "Goal! Goal!", "english": "Goal! Goal!" },
+        { "type": "action", "char": "raju", "action": "game", "game": "kabaddi", "with": ["golu", "pinky", "maa"], "seconds": 7 },
+        { "type": "line", "char": "raju", "emotion": "angry", "hindi": "कबड्डी कबड्डी कबड्डी!", "hinglish": "Kabaddi kabaddi kabaddi!", "english": "Kabaddi kabaddi kabaddi!" },
+        { "type": "action", "action": "animal", "animal": "monkey", "act": "enter" },
+        { "type": "action", "action": "animal", "animal": "monkey", "act": "jump" },
+        { "type": "action", "action": "fly_by", "vehicle": "plane" },
+        { "type": "line", "char": "pinky", "emotion": "surprised", "hindi": "देखो, हवाई जहाज़!", "hinglish": "Dekho, hawaai jahaaz!", "english": "Look, an aeroplane!" },
+        { "type": "action", "action": "animal", "animal": "tiger", "act": "enter" },
+        { "type": "action", "action": "animal", "animal": "tiger", "act": "roar" },
+        { "type": "action", "char": "golu", "action": "shock" }
+      ] },
+    { "background": "bg_ground", "time_of_day": "day", "present": ["golu", "raju", "pinky", "maa"], "summary": "Holi.", "seconds": 20,
+      "beats": [
+        { "type": "card", "text": "Holi" },
+        { "type": "action", "action": "holi" },
+        { "type": "action", "action": "crowd", "mood": "dance", "count": 8 },
+        { "type": "action", "char": "golu", "action": "pichkari" },
+        { "type": "action", "char": "pinky", "action": "gulal" },
+        { "type": "line", "char": "golu", "emotion": "happy", "hindi": "बुरा न मानो, होली है!", "hinglish": "Bura na maano, Holi hai!", "english": "Don't mind, it's Holi!" },
+        { "type": "line", "char": "maa", "emotion": "happy", "hindi": "सबको होली की बधाई!", "hinglish": "Sabko Holi ki badhaai!", "english": "Happy Holi everyone!" }
+      ] },
+    { "background": "bg_front", "time_of_day": "night", "present": ["golu", "raju", "pinky", "maa"], "summary": "Diwali night.", "seconds": 20,
+      "beats": [
+        { "type": "card", "text": "Diwali" },
+        { "type": "action", "action": "diwali" },
+        { "type": "action", "char": "maa", "action": "diya" },
+        { "type": "action", "char": "golu", "action": "sparkler" },
+        { "type": "action", "char": "pinky", "action": "sparkler" },
+        { "type": "line", "char": "maa", "emotion": "happy", "hindi": "शुभ दीपावली!", "hinglish": "Shubh Deepawali!", "english": "Happy Diwali!" },
+        { "type": "action", "action": "cracker", "cracker": "anaar", "where": "right" },
+        { "type": "line", "char": "golu", "emotion": "happy", "hindi": "वाह! अनार कितना ऊँचा जा रहा है!", "hinglish": "Waah! Anaar kitna ooncha ja raha hai!", "english": "Wow! The fountain goes so high!" }
+      ] },
+    { "background": "bg_inside", "time_of_day": "evening", "present": ["golu", "raju", "pinky", "maa"], "summary": "Pinky's birthday.", "seconds": 16,
+      "beats": [
+        { "type": "action", "char": "pinky", "action": "birthday", "seconds": 10 },
+        { "type": "line", "char": "maa", "emotion": "happy", "hindi": "जन्मदिन मुबारक हो, पिंकी!", "hinglish": "Janamdin mubaarak ho, Pinky!", "english": "Happy birthday, Pinky!" }
+      ] },
+    { "background": "bg_highway", "time_of_day": "day", "weather": "snow", "present": ["pinky"], "summary": "A helicopter lands in the snow.", "seconds": 16,
+      "beats": [
+        { "type": "action", "char": "raju", "action": "drive_in", "vehicle": "helicopter" },
+        { "type": "action", "char": "raju", "action": "get_out", "vehicle": "helicopter" },
+        { "type": "line", "char": "raju", "emotion": "happy", "hindi": "पहाड़ों पर बर्फ़ गिर रही है!", "hinglish": "Pahaadon par barf gir rahi hai!", "english": "Snow is falling on the mountains!" },
+        { "type": "action", "char": "pinky", "action": "shiver" }
+      ] }
+  ]
+}

@@ -83,6 +83,7 @@ export function makeComposer(W, H) {
     ctx.save(); let f = LOOK_FILTER[look] || 'none'; if (look === 'oldfilm') f += ` brightness(${1 + 0.06 * Math.sin(frame * 1.3)})`; ctx.filter = f; ctx.drawImage(src, dx - (W * (zoomPad - 1)) / 2, dy - (H * (zoomPad - 1)) / 2, W * zoomPad, H * zoomPad); ctx.restore();
     const wx = sc.weather || 'none';
     if (wx === 'rain' || wx === 'storm') { ctx.fillStyle = 'rgba(20,30,60,0.18)'; ctx.fillRect(0, 0, W, H); rain(ctx, frame, wx === 'storm' ? 320 : 200, wx === 'storm' ? 0.45 : 0.32); }
+    if (wx === 'snow') { ctx.save(); ctx.fillStyle = 'rgba(255,255,255,0.9)'; for (let i = 0; i < 160; i++) { const sp = 0.4 + hash(i, 2) * 0.6; const x = ((hash(i, 8) * W + Math.sin(frame * 0.03 + i) * 30) % W + W) % W, y = ((hash(i, 1) * H + frame * 3 * sp) % (H + 20)) - 10; ctx.beginPath(); ctx.arc(x, y, 1.5 + sp * 2.5, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
     if (wx === 'fog') fog(ctx, t); if (wx === 'wind') wind(ctx, frame);
     const fl = flashAt(tl, t); if (fl) { ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = `rgba(225,232,255,${fl * 0.7})`; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     if (look === 'film') { vignette(ctx, 0.35); grain(ctx, frame, 0.18); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H * 0.08); ctx.fillRect(0, H * 0.92, W, H * 0.08); }

@@ -84,7 +84,7 @@ function normalizeOutline(o, totalSec) {
   const idList = o.characters.map((c) => c.id);
   o.scenes = (o.scenes || []).filter(Boolean).map((s) => ({
     location: LOCATIONS[s.location] ? s.location : 'street', time_of_day: TIMES_OF_DAY.includes(s.time_of_day) ? s.time_of_day : 'day',
-    background: s.background ? String(s.background) : '', weather: ['rain', 'storm', 'fog', 'wind'].includes(s.weather) ? s.weather : 'none',
+    background: s.background ? String(s.background) : '', weather: ['rain', 'storm', 'fog', 'wind', 'snow'].includes(s.weather) ? s.weather : 'none',
     present: (Array.isArray(s.present) ? s.present : []).map((x) => matchId(x, o.characters)).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).slice(0, 6),
     summary: String(s.summary || ''), seconds: Math.max(12, Number(s.seconds) || 30) }));
   if (!o.scenes.length) throw new Error('Gemini returned no scenes');
@@ -100,9 +100,9 @@ export function normalizeBeats(beats, chars, sc) {
     if (b.type === 'narration' || /^narrat|^sutradhar|^सूत्रधार/i.test(String(b.char || ''))) {
       const hindi = String(b.hindi || b.hinglish || '').trim(), hinglish = String(b.hinglish || b.hindi || '').trim(); if (hindi) out.push({ type: 'line', char: 'narrator', emotion: 'neutral', hindi, hinglish, english: String(b.english || hinglish) });
       continue; }
-    if (['fire', 'fire_out', 'explosion'].includes(b.action) && !matchId(b.char, chars)) { out.push({ type: 'action', char: null, action: b.action, target: matchId(b.target, chars) || null, where: b.where, size: b.size, small: b.small }); continue; }
+    if (['fire', 'fire_out', 'explosion', 'holi', 'diwali', 'cracker', 'fly_by'].includes(b.action) && !matchId(b.char, chars)) { out.push({ type: 'action', char: null, action: b.action, target: matchId(b.target, chars) || null, where: b.where, size: b.size, small: b.small, vehicle: b.vehicle, cracker: b.cracker || b.kind, lights: b.lights, fireworks: b.fireworks, diyas: b.diyas }); continue; }
     if (b.action === 'animal' || b.action === 'crowd') { // no character needed
-      out.push({ type: 'action', char: null, action: b.action, animal: ['dog', 'cow', 'horse', 'goat', 'cat', 'elephant', 'birds'].includes(b.animal) ? b.animal : 'dog', act: String(b.act || 'enter'), target: matchId(b.target, chars) || null, mood: ['dance', 'cheer', 'clap', 'watch', 'walk', 'none'].includes(b.mood) ? b.mood : 'watch', count: Number(b.count) || 8 }); continue; }
+      out.push({ type: 'action', char: null, action: b.action, animal: ['dog', 'cow', 'horse', 'goat', 'cat', 'elephant', 'birds', 'monkey', 'tiger'].includes(b.animal) ? b.animal : 'dog', act: String(b.act || 'enter'), target: matchId(b.target, chars) || null, mood: ['dance', 'cheer', 'clap', 'watch', 'walk', 'none'].includes(b.mood) ? b.mood : 'watch', count: Number(b.count) || 8 }); continue; }
     const char = matchId(b.char, chars);
     if (b.type !== 'line' && !b.hindi && !b.hinglish && b.action && !ACTIONS.includes(b.action)) { unsupported.push(String(b.action).toLowerCase().slice(0, 30)); continue; }
     if (!char) continue;
@@ -151,6 +151,12 @@ function actionHelp(stage) { return `Between dialogue lines add actions (only th
 - Train: vehicle "train" with drive_in (arrives at the platform and stops), get_in / get_out, drive_away.
 - Climb: {"action":"climb","char":"id"} goes up a ladder, or to the "climb" place (tree / wall top) marked in the background; {"action":"climb_down"}.
 - More animals: goat (bleat), cat (meow), elephant (trumpet), birds ({"action":"animal","animal":"birds","act":"fly"} — a flock crosses the sky).
+- Festivals: {"type":"action","action":"holi"} (colour clouds, everybody gets coloured, dhol) with gestures gulal (throws colour) and pichkari (water gun); {"type":"action","action":"diwali"} (diyas in front, string lights, fireworks in the sky; use time_of_day "night") with gestures diya (holds a lamp) and sparkler (phuljhadi), and {"type":"action","action":"cracker","cracker":"anaar|bomb","where":"right"}.
+- Birthday: {"type":"action","char":"birthday person id","action":"birthday","seconds":10} — cake with candles in front, balloons, confetti, the birthday song, everyone claps, candles are blown out at the end.
+- Sky: {"type":"action","action":"fly_by","vehicle":"plane|helicopter"} flies across the sky; a helicopter can also land and take off with drive_in / get_in / get_out / drive_away.
+- More games: "game":"football" (passing, goal post) and "game":"kabaddi" (raider crosses the line, defenders try to catch).
+- Animals: monkey (jump, chatter), tiger (roar, run).
+- Weather "snow" for snowfall (hill stories).
 - Wedding procession: {"type":"action","action":"baraat","char":"groom id","with":["dancing relatives"],"seconds":12} — the groom rides a decorated horse with a safa, dhol and shehnai play, the crowd dances.
 ${stage ? `- Places in the background (if the background has them): {"action":"go_to","char":"id","place":"${Object.keys(MARKS).join('|')}"}. People whose role fits (judge, inspector at desk, patient in bed, prisoner in cell, accused in witness box, teacher at board, scientist at lab counter) start there automatically.
 - "faint" = falls down (or a dead body lying), "lie" = lies down; "stand" gets up again.
@@ -183,7 +189,7 @@ ${actionHelp(stage)}
 Reply with ONLY this JSON (no other text):
 {"title":"Hinglish title","title_hindi":"हिंदी शीर्षक","logline":"one line","moral":"last message or empty",
  "characters":[{"id":"short_id","name":"Indian name","gender":"male|female","age":"child|young|adult|old","role":"role","top_color":"#hex","bottom_color":"#hex","hair_color":"#hex","personality":"few words","model":"actor id"}],
- "scenes":[{${stage ? '"background":"background id"' : '"location":"key"'},"time_of_day":"${TIMES_OF_DAY.join('|')}","weather":"none|rain|storm|fog|wind","present":["character ids at the start"],"summary":"what happens","seconds":30,
+ "scenes":[{${stage ? '"background":"background id"' : '"location":"key"'},"time_of_day":"${TIMES_OF_DAY.join('|')}","weather":"none|rain|storm|fog|wind|snow","present":["character ids at the start"],"summary":"what happens","seconds":30,
    "beats":[{"type":"action","char":"id","action":"enter"},
             {"type":"line","char":"id","emotion":"neutral|happy|sad|angry|surprised|scared","hindi":"देवनागरी","hinglish":"Roman Hinglish","english":"English"}]}]}`;
 }
@@ -206,7 +212,7 @@ export function parsePastedStory(text, minutes = 1) {
 }
 
 // ---------- "My full story": the user's own story → scenes (faithful, part by part) ----------
-const SCENE_SHAPE = (stage) => `{${stage ? '"background":"background id or new: description"' : '"location":"key"'},"time_of_day":"${TIMES_OF_DAY.join('|')}","weather":"none|rain|storm|fog|wind","present":["character ids at the start"],"summary":"what happens","seconds":30,
+const SCENE_SHAPE = (stage) => `{${stage ? '"background":"background id or new: description"' : '"location":"key"'},"time_of_day":"${TIMES_OF_DAY.join('|')}","weather":"none|rain|storm|fog|wind|snow","present":["character ids at the start"],"summary":"what happens","seconds":30,
    "beats":[{"type":"action","char":"id","action":"enter"},
             {"type":"line","char":"id","emotion":"neutral|happy|sad|angry|surprised|scared","hindi":"देवनागरी","hinglish":"Roman Hinglish","english":"English"},
             {"type":"narration","hindi":"…","hinglish":"…","english":"…"}, {"type":"card","text":"…"}]}`;
