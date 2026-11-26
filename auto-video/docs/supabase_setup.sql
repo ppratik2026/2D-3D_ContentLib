@@ -39,6 +39,10 @@ create table if not exists public.avs_packs (
 
 alter table public.avs_licenses enable row level security;
 alter table public.avs_packs enable row level security;
+-- new Supabase projects do not expose tables to the Data API by default: the admin (secret / service_role key) needs these grants
+grant usage on schema public to anon, authenticated, service_role;
+grant select, insert, update, delete on table public.avs_licenses, public.avs_packs to service_role;
+grant usage, select on all sequences in schema public to service_role;
 -- no policies on purpose: nobody except the service role can read or change these tables directly
 revoke all on public.avs_licenses from anon, authenticated;
 revoke all on public.avs_packs from anon, authenticated;
@@ -89,3 +93,6 @@ do $$ begin
     insert into storage.buckets (id, name, public) values ('avs-data', 'avs-data', true) on conflict (id) do nothing;
   end if;
 end $$;
+
+-- make the Data API see the new tables and functions right away
+notify pgrst, 'reload schema';

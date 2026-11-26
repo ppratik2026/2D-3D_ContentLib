@@ -27,10 +27,17 @@ export function newKey() { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const p
 
 // ---------- HTTP ----------
 function headers(key, extra = {}) { const h = { apikey: key, ...extra }; if (!String(key).startsWith('sb_')) h.Authorization = `Bearer ${key}`; return h; }
+// plain hints for the usual Supabase setup mistakes
+function hint(m, st) { m = String(m).toLowerCase();
+  if (/permission denied|42501/.test(m)) return ' → Supabase → SQL Editor me naya supabase_setup.sql dobara Run karein (permission wali lines naye version me hain).';
+  if (/could not find the (table|function)|does not exist|pgrst20[25]|relation/.test(m)) return ' → supabase_setup.sql abhi Run nahi hua (ya fail hua). SQL Editor me paste karke Run karein, "Success" aana chahiye.';
+  if (st === 401 || /invalid api key|jwt|unauthori[sz]ed|no api key/.test(m)) return ' → Key galat hai. Admin setup me Secret key (sb_secret_…) dobara copy-paste karein, aur Publishable key alag box me.';
+  if (st === 404) return ' → Server URL galat hai. Supabase → Integrations → Data API se Project URL (https://….supabase.co) copy karein.';
+  return ''; }
 async function req(url, opt = {}, timeout = 20000) {
   const ac = new AbortController(); const t = setTimeout(() => ac.abort(), timeout);
   try { const r = await fetch(url, { ...opt, signal: ac.signal }); const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch {}
-    if (!r.ok) { const e = new Error((j && (j.message || j.error || j.msg)) || txt.slice(0, 200) || `HTTP ${r.status}`); e.status = r.status; throw e; } return j; }
+    if (!r.ok) { const m = (j && (j.message || j.error || j.msg)) || txt.slice(0, 200) || `HTTP ${r.status}`; const e = new Error(`${m} (HTTP ${r.status})${hint(m, r.status)}`); e.status = r.status; throw e; } return j; }
   catch (e) { if (e.name === 'AbortError') { const x = new Error('The team server did not answer (internet?).'); x.offline = true; throw x; } if (e.status) throw e; const x = new Error('Cannot reach the team server (internet?): ' + e.message); x.offline = true; throw x; }
   finally { clearTimeout(t); }
 }
