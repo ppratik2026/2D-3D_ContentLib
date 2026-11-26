@@ -1,4 +1,4 @@
-# What Auto Video Studio can animate (v1.5)
+# What Auto Video Studio can animate (v1.6)
 
 The story AI uses these automatically. You can also write them yourself in a pasted story.
 
@@ -61,6 +61,44 @@ Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren)
 | helicopter | lands (drive_in), people get in / out, takes off (drive_away); rotor spins in flight |
 | Monkey / tiger | monkey jumps and chatters; tiger (stripes) roars and runs |
 | Snow | weather "snow" — snowfall with wind |
+
+## Flat 2D Explainer style (v1.6)
+
+Pick **Style → Flat 2D Explainer** for YouTube-explainer cartoons: big round heads, dot eyes that blink, a mouth that talks, stick arms and legs, and flat vector backgrounds.
+
+- **No character files needed.** The app draws everybody in code, and the clothes come from the role:
+
+| Role | Clothes |
+|---|---|
+| Police | khaki uniform, cap, badge and belt |
+| Judge | black robe, white bands and glasses |
+| Lawyer | black coat and bands |
+| Doctor | white coat |
+| Waiter | white shirt, vest and bow tie |
+| Thief | striped T-shirt, cap and eye mask |
+
+  Women get long hair and a bindi, and old people get grey hair.
+- **Hands really reach things.** The arms bend at the elbow, so a hand can hold a cup at the mouth, another person's hand, somebody's arm or a pocket.
+- **Backgrounds:** put the tag `flat` on your flat backgrounds and this style uses only them. Six come ready made:
+  - cafe outside (with a door);
+  - cafe inside (counter and a table with two chairs);
+  - market street;
+  - court;
+  - train coach, with see-through windows that show the moving view;
+  - railway platform.
+
+| New action | What you see |
+|---|---|
+| hold_hands | two people walk hand in hand (write it before the leader's enter / walk / exit); let_go ends it |
+| escort | police (or anybody) holds a person by the arm and takes them along |
+| pickpocket | the thief sneaks behind the victim; a close-up shows the hand taking the wallet |
+| beat | the crowd surrounds a person and punches, kicks and slaps them while the person cowers; hit sounds and angry shouting |
+| give with "item": "coffee" | the cup stays in the hand, with steam coming off it |
+| sip | the person lifts the cup to the mouth, closes their eyes while sipping, then lowers it |
+| put_down | the person puts the cup away |
+| door place + exit | the person walks into the door, seen from behind |
+
+In the over-the-shoulder shots of this style, the listener is drawn from behind (back of the head and shoulders).
 
 ## Cinematic camera (v1.5)
 

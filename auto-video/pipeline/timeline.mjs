@@ -3,16 +3,16 @@
 import { FPS } from './config.mjs';
 
 const DUR = { enter: 3.0, exit: 2.6, run_exit: 1.6, walk_to: 2.2, sit: 1.1, stand: 1.0,
-  go_to: 2.4, faint: 1.2, lie: 1.4, drive_in: 3.4, drive_away: 3.0, get_in: 2.6, get_out: 2.0, car_chase: 8, foot_chase: 6, catch: 2.4, handcuff: 2.8, baraat: 12, explosion: 2.4, game: 10, swim: 6, birthday: 10, garba: 12, rakhi: 9, climb: 3.4, climb_down: 2.6, hug: 2.8, fight: 4.0, push: 1.9, slap: 1.7, give: 2.6, sleep: 1.4 };
+  go_to: 2.4, faint: 1.2, lie: 1.4, drive_in: 3.4, drive_away: 3.0, get_in: 2.6, get_out: 2.0, car_chase: 8, foot_chase: 6, catch: 2.4, handcuff: 2.8, baraat: 12, explosion: 2.4, game: 10, swim: 6, birthday: 10, garba: 12, rakhi: 9, climb: 3.4, climb_down: 2.6, hug: 2.8, fight: 4.0, hold_hands: 0, let_go: 0, escort: 0.8, pickpocket: 3.8, beat: 6, push: 1.9, slap: 1.7, give: 2.6, sleep: 1.4 };
 const GESTURE = ['wave', 'nod', 'laugh', 'point', 'think', 'shock', 'drink', 'phone', 'look_around',
   'hands_up', 'salute', 'namaste', 'cry', 'examine', 'test_tube', 'torch', 'read', 'file', 'write', 'gavel', 'clap', 'angry',
-  'cook', 'chop', 'eat', 'serve', 'sweep', 'aarti', 'pray', 'dance', 'knock', 'shiver', 'type', 'umbrella', 'pichkari', 'sparkler', 'diya', 'gulal', 'salaam'];
-const LONG = { cook: 5, chop: 4, eat: 4, sweep: 4, aarti: 4, dance: 5, type: 4, pray: 3, umbrella: 8, pichkari: 5, sparkler: 6, diya: 5, gulal: 4 };
+  'cook', 'chop', 'eat', 'serve', 'sweep', 'aarti', 'pray', 'dance', 'knock', 'shiver', 'type', 'umbrella', 'pichkari', 'sparkler', 'diya', 'gulal', 'salaam', 'hold_cup', 'cower', 'sip', 'put_down'];
+const LONG = { sip: 3.4, drink: 3.4, hold_cup: 3, cower: 3, put_down: 1.2, cook: 5, chop: 4, eat: 4, sweep: 4, aarti: 4, dance: 5, type: 4, pray: 3, umbrella: 8, pichkari: 5, sparkler: 6, diya: 5, gulal: 4 };
 const VEH = ['car', 'taxi', 'police_jeep', 'ambulance', 'auto', 'van', 'bike', 'scooter', 'cycle', 'horse', 'boat', 'train', 'helicopter', 'plane'];
 const ANIMALS = ['dog', 'cow', 'horse', 'goat', 'cat', 'elephant', 'birds', 'monkey', 'tiger'];
 const ANIM_DUR = { enter: 3.2, exit: 3.0, run: 2.2, bark: 1.6, moo: 2.0, neigh: 1.8, graze: 4, sit: 1.2, follow: 3.0, fly: 6, bleat: 1.6, meow: 1.2, trumpet: 2.2, jump: 2.4, chatter: 1.6, roar: 2.2 };
 // the 3D sets have no vehicles / markers: map the new actions to the nearest simple one
-const SIMPLE = { go_to: 'walk_to', faint: 'sit', lie: 'sit', drive_in: 'enter', drive_away: null, get_in: 'exit', get_out: 'enter', car_chase: 'run_exit', foot_chase: 'run_exit', catch: 'walk_to', handcuff: null, baraat: null, explosion: null, game: null, swim: null, birthday: null, garba: null, rakhi: 'walk_to', climb: null, climb_down: null, hug: 'walk_to', fight: 'walk_to', push: 'walk_to', slap: 'walk_to', give: 'walk_to', sleep: 'sit' };
+const SIMPLE = { go_to: 'walk_to', faint: 'sit', lie: 'sit', drive_in: 'enter', drive_away: null, get_in: 'exit', get_out: 'enter', car_chase: 'run_exit', foot_chase: 'run_exit', catch: 'walk_to', handcuff: null, baraat: null, explosion: null, game: null, swim: null, birthday: null, garba: null, rakhi: 'walk_to', climb: null, climb_down: null, hug: 'walk_to', fight: 'walk_to', push: 'walk_to', slap: 'walk_to', give: 'walk_to', sleep: 'sit', hold_hands: null, let_go: null, escort: null, pickpocket: 'walk_to', beat: 'walk_to' };
 const TITLE = 3.2, END = 3.0;
 
 export function buildTimeline(story, opts) {
@@ -24,7 +24,9 @@ export function buildTimeline(story, opts) {
   let lineId = 0;
   story.scenes.forEach((sc, si) => {
     const start = t; const events = []; const present = [...sc.present];
-    const enterers = new Set(sc.beats.filter((b) => b.type === 'action' && b.action === 'enter').map((b) => b.char));
+    const enterers = new Set(); { const seen = new Set(); for (const b of sc.beats) { if (b.type === 'action' && ['hold_hands', 'escort', 'let_go', 'moving_view'].includes(b.action)) continue; const ids = [b.char, ...(Array.isArray(b.with) ? b.with : []), ...(Array.isArray(b.chasers) ? b.chasers : [])].filter(Boolean); for (const id of ids) { if (seen.has(id)) continue; seen.add(id); if (b.type === 'action' && b.action === 'enter' && b.char === id) enterers.add(id); } } } // only people whose FIRST beat is enter come in later
+    // people led by the hand (or by the arm) come in with the one who enters
+    for (const b of sc.beats) if (b.type === 'action' && (b.action === 'hold_hands' || b.action === 'escort') && enterers.has(b.char) && b.target) enterers.add(b.target);
     const present0 = present.filter((c) => c !== 'narrator'); present.length = 0; present.push(...present0);
     const initial = present.filter((c) => !enterers.has(c));
     const all = [...new Set([...present, ...enterers, ...sc.beats.flatMap((b) => [b.char === 'narrator' ? null : b.char, ...(Array.isArray(b.with) ? b.with : []), ...(Array.isArray(b.chasers) ? b.chasers : [])])])].filter(Boolean).slice(0, 8);
@@ -62,14 +64,14 @@ export function buildTimeline(story, opts) {
         let act = b.action;
         if (!stage && act in SIMPLE) { act = SIMPLE[act]; if (!act) continue; }
         const trainV = /^train/.test(b.vehicle || '') && (act === 'drive_in' || act === 'drive_away');
-        const d = ['car_chase', 'foot_chase', 'game', 'swim'].includes(act) ? Math.max(4, Math.min(30, Number(b.seconds) || DUR[act])) : trainV ? (act === 'drive_in' ? 6.5 : 7) : DUR[act];
+        const d = ['car_chase', 'foot_chase', 'game', 'swim', 'beat'].includes(act) ? Math.max(4, Math.min(30, Number(b.seconds) || DUR[act])) : trainV ? (act === 'drive_in' ? 6.5 : 7) : DUR[act];
         const e = { kind: act, char: b.char, target: act === 'walk_to' && !b.target ? null : b.target, rel: true, d };
         if (stage) {
           if (b.place) e.place = b.place; if (b.item) e.item = b.item;
           if (['drive_in', 'drive_away', 'get_in', 'get_out', 'car_chase'].includes(act)) e.vehicle = vkey(b.vehicle, b.color);
           if (act === 'car_chase') e.chaser = vkey(b.chaser_vehicle || 'police_jeep');
           if (act === 'drive_in' && Array.isArray(b.with)) e.with = b.with;
-          if (act === 'garba') e.with = Array.isArray(b.with) ? b.with : [];
+          if (act === 'garba' || act === 'beat') e.with = Array.isArray(b.with) ? b.with : [];
           if (act === 'game') { e.game = ['cricket', 'ball', 'skip', 'kite', 'tag', 'football', 'kabaddi'].includes(b.game) ? b.game : 'ball'; e.with = Array.isArray(b.with) ? b.with : []; }
           if (act === 'explosion') { e.x = { left: 0.25, center: 0.5, right: 0.75 }[b.where]; e.small = !!b.small; }
           if (act === 'baraat') { e.vehicle = vkey('horse', b.color); e.with = Array.isArray(b.with) ? b.with : []; crowdMax = Math.max(crowdMax, 10); }
@@ -106,6 +108,8 @@ function actionCues(e, t, sc, cues, shots) {
   if (e.kind === 'catch') { cues.push({ t, t1: t + e.d * 0.55, kind: 'run' }); cues.push({ t: t + e.d * 0.5, kind: 'grab' }); shots.push({ t0: t, t1: t + e.d * 0.5, type: 'wide' }); shots.push({ t0: t + e.d * 0.5, t1: T, type: 'two', char: e.char }); }
   if (e.kind === 'handcuff') { cues.push({ t: t + e.d * 0.5, kind: 'cuff' }); shots.push({ t0: t, t1: t + e.d * 0.3, type: 'two', char: e.char }); shots.push({ t0: t + e.d * 0.3, t1: t + e.d * 0.85, type: 'hands', char: e.target }); shots.push({ t0: t + e.d * 0.85, t1: T, type: 'two', char: e.char }); }
   if (e.kind === 'faint') cues.push({ t: t + 0.6, kind: 'fall' });
+  if (e.kind === 'pickpocket') { shots.push({ t0: t, t1: t + e.d * 0.4, type: 'wide' }, { t0: t + e.d * 0.4, t1: t + e.d * 0.78, type: 'hands', char: e.char }, { t0: t + e.d * 0.78, t1: T, type: 'cu', char: e.char }); cues.push({ t: t + e.d * 0.6, kind: 'swish' }); }
+  if (e.kind === 'escort') shots.push({ t0: t, t1: T, type: 'two', char: e.char });
   if (e.kind === 'fight') { for (let x = t + e.d * 0.4; x < T - 0.3; x += 0.34) cues.push({ t: x, kind: 'hit' }); shots.push({ t0: t, t1: T, type: 'two', char: e.char }); }
   if (e.kind === 'slap') cues.push({ t: t + e.d * 0.62, kind: 'slap' });
   if (e.kind === 'push') cues.push({ t: t + e.d * 0.55, kind: 'grab' });
@@ -172,7 +176,7 @@ export function finalize(tl) {
         actionCues(e, t, sc, cues, shots);
         if (e.kind === 'enter' || e.kind === 'exit' || e.kind === 'run_exit') cues.push({ t: e.kind === 'enter' ? t : t + e.d - 0.4, kind: 'door', location: sc.location });
         if (['enter', 'exit', 'run_exit', 'walk_to', 'sit', 'stand', 'go_to'].includes(e.kind)) cues.push({ t, t1: t + e.d, kind: e.kind === 'run_exit' ? 'run' : e.kind === 'sit' ? 'sit' : e.kind === 'stand' ? 'stand' : 'walk' });
-        if (!['car_chase', 'foot_chase', 'handcuff', 'catch', 'baraat', 'explosion', 'game', 'birthday', 'rakhi', 'garba'].includes(e.kind)) shots.push({ t0: t, t1: t + e.d, type: 'wide' }); t += e.d;
+        if (!['car_chase', 'foot_chase', 'handcuff', 'catch', 'baraat', 'explosion', 'game', 'birthday', 'rakhi', 'garba', 'pickpocket', 'beat', 'escort', 'hold_hands', 'let_go'].includes(e.kind)) shots.push({ t0: t, t1: t + e.d, type: 'wide' }); t += e.d;
       }
     }
     t = Math.max(t, ...Object.values(busy)); t += 0.9; sc.end = t; shots.push({ t0: t - 0.9, t1: t, type: 'wide' });
@@ -185,6 +189,10 @@ export function finalize(tl) {
       if (e.kind === 'swim') cues.push({ t: e.t0, t1: until, kind: 'swim' });
       else { if (e.game === 'cricket') for (let x = e.t0 + 3.2 * 0.6; x < until; x += 3.2) cues.push({ t: x, kind: 'bat' }); if (e.game === 'football') for (let x = e.t0 + 0.3; x < until; x += 2.4) cues.push({ t: x, kind: 'kick' }); cues.push({ t: e.t0, t1: until, kind: 'kids', game: e.game });
       } }
+    for (const e of sc.events) if (e.kind === 'beat') { const nx = sc.events.find((x) => x.t0 >= e.t1 - 0.01 && x !== e && !['gesture', 'animal', 'crowd', 'fire', 'fire_out', 'moving_view'].includes(x.kind)); const until = Math.max(e.t1, nx ? nx.t0 : sc.end - 0.4);
+      let k = 0; for (let x = e.t0 + 1.0; x < until - 0.2; x += 0.27 + ((k = (k * 7 + 3) % 11) % 4) * 0.06) cues.push({ t: x, kind: k % 3 ? 'hit' : 'slap' }); cues.push({ t: e.t0 + 0.8, t1: until, kind: 'cheer', angry: true });
+      for (let j = shots.length - 1; j >= 0; j--) if (shots[j].t0 >= e.t0 - 0.2 && shots[j].t0 < until) shots.splice(j, 1); // the beating owns the camera (lines spoken during it too)
+      const ws = [e.char, ...(e.with || [])]; let i = 0; for (let x = e.t0; x < until - 0.3; x += 1.6, i++) shots.push({ t0: x, t1: Math.min(until, x + 1.6), ...[{ type: 'wide' }, { type: 'two', char: ws[1] || e.char }, { type: 'cu', char: e.char }, { type: 'wide' }, { type: 'two', char: ws[2] || ws[1] || e.char }, { type: 'speaker', char: e.char }][i % 6] }); }
     for (const e of sc.events) if (e.kind === 'baraat') { const nx = sc.events.find((x) => x.t0 >= e.t1 - 0.01 && x !== e && !['gesture', 'animal', 'crowd'].includes(x.kind)); const until = Math.max(e.t1, nx ? nx.t0 : sc.end - 0.4); cues.push({ t: e.t0, t1: until + 0.5, kind: 'baraat' }); cues.push({ t: e.t0, t1: until, kind: 'hooves' }); }
     for (const e of sc.events) if (e.kind === 'car_chase' || e.kind === 'foot_chase') { const nx = sc.events.find((x) => x.t0 >= e.t1 - 0.01 && x !== e && x.kind !== 'gesture'); const until = Math.max(e.t1, nx ? nx.t0 : sc.end - 0.4);
       cues.push({ t: e.t0, t1: until, kind: e.kind === 'car_chase' ? 'chase_car' : 'chase_foot', police: e.kind === 'car_chase' && /police/.test(e.chaser || '') });

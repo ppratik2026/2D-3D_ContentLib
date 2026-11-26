@@ -22,6 +22,7 @@ export const CATEGORIES = {
 // `npm run bench` re-measures these on your PC and stores them in bench.json.
 export const STYLES = {
   cartoon2d: { label: '2D Cartoon Stage (painted backgrounds)', chars: 'any', world: 'stage', secPerFrame: 0.12 },
+  flat2d:    { label: 'Flat 2D Explainer (big heads, flat vector)', chars: 'any', world: 'stage', secPerFrame: 0.08 },
   toon:      { label: 'Toon 3D (fastest)',          chars: 'vrm', world: 'toon',      secPerFrame: 0.40 },
   anime:     { label: 'Anime 3D',                   chars: 'vrm', world: 'anime',     secPerFrame: 0.60 },
   realistic: { label: 'Realistic 3D',               chars: 'glb', world: 'realistic', secPerFrame: 0.53 },
@@ -71,11 +72,11 @@ export const LOCATIONS = {
 };
 
 // Actions the engine can animate. Gemini must use only these.
-export const ACTIONS = ['enter', 'exit', 'walk_to', 'sit', 'stand', 'wave', 'nod', 'laugh', 'point', 'think', 'shock', 'drink', 'phone', 'run_exit', 'look_around',
+export const ACTIONS = ['hold_hands', 'let_go', 'escort', 'pickpocket', 'beat', 'sip', 'hold_cup', 'cower', 'put_down', 'enter', 'exit', 'walk_to', 'sit', 'stand', 'wave', 'nod', 'laugh', 'point', 'think', 'shock', 'drink', 'phone', 'run_exit', 'look_around',
   'go_to', 'faint', 'lie', 'drive_in', 'drive_away', 'get_in', 'get_out', 'car_chase', 'foot_chase', 'catch', 'handcuff',
   'hands_up', 'salute', 'namaste', 'cry', 'examine', 'test_tube', 'torch', 'read', 'file', 'write', 'gavel', 'clap', 'angry',
   'cook', 'chop', 'eat', 'serve', 'sweep', 'aarti', 'pray', 'dance', 'knock', 'shiver', 'type', 'sleep', 'hug', 'fight', 'push', 'slap', 'give', 'animal', 'crowd', 'baraat', 'fire', 'fire_out', 'explosion', 'game', 'swim', 'climb', 'climb_down', 'umbrella', 'holi', 'diwali', 'cracker', 'fly_by', 'birthday', 'pichkari', 'sparkler', 'diya', 'gulal', 'garba', 'rakhi', 'eid', 'christmas', 'moving_view', 'salaam'];
 export const VEHICLES = ['car', 'taxi', 'police_jeep', 'ambulance', 'auto', 'van', 'bike', 'scooter', 'cycle', 'horse', 'boat', 'train', 'helicopter', 'plane'];
-export const MARKS = { seat: 'chair / sofa / charpai / bench to sit on', desk: 'sits behind a table (inspector, doctor, officer, teacher)', judge: "judge's high bench (court)", witness: 'witness box / kathghara (court)', counter: 'stands behind a counter / lab table / shop counter', bed: 'bed (patient lies down)', cell: 'jail cell behind bars', board: 'blackboard (teacher stands)', climb: 'top of a tree / wall / roof to climb to', window: 'window of a train / plane / bus (moving view outside)' };
+export const MARKS = { door: 'a door people walk in / out of (go_to door, then exit = goes inside)', seat: 'chair / sofa / charpai / bench to sit on', desk: 'sits behind a table (inspector, doctor, officer, teacher)', judge: "judge's high bench (court)", witness: 'witness box / kathghara (court)', counter: 'stands behind a counter / lab table / shop counter', bed: 'bed (patient lies down)', cell: 'jail cell behind bars', board: 'blackboard (teacher stands)', climb: 'top of a tree / wall / roof to climb to', window: 'window of a train / plane / bus (moving view outside)' };
 
 export const TIMES_OF_DAY = ['morning', 'day', 'evening', 'night'];

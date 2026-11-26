@@ -27,8 +27,8 @@ export const newJobId = (category) => new Date().toISOString().replace(/[:T]/g, 
 export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   loadEnv();
   const category = CATEGORIES[opts.category] ? opts.category : 'drama';
-  const style = STYLES[opts.style] ? opts.style : 'toon';
-  const look = opts.look && opts.look !== 'auto' && LOOKS[opts.look] ? opts.look : style === 'cartoon2d' ? (category === 'horror' ? 'horror' : 'vivid') : CATEGORIES[category].look; // cartoon channels are colourful
+  const style = STYLES[opts.style] ? opts.style : 'toon'; const isStage = style === 'cartoon2d' || style === 'flat2d';
+  const look = opts.look && opts.look !== 'auto' && LOOKS[opts.look] ? opts.look : isStage ? (category === 'horror' ? 'horror' : 'vivid') : CATEGORIES[category].look; // cartoon channels are colourful
   const subs = opts.subs && opts.subs !== 'auto' && SUBTITLE_STYLES[opts.subs] ? opts.subs : CATEGORIES[category].subs;
   const renderer = opts.renderer === 'remotion' || !opts.renderFn ? 'remotion' : 'chrome';
   const minutes = Math.max(0.5, Math.min(30, Number(opts.minutes) || 1));
@@ -46,17 +46,17 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   else {
     let chain = opts.chain;
     if (!chain) { const key = opts.key || process.env.GEMINI_API_KEY; chain = key ? [{ provider: 'gemini', key, model: opts.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite' }] : []; }
-    const bgList = style === 'cartoon2d' ? listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [];
-    if (opts.myStory) story = await adaptStory({ text: opts.myStory, category, minutes, chain, backgrounds: bgList, actors: actorsFor(style === 'cartoon2d' ? 'toon' : style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
-    else story = await writeStory({ category, minutes, idea: opts.idea || '', chain, chars: opts.chars || 'auto', backgrounds: style === 'cartoon2d' ? listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [],
+    const bgList = isStage ? listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [];
+    if (opts.myStory) story = await adaptStory({ text: opts.myStory, category, minutes, chain, backgrounds: bgList, actors: actorsFor(isStage ? 'toon' : style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
+    else story = await writeStory({ category, minutes, idea: opts.idea || '', chain, chars: opts.chars || 'auto', backgrounds: isStage ? listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [],
       actors: actorsFor(style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
   }
   check();
   story.category = category;
-  const actorStyle = style === 'cartoon2d' ? 'toon' : style;
+  const actorStyle = isStage ? 'toon' : style;
   const cast = assignActors(story.characters, actorStyle);
   let stageBgs = null;
-  if (style === 'cartoon2d') { const all = listBackgrounds(); if (!all.length) throw new Error('2D Cartoon Stage needs backgrounds. Add some in the Backgrounds tab.');
+  if (isStage) { const all0 = listBackgrounds(); const isFlat = (x) => (x.tags || []).includes('flat'); const all = style === 'flat2d' && all0.some(isFlat) ? all0.filter(isFlat) : all0.filter((x) => !isFlat(x)).length ? all0.filter((x) => !isFlat(x)) : all0; if (!all.length) throw new Error('2D Cartoon Stage needs backgrounds. Add some in the Backgrounds tab.');
     const used = new Map(); stageBgs = {};
     for (const sc of story.scenes) { const want = /^new\s*:/i.test(sc.background || '') ? sc.background.replace(/^new\s*:\s*/i, '') : ''; const b = all.find((x) => x.id === sc.background) || pickBackground(all, { place: sc.location, time: sc.time_of_day, weather: sc.weather, text: `${want} ${sc.summary}`, used });
       if (sc.weather === 'snow' && !/snow|hill|mountain|pahad|barf|himal/i.test([b.name, ...(b.tags || [])].join(' '))) (story.newBackgrounds ||= []).push('snowy mountain / hill scene with snow on the ground and roofs (for the snow scenes)');
@@ -71,7 +71,7 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
 
   // 2. voices
   const tl = buildTimeline(story, { style, look, subs, stage: !!stageBgs });
-  tl.categoryLabel = CATEGORIES[category].label; tl.cast = cast; if (stageBgs) { tl.mode = 'stage'; tl.backgrounds = stageBgs; }
+  tl.categoryLabel = CATEGORIES[category].label; tl.cast = cast; if (stageBgs) { tl.mode = 'stage'; tl.backgrounds = stageBgs; tl.flat = style === 'flat2d'; }
   const soft = opts.gl === 'swiftshader' || (renderer === 'remotion' && (process.env.REMOTION_GL || (process.platform === 'linux' && !process.env.DISPLAY ? 'swiftshader' : 'angle')) === 'swiftshader');
   tl.perf = { aa: !soft, simpleMat: style === 'toon', noLamps: style !== 'realistic' };
   // fixed voices: a library character can have its own voice (first story character played by it gets it)

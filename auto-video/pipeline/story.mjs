@@ -116,7 +116,7 @@ export function normalizeBeats(beats, chars, sc) {
       if (b.chaser_vehicle) a.chaser_vehicle = VEHICLES.includes(b.chaser_vehicle) ? b.chaser_vehicle : 'police_jeep';
       if (HEX.test(String(b.color || ''))) a.color = '#' + String(b.color).replace('#', '');
       if (b.place && MARKS[b.place]) a.place = b.place;
-      if (b.item) a.item = String(b.item).toLowerCase() === 'money' ? 'money' : 'give';
+      if (b.item) { const it = String(b.item).toLowerCase(); a.item = it === 'money' ? 'money' : /coffee|cup|tea|chai|glass|juice/.test(it) ? 'coffee' : it === 'laddu' ? 'laddu' : 'give'; }
       if (b.game) a.game = String(b.game); if (b.where) a.where = String(b.where); if (b.size) a.size = Number(b.size); if (b.small) a.small = true;
       if (Number(b.seconds)) a.seconds = Math.max(4, Math.min(20, Number(b.seconds)));
       for (const f of ['with', 'chasers']) if (Array.isArray(b[f])) a[f] = b[f].map((x) => matchId(x, chars)).filter((x) => x && x !== char);
@@ -163,6 +163,10 @@ function actionHelp(stage) { return `Between dialogue lines add actions (only th
 - Christmas: {"type":"action","action":"christmas"} (decorated tree with lights and gifts, Santa caps, jingle bells).
 - Travelling inside a train / plane / bus: background of the inside with a "window" place, then {"type":"action","action":"moving_view","vehicle":"train|plane|bus|car"} (the view outside moves, people rock gently, train / plane sound).
 - Under water: scene "weather":"underwater" (blue light, bubbles, fish, sea grass); use swim for people.
+- Two people walking hand in hand: {"type":"action","char":"leader id","action":"hold_hands","target":"partner id"} BEFORE the leader's enter / walk_to / go_to / exit (the partner walks along holding the hand); {"action":"let_go","char":"id"} ends it.
+- Police (or anybody) taking a person by the arm: {"action":"escort","char":"police id","target":"thief id"} then the police's walk_to / go_to / exit takes both.
+- Pickpocket / chori: {"action":"pickpocket","char":"thief id","target":"victim id"} (sneaks behind, close-up of the hand taking the wallet). A mob beating someone: {"action":"beat","char":"victim id","with":["attacker ids"],"seconds":5} (punches, kicks, slaps; the victim cowers). Gesture cower = protects the head.
+- Coffee / tea: {"action":"give","char":"waiter id","target":"id","item":"coffee"} (the cup stays in the hand, with steam), then {"action":"sip","char":"id"} = lifts the cup to the mouth, sips, lowers it; put_down = puts it away.
 - Wedding procession: {"type":"action","action":"baraat","char":"groom id","with":["dancing relatives"],"seconds":12} — the groom rides a decorated horse with a safa, dhol and shehnai play, the crowd dances.
 ${stage ? `- Places in the background (if the background has them): {"action":"go_to","char":"id","place":"${Object.keys(MARKS).join('|')}"}. People whose role fits (judge, inspector at desk, patient in bed, prisoner in cell, accused in witness box, teacher at board, scientist at lab counter) start there automatically.
 - "faint" = falls down (or a dead body lying), "lie" = lies down; "stand" gets up again.

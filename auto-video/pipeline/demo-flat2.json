@@ -1,0 +1,400 @@
+{
+ "title": "Chor Pakda Gaya",
+ "title_hindi": "चोर पकड़ा गया",
+ "logline": "Bazaar me ek jebkatra Sunita ji ka batua churata hai, Inspector Vikram use pakad ke court le jaate hain.",
+ "moral": "Galat kaam ka anjaam hamesha bura hota hai.",
+ "category": "crime",
+ "characters": [
+  {
+   "id": "sunita",
+   "name": "Sunita",
+   "gender": "female",
+   "age": "adult",
+   "role": "shopper",
+   "top_color": "#2f8f3a",
+   "bottom_color": "#f2c418",
+   "hair_color": "#1c1612",
+   "personality": "simple, brave"
+  },
+  {
+   "id": "kallu",
+   "name": "Kallu",
+   "gender": "male",
+   "age": "young",
+   "role": "thief pickpocket",
+   "top_color": "#2b2b30",
+   "bottom_color": "#5a3a2a",
+   "hair_color": "#1c1612",
+   "personality": "sly"
+  },
+  {
+   "id": "vikram",
+   "name": "Inspector Vikram",
+   "gender": "male",
+   "age": "adult",
+   "role": "police inspector",
+   "top_color": "#b59a63",
+   "bottom_color": "#8c7548",
+   "hair_color": "#1c1612",
+   "personality": "brave, sharp"
+  },
+  {
+   "id": "pandey",
+   "name": "Havaldar Pandey",
+   "gender": "male",
+   "age": "adult",
+   "role": "police constable",
+   "top_color": "#b59a63",
+   "bottom_color": "#8c7548",
+   "hair_color": "#1c1612",
+   "personality": "loyal"
+  },
+  {
+   "id": "judge",
+   "name": "Judge Saheb",
+   "gender": "male",
+   "age": "old",
+   "role": "judge",
+   "top_color": "#151518",
+   "bottom_color": "#151518",
+   "hair_color": "#cccccc",
+   "personality": "calm, strict"
+  },
+  {
+   "id": "mehra",
+   "name": "Advocate Mehra",
+   "gender": "female",
+   "age": "adult",
+   "role": "lawyer (sarkari vakil)",
+   "top_color": "#151518",
+   "bottom_color": "#f2f0ea",
+   "hair_color": "#1c1612",
+   "personality": "sharp"
+  },
+  {
+   "id": "gupta",
+   "name": "Advocate Gupta",
+   "gender": "male",
+   "age": "adult",
+   "role": "lawyer (defence)",
+   "top_color": "#151518",
+   "bottom_color": "#f2f0ea",
+   "hair_color": "#1c1612",
+   "personality": "smooth talker"
+  }
+ ],
+ "scenes": [
+  {
+   "background": "bg_flat_market",
+   "time_of_day": "day",
+   "present": [
+    "sunita",
+    "kallu",
+    "vikram"
+   ],
+   "summary": "Pickpocket in the market, chase and catch.",
+   "seconds": 40,
+   "beats": [
+    {
+     "type": "line",
+     "char": "sunita",
+     "emotion": "neutral",
+     "hindi": "आज तो सब्ज़ी कितनी महँगी है...",
+     "hinglish": "Aaj toh sabzi kitni mehngi hai...",
+     "english": "Vegetables are so expensive today..."
+    },
+    {
+     "type": "action",
+     "char": "sunita",
+     "action": "look_around"
+    },
+    {
+     "type": "action",
+     "char": "kallu",
+     "action": "enter"
+    },
+    {
+     "type": "line",
+     "char": "kallu",
+     "emotion": "happy",
+     "hindi": "इस आंटी का बटुआ... आज तो मज़ा आ जाएगा।",
+     "hinglish": "Is aunty ka batua... aaj toh maza aa jayega.",
+     "english": "This aunty's wallet... today will be fun."
+    },
+    {
+     "type": "action",
+     "char": "kallu",
+     "action": "pickpocket",
+     "target": "sunita"
+    },
+    {
+     "type": "action",
+     "char": "sunita",
+     "action": "shock"
+    },
+    {
+     "type": "line",
+     "char": "sunita",
+     "emotion": "scared",
+     "hindi": "अरे! मेरा बटुआ! चोर! चोर!",
+     "hinglish": "Arre! Mera batua! Chor! Chor!",
+     "english": "Hey! My wallet! Thief! Thief!"
+    },
+    {
+     "type": "action",
+     "char": "vikram",
+     "action": "enter"
+    },
+    {
+     "type": "line",
+     "char": "vikram",
+     "emotion": "angry",
+     "hindi": "रुक जा! पांडे, पकड़ो उसे!",
+     "hinglish": "Ruk ja! Pandey, pakdo use!",
+     "english": "Stop! Pandey, catch him!"
+    },
+    {
+     "type": "action",
+     "char": "kallu",
+     "action": "foot_chase",
+     "chasers": [
+      "vikram",
+      "pandey"
+     ],
+     "seconds": 6
+    },
+    {
+     "type": "line",
+     "char": "kallu",
+     "emotion": "happy",
+     "hindi": "पकड़ के दिखाओ, साहब!",
+     "hinglish": "Pakad ke dikhao, saahab!",
+     "english": "Catch me if you can, sir!"
+    },
+    {
+     "type": "action",
+     "char": "vikram",
+     "action": "catch",
+     "target": "kallu"
+    },
+    {
+     "type": "action",
+     "char": "pandey",
+     "action": "handcuff",
+     "target": "kallu"
+    },
+    {
+     "type": "line",
+     "char": "vikram",
+     "emotion": "angry",
+     "hindi": "बहुत भाग लिया। चल, बटुआ वापस कर!",
+     "hinglish": "Bahut bhaag liya. Chal, batua wapas kar!",
+     "english": "Enough running. Give the wallet back!"
+    },
+    {
+     "type": "action",
+     "char": "sunita",
+     "action": "enter"
+    },
+    {
+     "type": "action",
+     "char": "vikram",
+     "action": "give",
+     "target": "sunita",
+     "item": "money"
+    },
+    {
+     "type": "line",
+     "char": "sunita",
+     "emotion": "happy",
+     "hindi": "शुक्रिया इंस्पेक्टर साहब!",
+     "hinglish": "Shukriya Inspector saahab!",
+     "english": "Thank you, Inspector!"
+    },
+    {
+     "type": "action",
+     "char": "sunita",
+     "action": "namaste"
+    },
+    {
+     "type": "action",
+     "char": "pandey",
+     "action": "escort",
+     "target": "kallu"
+    },
+    {
+     "type": "action",
+     "char": "pandey",
+     "action": "exit"
+    }
+   ]
+  },
+  {
+   "background": "bg_flat_court",
+   "time_of_day": "day",
+   "present": [
+    "judge",
+    "mehra",
+    "gupta",
+    "sunita",
+    "vikram",
+    "pandey",
+    "kallu"
+   ],
+   "summary": "Court hearing with question and answer.",
+   "seconds": 60,
+   "beats": [
+    {
+     "type": "card",
+     "text": "Agle din — Adalat"
+    },
+    {
+     "type": "action",
+     "char": "judge",
+     "action": "gavel"
+    },
+    {
+     "type": "line",
+     "char": "judge",
+     "emotion": "neutral",
+     "hindi": "अदालत की कार्यवाही शुरू की जाए।",
+     "hinglish": "Adaalat ki kaaryavahi shuru ki jaaye.",
+     "english": "Let the court proceedings begin."
+    },
+    {
+     "type": "action",
+     "char": "pandey",
+     "action": "escort",
+     "target": "kallu"
+    },
+    {
+     "type": "action",
+     "char": "pandey",
+     "action": "enter"
+    },
+    {
+     "type": "action",
+     "char": "kallu",
+     "action": "go_to",
+     "place": "witness"
+    },
+    {
+     "type": "line",
+     "char": "mehra",
+     "emotion": "neutral",
+     "hindi": "जज साहब, कल इस आदमी ने बाज़ार में सुनिता जी का बटुआ चुराया।",
+     "hinglish": "Judge saahab, kal is aadmi ne bazaar me Sunita ji ka batua churaya.",
+     "english": "Your honour, yesterday this man stole Sunita ji's wallet in the market."
+    },
+    {
+     "type": "line",
+     "char": "judge",
+     "emotion": "neutral",
+     "hindi": "मुलज़िम, क्या तुमने चोरी की?",
+     "hinglish": "Mulzim, kya tumne chori ki?",
+     "english": "Accused, did you steal?"
+    },
+    {
+     "type": "line",
+     "char": "kallu",
+     "emotion": "sad",
+     "hindi": "नहीं हुज़ूर! मैं तो बेकसूर हूँ!",
+     "hinglish": "Nahi huzoor! Main toh bekasoor hoon!",
+     "english": "No, sir! I am innocent!"
+    },
+    {
+     "type": "line",
+     "char": "gupta",
+     "emotion": "neutral",
+     "hindi": "जज साहब, मेरे मुवक्किल के ख़िलाफ़ कोई सबूत नहीं है।",
+     "hinglish": "Judge saahab, mere muvakkil ke khilaaf koi saboot nahi hai.",
+     "english": "Your honour, there is no evidence against my client."
+    },
+    {
+     "type": "action",
+     "char": "mehra",
+     "action": "point"
+    },
+    {
+     "type": "line",
+     "char": "mehra",
+     "emotion": "angry",
+     "hindi": "सबूत है! इंस्पेक्टर विक्रम ने इसे रंगे हाथ पकड़ा था।",
+     "hinglish": "Saboot hai! Inspector Vikram ne ise range haath pakda tha.",
+     "english": "There is proof! Inspector Vikram caught him red-handed."
+    },
+    {
+     "type": "action",
+     "char": "vikram",
+     "action": "salute"
+    },
+    {
+     "type": "line",
+     "char": "vikram",
+     "emotion": "neutral",
+     "hindi": "जी हुज़ूर, बटुआ इसकी जेब से मिला।",
+     "hinglish": "Ji huzoor, batua iski jeb se mila.",
+     "english": "Yes sir, the wallet was found in his pocket."
+    },
+    {
+     "type": "line",
+     "char": "sunita",
+     "emotion": "angry",
+     "hindi": "हाँ जज साहब, यही था वो चोर!",
+     "hinglish": "Haan judge saahab, yahi tha woh chor!",
+     "english": "Yes your honour, he is the thief!"
+    },
+    {
+     "type": "action",
+     "char": "judge",
+     "action": "think"
+    },
+    {
+     "type": "line",
+     "char": "judge",
+     "emotion": "neutral",
+     "hindi": "सारे सबूत और गवाह मुलज़िम के ख़िलाफ़ हैं।",
+     "hinglish": "Saare saboot aur gawaah mulzim ke khilaaf hain.",
+     "english": "All the evidence and witnesses are against the accused."
+    },
+    {
+     "type": "action",
+     "char": "kallu",
+     "action": "cry"
+    },
+    {
+     "type": "line",
+     "char": "kallu",
+     "emotion": "sad",
+     "hindi": "माफ़ कर दो हुज़ूर, गलती हो गई!",
+     "hinglish": "Maaf kar do huzoor, galti ho gayi!",
+     "english": "Forgive me sir, I made a mistake!"
+    },
+    {
+     "type": "action",
+     "char": "judge",
+     "action": "gavel"
+    },
+    {
+     "type": "line",
+     "char": "judge",
+     "emotion": "angry",
+     "hindi": "अदालत कल्लू को छह महीने की सज़ा सुनाती है!",
+     "hinglish": "Adaalat Kallu ko chhe mahine ki saza sunaati hai!",
+     "english": "The court sentences Kallu to six months in jail!"
+    },
+    {
+     "type": "action",
+     "char": "pandey",
+     "action": "escort",
+     "target": "kallu"
+    },
+    {
+     "type": "action",
+     "char": "pandey",
+     "action": "exit"
+    }
+   ]
+  }
+ ]
+}

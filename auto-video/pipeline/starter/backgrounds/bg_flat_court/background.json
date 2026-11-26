@@ -1,0 +1,32 @@
+{
+  "id": "bg_flat_court",
+  "file": "backgrounds/bg_flat_court/image.jpg",
+  "name": "Flat: court room",
+  "place": "court",
+  "time": "day",
+  "indoor": true,
+  "tags": [
+    "flat",
+    "court",
+    "judge"
+  ],
+  "groundNear": 0.96,
+  "groundFar": 0.8,
+  "heightNear": 0.6,
+  "seats": [
+    {
+      "type": "judge",
+      "x": 0.5,
+      "y": 0.62,
+      "cover": 0.44,
+      "w": 0.46
+    },
+    {
+      "type": "witness",
+      "x": 0.82,
+      "y": 0.84,
+      "cover": 0.555,
+      "w": 0.15
+    }
+  ]
+}

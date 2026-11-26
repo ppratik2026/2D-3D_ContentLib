@@ -1,0 +1,44 @@
+{
+  "id": "bg_flat_train_in",
+  "file": "backgrounds/bg_flat_train_in/image.png",
+  "name": "Flat: train coach inside",
+  "place": "railway",
+  "time": "day",
+  "indoor": true,
+  "tags": [
+    "flat",
+    "train",
+    "coach",
+    "window",
+    "inside train"
+  ],
+  "groundNear": 0.96,
+  "groundFar": 0.82,
+  "heightNear": 0.6,
+  "windowHoles": true,
+  "windowView": "train",
+  "seats": [
+    {
+      "type": "window",
+      "x": 0.45,
+      "y": 0.47,
+      "cover": 0.2,
+      "w": 0.82
+    },
+    {
+      "type": "seat",
+      "x": 0.12,
+      "y": 0.84
+    },
+    {
+      "type": "seat",
+      "x": 0.33,
+      "y": 0.84
+    },
+    {
+      "type": "seat",
+      "x": 0.54,
+      "y": 0.84
+    }
+  ]
+}

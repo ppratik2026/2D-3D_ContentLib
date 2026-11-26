@@ -232,6 +232,8 @@ export function mixAll(tl, mood, outFile) {
     if (c.kind === 'hooves') add(mix, hooves(c.t1 - c.t, c.run), c.t, 0.3); if (c.kind === 'bell') add(mix, cycleBell(), c.t + 0.2, 0.6); if (c.kind === 'engine_small') add(mix, smallEngine(c.t1 - c.t), c.t, 0.3);
     if (c.kind === 'baraat') { const d = c.t1 - c.t; add(mix, dhol(d), c.t, 0.55); add(mix, shehnai(d), c.t, 0.5); add(mix, cheer(d), c.t, 0.12); }
     if (c.kind === 'slap') add(mix, slapSnd(), c.t, 0.8);
+    if (c.kind === 'swish') { const o = new Float32Array(Math.floor(0.35 * SR)); let f = 0; for (let i = 0; i < o.length; i++) { f += 0.3 * (noise() - f); o[i] = f * Math.sin(Math.PI * i / o.length) ** 2; } add(mix, o, c.t, 0.5); }
+    if (c.kind === 'cheer' && c.angry) add(mix, cheer(c.t1 - c.t), c.t, 0.22);
     if (c.kind === 'snore') add(mix, snore(c.t1 - c.t), c.t, 0.35);
     if (c.kind === 'sit' || c.kind === 'stand') { const s = new Float32Array(Math.floor(0.3 * SR)); for (let i = 0; i < s.length; i++) s[i] = noise() * Math.sin(Math.PI * i / s.length); add(mix, lowpass(s, 0.1), c.t + 0.3, 0.25); }
   }

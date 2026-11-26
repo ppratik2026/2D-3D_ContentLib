@@ -16,6 +16,11 @@ export const PLACES = {
   highway: 'highway / long road (chases)', lane: 'narrow lane / galli (foot chases)', bus_stand: 'bus stand', college: 'college / hostel', other: 'other',
 };
 const meta = (id) => path.join(BG_DIR, id, 'background.json');
+// starter backgrounds shipped with the app (flat explainer set): copied once; deleting one later keeps it deleted
+{ const src = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'starter', 'backgrounds'); const done = path.join(BG_DIR, '.starter.json');
+  try { const seen = fs.existsSync(done) ? JSON.parse(fs.readFileSync(done, 'utf8')) : []; let changed = false;
+    for (const id of fs.existsSync(src) ? fs.readdirSync(src) : []) { if (seen.includes(id)) continue; if (!fs.existsSync(path.join(BG_DIR, id))) fs.cpSync(path.join(src, id), path.join(BG_DIR, id), { recursive: true }); seen.push(id); changed = true; }
+    if (changed) fs.writeFileSync(done, JSON.stringify(seen)); } catch (e) { console.warn('starter backgrounds:', e.message); } }
 export function listBackgrounds() {
   const out = [];
   for (const id of fs.readdirSync(BG_DIR)) { try { out.push(JSON.parse(fs.readFileSync(meta(id), 'utf8'))); } catch {} }

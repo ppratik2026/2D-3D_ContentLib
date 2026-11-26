@@ -1,0 +1,19 @@
+{
+  "id": "bg_flat_platform",
+  "file": "backgrounds/bg_flat_platform/image.jpg",
+  "name": "Flat: railway platform",
+  "place": "railway",
+  "time": "day",
+  "indoor": false,
+  "tags": [
+    "flat",
+    "railway",
+    "station",
+    "platform",
+    "train"
+  ],
+  "groundNear": 0.95,
+  "groundFar": 0.76,
+  "heightNear": 0.6,
+  "seats": []
+}

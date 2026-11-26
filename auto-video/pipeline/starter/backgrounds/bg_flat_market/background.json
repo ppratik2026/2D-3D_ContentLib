@@ -1,0 +1,19 @@
+{
+  "id": "bg_flat_market",
+  "file": "backgrounds/bg_flat_market/image.jpg",
+  "name": "Flat: market street",
+  "place": "market",
+  "time": "day",
+  "indoor": false,
+  "tags": [
+    "flat",
+    "market",
+    "bazaar",
+    "street",
+    "road"
+  ],
+  "groundNear": 0.95,
+  "groundFar": 0.79,
+  "heightNear": 0.6,
+  "seats": []
+}

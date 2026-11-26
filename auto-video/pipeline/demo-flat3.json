@@ -1,0 +1,350 @@
+{
+ "title": "Train Mein Chor",
+ "title_hindi": "ट्रेन में चोर",
+ "logline": "Chalti train me ek chor Ramesh ji ka batua churata hai, yaatri use pakad ke agle station pe police ko saup dete hain.",
+ "moral": "Sab milke khade hon to chor nahi bach sakta.",
+ "category": "crime",
+ "characters": [
+  {
+   "id": "ramesh",
+   "name": "Ramesh",
+   "gender": "male",
+   "age": "adult",
+   "role": "passenger",
+   "top_color": "#c0583f",
+   "bottom_color": "#2b2b30",
+   "hair_color": "#1c1612",
+   "personality": "simple"
+  },
+  {
+   "id": "meena",
+   "name": "Meena",
+   "gender": "female",
+   "age": "adult",
+   "role": "passenger",
+   "top_color": "#7a4fb3",
+   "bottom_color": "#f2c418",
+   "hair_color": "#1c1612",
+   "personality": "bold"
+  },
+  {
+   "id": "gurpreet",
+   "name": "Gurpreet",
+   "gender": "male",
+   "age": "adult",
+   "role": "passenger",
+   "top_color": "#2f8f8f",
+   "bottom_color": "#2b2b30",
+   "hair_color": "#1c1612",
+   "personality": "strong, loud"
+  },
+  {
+   "id": "bunty",
+   "name": "Bunty",
+   "gender": "male",
+   "age": "young",
+   "role": "thief",
+   "top_color": "#2b2b30",
+   "bottom_color": "#5a3a2a",
+   "hair_color": "#1c1612",
+   "personality": "sly"
+  },
+  {
+   "id": "singh",
+   "name": "Inspector Singh",
+   "gender": "male",
+   "age": "adult",
+   "role": "railway police inspector",
+   "top_color": "#b59a63",
+   "bottom_color": "#8c7548",
+   "hair_color": "#1c1612",
+   "personality": "strict"
+  },
+  {
+   "id": "yadav",
+   "name": "Constable Yadav",
+   "gender": "male",
+   "age": "young",
+   "role": "police constable",
+   "top_color": "#b59a63",
+   "bottom_color": "#8c7548",
+   "hair_color": "#1c1612",
+   "personality": "quick"
+  }
+ ],
+ "scenes": [
+  {
+   "background": "bg_flat_train_in",
+   "time_of_day": "day",
+   "present": [
+    "ramesh",
+    "meena",
+    "gurpreet",
+    "bunty"
+   ],
+   "summary": "A thief steals inside the moving train, the passengers beat him.",
+   "seconds": 45,
+   "beats": [
+    {
+     "type": "action",
+     "action": "moving_view",
+     "vehicle": "train"
+    },
+    {
+     "type": "action",
+     "char": "ramesh",
+     "action": "sit"
+    },
+    {
+     "type": "action",
+     "char": "meena",
+     "action": "sit"
+    },
+    {
+     "type": "action",
+     "char": "gurpreet",
+     "action": "sit"
+    },
+    {
+     "type": "action",
+     "char": "ramesh",
+     "action": "read"
+    },
+    {
+     "type": "line",
+     "char": "meena",
+     "emotion": "happy",
+     "hindi": "अगला स्टेशन आने में अभी आधा घंटा है।",
+     "hinglish": "Agla station aane me abhi aadha ghanta hai.",
+     "english": "The next station is still half an hour away."
+    },
+    {
+     "type": "action",
+     "char": "bunty",
+     "action": "enter"
+    },
+    {
+     "type": "action",
+     "char": "bunty",
+     "action": "look_around"
+    },
+    {
+     "type": "line",
+     "char": "bunty",
+     "emotion": "happy",
+     "hindi": "सब अपने में मस्त हैं... अब मेरा काम शुरू।",
+     "hinglish": "Sab apne me mast hain... ab mera kaam shuru.",
+     "english": "Everyone is busy... now my work begins."
+    },
+    {
+     "type": "action",
+     "char": "bunty",
+     "action": "pickpocket",
+     "target": "ramesh"
+    },
+    {
+     "type": "action",
+     "char": "ramesh",
+     "action": "shock"
+    },
+    {
+     "type": "line",
+     "char": "ramesh",
+     "emotion": "scared",
+     "hindi": "अरे! मेरा बटुआ! इसने चुरा लिया!",
+     "hinglish": "Arre! Mera batua! Isne chura liya!",
+     "english": "Hey! My wallet! He stole it!"
+    },
+    {
+     "type": "action",
+     "char": "gurpreet",
+     "action": "stand"
+    },
+    {
+     "type": "action",
+     "char": "gurpreet",
+     "action": "catch",
+     "target": "bunty"
+    },
+    {
+     "type": "line",
+     "char": "gurpreet",
+     "emotion": "angry",
+     "hindi": "रुक जा चोर! चलती ट्रेन में कहाँ भागेगा?",
+     "hinglish": "Ruk ja chor! Chalti train me kahan bhaagega?",
+     "english": "Stop, thief! Where will you run in a moving train?"
+    },
+    {
+     "type": "action",
+     "char": "ramesh",
+     "action": "stand"
+    },
+    {
+     "type": "action",
+     "char": "meena",
+     "action": "stand"
+    },
+    {
+     "type": "action",
+     "char": "bunty",
+     "action": "beat",
+     "with": [
+      "gurpreet",
+      "ramesh",
+      "meena"
+     ],
+     "seconds": 4
+    },
+    {
+     "type": "line",
+     "char": "meena",
+     "emotion": "angry",
+     "hindi": "मारो इस चोर को! शर्म नहीं आती?",
+     "hinglish": "Maaro is chor ko! Sharm nahi aati?",
+     "english": "Beat this thief! Aren't you ashamed?"
+    },
+    {
+     "type": "line",
+     "char": "bunty",
+     "emotion": "scared",
+     "hindi": "माफ़ करो! माफ़ करो! बटुआ ले लो!",
+     "hinglish": "Maaf karo! Maaf karo! Batua le lo!",
+     "english": "Forgive me! Forgive me! Take the wallet!"
+    },
+    {
+     "type": "line",
+     "char": "gurpreet",
+     "emotion": "angry",
+     "hindi": "अगले स्टेशन पर तुझे पुलिस के हवाले करेंगे!",
+     "hinglish": "Agle station par tujhe police ke hawaale karenge!",
+     "english": "At the next station we will hand you to the police!"
+    }
+   ]
+  },
+  {
+   "background": "bg_flat_platform",
+   "time_of_day": "day",
+   "present": [
+    "singh",
+    "yadav",
+    "gurpreet",
+    "bunty",
+    "ramesh"
+   ],
+   "summary": "On the platform, the passengers hand the thief to the police.",
+   "seconds": 35,
+   "beats": [
+    {
+     "type": "card",
+     "text": "Agla station"
+    },
+    {
+     "type": "action",
+     "char": "gurpreet",
+     "action": "escort",
+     "target": "bunty"
+    },
+    {
+     "type": "action",
+     "char": "gurpreet",
+     "action": "enter"
+    },
+    {
+     "type": "action",
+     "char": "ramesh",
+     "action": "enter"
+    },
+    {
+     "type": "line",
+     "char": "ramesh",
+     "emotion": "angry",
+     "hindi": "साहब! इसने ट्रेन में मेरा बटुआ चुराया।",
+     "hinglish": "Saahab! Isne train me mera batua churaya.",
+     "english": "Sir! He stole my wallet on the train."
+    },
+    {
+     "type": "line",
+     "char": "gurpreet",
+     "emotion": "neutral",
+     "hindi": "हम सबने मिलके इसे पकड़ा है।",
+     "hinglish": "Hum sabne milke ise pakda hai.",
+     "english": "All of us caught him together."
+    },
+    {
+     "type": "line",
+     "char": "singh",
+     "emotion": "happy",
+     "hindi": "शाबाश! आप लोगों ने बहुत अच्छा काम किया।",
+     "hinglish": "Shaabaash! Aap logon ne bahut accha kaam kiya.",
+     "english": "Well done! You all did a great job."
+    },
+    {
+     "type": "action",
+     "char": "yadav",
+     "action": "handcuff",
+     "target": "bunty"
+    },
+    {
+     "type": "action",
+     "char": "singh",
+     "action": "give",
+     "target": "ramesh",
+     "item": "money"
+    },
+    {
+     "type": "line",
+     "char": "singh",
+     "emotion": "neutral",
+     "hindi": "ये लीजिए आपका बटुआ।",
+     "hinglish": "Ye lijiye aapka batua.",
+     "english": "Here is your wallet."
+    },
+    {
+     "type": "action",
+     "char": "ramesh",
+     "action": "namaste"
+    },
+    {
+     "type": "line",
+     "char": "ramesh",
+     "emotion": "happy",
+     "hindi": "बहुत-बहुत धन्यवाद, साहब!",
+     "hinglish": "Bahut-bahut dhanyavaad, saahab!",
+     "english": "Thank you very much, sir!"
+    },
+    {
+     "type": "action",
+     "char": "yadav",
+     "action": "escort",
+     "target": "bunty"
+    },
+    {
+     "type": "line",
+     "char": "bunty",
+     "emotion": "sad",
+     "hindi": "अब कभी चोरी नहीं करूँगा...",
+     "hinglish": "Ab kabhi chori nahi karunga...",
+     "english": "I will never steal again..."
+    },
+    {
+     "type": "line",
+     "char": "singh",
+     "emotion": "angry",
+     "hindi": "ये बात जेल में सोचना। ले चलो!",
+     "hinglish": "Ye baat jail me sochna. Le chalo!",
+     "english": "Think about that in jail. Take him away!"
+    },
+    {
+     "type": "action",
+     "char": "yadav",
+     "action": "exit"
+    },
+    {
+     "type": "action",
+     "char": "singh",
+     "action": "exit"
+    }
+   ]
+  }
+ ]
+}

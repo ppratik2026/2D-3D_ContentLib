@@ -1,0 +1,24 @@
+{
+  "id": "bg_flat_cafe_out",
+  "file": "backgrounds/bg_flat_cafe_out/image.jpg",
+  "name": "Flat: cafe outside",
+  "place": "cafe",
+  "time": "day",
+  "indoor": false,
+  "tags": [
+    "flat",
+    "cafe",
+    "coffee",
+    "street"
+  ],
+  "groundNear": 0.95,
+  "groundFar": 0.8,
+  "heightNear": 0.6,
+  "seats": [
+    {
+      "type": "door",
+      "x": 0.82,
+      "y": 0.8
+    }
+  ]
+}
