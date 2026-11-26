@@ -84,8 +84,9 @@ async function licCheck() {
 setInterval(() => { licCheck().catch(() => {}); }, 10 * 60 * 1000);
 async function teamSync(e) {
   const s = readSettings(); const srv = teamSrv(); if (!srv) throw new Error('No team server set.');
-  const r = await team.syncPack({ srv, licenseKey: dec(s.lic), PUBLIC, STATE, onProgress: (i, n, label) => (e ? e.sender.send('team:progress', { i, n, label }) : null) });
-  sendAll('team', teamView()); return r;
+  sendAll('busy', { title: 'Updating team data (backgrounds, characters)…', i: 0, n: 0, label: 'Connecting…' });
+  try { const r = await team.syncPack({ srv, licenseKey: dec(s.lic), PUBLIC, STATE, onProgress: (i, n, label) => { if (e) e.sender.send('team:progress', { i, n, label }); sendAll('busy', { title: 'Updating team data (backgrounds, characters)…', i, n, label }); } });
+  sendAll('team', teamView()); return r; } finally { sendAll('busy', { done: true }); }
 }
 const admKey = () => { const k = dec(readSettings().team?.adm); if (!k) throw new Error('Admin key not set (Settings → Team → Admin).'); return k; };
 const ADM_KEYS = path.join(STATE, 'admin-keys.json'); // full keys the admin created on this PC (encrypted), so they can be copied again
@@ -291,7 +292,7 @@ const H = {
   'update:install': () => { setImmediate(() => autoUpdater.quitAndInstall(false, true)); return true; },
   'queue:retryNow': (id) => { const j = queue.find((x) => x.id === id); if (j && j.status === 'queued') { j.retryAt = null; j.msg = 'Queued'; } autoRun = true; clearTimeout(wakeTimer); pump(); broadcast(true); return queueView(); },
 };
-const OPEN = new Set(['options', 'settings:get', 'update:get', 'update:check', 'update:download', 'update:install', 'setup:status']);
+const OPEN = new Set(['options', 'settings:get', 'update:get', 'update:check', 'update:download', 'update:install', 'setup:status', 'setup:run']);
 for (const [ch, fn] of Object.entries(H)) ipcMain.handle(ch, (e, arg) => { if (!LIC.ok && !ch.startsWith('team:') && !OPEN.has(ch)) throw new Error('Sign in with your licence key first.'); return fn(arg, e); });
 
 function createWindow() {

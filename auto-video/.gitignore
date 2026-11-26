@@ -10,3 +10,4 @@ spike/
 app/build/
 dist/
 dist-stage/
+seed/

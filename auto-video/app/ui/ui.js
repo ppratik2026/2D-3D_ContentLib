@@ -138,8 +138,8 @@ dz.ondrop = async (e) => { e.preventDefault(); dz.classList.remove('drop'); cons
 
 // ---------- backgrounds ----------
 let BG = { list: [], places: {} }, bsel = null, seatMode = false, pend = null, msel = -1;
-const MK = { seat: ['Seat', '#ff6b6b'], desk: ['Behind desk (sits)', '#ffb547'], judge: ['Judge bench', '#c792ea'], witness: ['Witness box', '#6ab0ff'], counter: ['Behind counter (stands)', '#4cd486'], bed: ['Bed (lies down)', '#ff9ad5'], cell: ['Jail cell (bars)', '#a0a8b8'], board: ['Blackboard spot', '#ffe66b'], climb: ['Climb to (tree / wall top)', '#9be15d'], window: ['Window (moving view)', '#8fd3ff'] };
-const COVER = new Set(['desk', 'judge', 'witness', 'counter', 'cell', 'window']); WDEF.window = 0.3; const WDEF = { judge: 0.26, desk: 0.22, bed: 0.3, witness: 0.12, counter: 0.22, cell: 0.24 };
+const MK = { seat: ['Seat', '#ff6b6b'], desk: ['Behind desk (sits)', '#ffb547'], judge: ['Judge bench', '#c792ea'], witness: ['Witness box', '#6ab0ff'], counter: ['Behind counter (stands)', '#4cd486'], bed: ['Bed (lies down)', '#ff9ad5'], cell: ['Jail cell (bars)', '#a0a8b8'], board: ['Blackboard spot', '#ffe66b'], climb: ['Climb to (tree / wall top)', '#9be15d'], window: ['Window (moving view)', '#8fd3ff'], door: ['Door', '#d0a060'] };
+const COVER = new Set(['desk', 'judge', 'witness', 'counter', 'cell', 'window']); const WDEF = { judge: 0.26, desk: 0.22, bed: 0.3, witness: 0.12, counter: 0.22, cell: 0.24, window: 0.3 };
 async function loadBgs() {
   BG = await api.call('bg:list');
   $('#bgList').innerHTML = BG.list.length ? BG.list.map((b) => `<div class="bgc${bsel === b.id ? ' on' : ''}" data-id="${b.id}"><img src="${b.url}" loading="lazy"><div class="t">${esc(b.name)}</div><div class="tags">${esc((BG.places[b.place] || b.place || '').split(' (')[0])} · ${esc(b.time)}${b.tags?.length ? ' · ' + esc(b.tags.join(', ')) : ''}</div></div>`).join('')
@@ -203,9 +203,9 @@ $('#openData').onclick = () => api.call('open:data'); $('#reSetup').onclick = ()
 // ---------- first run ----------
 async function checkSetup(force) {
   const st = await api.call('setup:status'); if (st.done && !force) return;
-  $('#setup').hidden = false; $('#setupRetry').hidden = true; $('#setupMsg').textContent = 'Starting…';
+  $('#boot').hidden = true; $('#setup').hidden = false; $('#setupRetry').hidden = true; $('#setupMsg').textContent = 'Preparing voices and models (first time only)…';
   try { const r = await api.call('setup:run'); if (r.done) { $('#setupMsg').textContent = 'All ready ✓'; setTimeout(() => ($('#setup').hidden = true), 800); } else throw new Error('Still missing: ' + r.missing.join(', ')); }
-  catch (e) { $('#setupMsg').innerHTML = `<span class="warn">Download stopped: ${esc(e.message)}. Check the internet and try again.</span>`; $('#setupRetry').hidden = false; }
+  catch (e) { $('#boot').hidden = true; $('#setupMsg').innerHTML = `<span class="warn">Download stopped: ${esc(e.message)}. Check the internet and try again.</span>`; $('#setupRetry').hidden = false; }
 }
 api.on('setup:progress', (p) => { const pct = ((p.index + (p.total ? p.got / p.total : 0)) / p.count) * 100; $('#setupBar').style.width = pct.toFixed(1) + '%';
   $('#setupMsg').textContent = `${p.label} ${p.total > 1 ? Math.round((p.got / p.total) * 100) + '%' : ''} (${Math.min(p.index + 1, p.count)}/${p.count})`; });
@@ -260,7 +260,10 @@ $('#updInstall').onclick = install;
 $('#updBtn').onclick = async () => { const u = await api.call('update:get'); if (u.state === 'available') renderUpd(await api.call('update:download')); else if (u.state === 'ready') install(); else $('[data-tab=settings]').click(); };
 api.on('queue', (q) => (queueBusy = q.running));
 
-(async () => { renderUpd(await api.call('update:get')); await loadSettings(); await loadAI(); await initNew(); renderQueue(await api.call('queue:get')); checkSetup(false); })();
+(async () => { const setup = checkSetup(false).catch(() => {}); // first-run setup starts at once (also before sign-in)
+  try { renderUpd(await api.call('update:get')); await loadSettings(); await loadAI(); await initNew(); renderQueue(await api.call('queue:get')); } catch {} finally { $('#boot').hidden = true; } await setup; })();
+// background work started by the app itself (team data update after sign-in…): a small box with a progress bar
+api.on('busy', (b) => { $('#busy').hidden = !b || b.done; if (!b || b.done) return; $('#busyTitle').textContent = b.title || 'Working…'; $('#busyBar').style.width = (b.n ? Math.round((b.i / b.n) * 100) : 0) + '%'; $('#busyMsg').textContent = b.label ? `${b.label}${b.n ? ` (${b.i}/${b.n})` : ''}` : ''; });
 
 // ---------- subtitle editor ----------
 let SE = null; const seF = (id) => document.getElementById(id);

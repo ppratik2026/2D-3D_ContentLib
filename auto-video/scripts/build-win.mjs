@@ -11,6 +11,7 @@ const run = (cmd, opts = {}) => { console.log('>', cmd); execSync(cmd, { stdio: 
 run('node scripts/build.mjs', { cwd: ROOT });
 fs.rmSync(STAGE, { recursive: true, force: true }); fs.mkdirSync(STAGE, { recursive: true });
 for (const d of ['app', 'pipeline', 'remotion']) fs.cpSync(path.join(ROOT, d), path.join(STAGE, d), { recursive: true });
+if (fs.existsSync(path.join(ROOT, 'seed'))) fs.cpSync(path.join(ROOT, 'seed'), path.join(STAGE, 'seed'), { recursive: true }); // voices, models, Piper: first run copies them, no download
 fs.copyFileSync(path.join(ROOT, 'README.md'), path.join(STAGE, 'README.md'));
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 const electronVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'node_modules/electron/package.json'), 'utf8')).version;

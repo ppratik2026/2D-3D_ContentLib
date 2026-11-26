@@ -2,7 +2,10 @@
 import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
-import { ASSETS, BIN, VOICES_DIR } from './paths.mjs';
+import { ASSETS, BIN, VOICES_DIR, ROOT } from './paths.mjs';
+// the full ZIP ships every file in seed/ (assets, bin/piper, voices): copied on first run instead of downloaded
+const SEED = path.join(ROOT, 'seed');
+const seedOf = (file) => { for (const [dir, sub] of [[ASSETS, 'assets'], [VOICES_DIR, 'voices'], [BIN, 'bin']]) if (file.startsWith(dir + path.sep)) return path.join(SEED, sub, path.relative(dir, file)); return null; };
 const KOKORO = 'https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/';
 
 const T = 'https://raw.githubusercontent.com/mrdoob/three.js/r170/examples/';
@@ -47,6 +50,8 @@ export async function runSetup(onProgress = () => {}) {
   const items = plan();
   for (const [i, it] of items.entries()) {
     if (it.unpack && fs.existsSync(piperExe())) continue;
+    if (it.unpack && fs.existsSync(path.join(SEED, 'bin', 'piper'))) { onProgress({ index: i, count: items.length, label: 'Copying ' + it.label, got: 0, total: 1 }); await fs.promises.cp(path.join(SEED, 'bin', 'piper'), path.join(BIN, 'piper'), { recursive: true }); onProgress({ index: i + 1, count: items.length, label: it.label, got: 1, total: 1 }); continue; }
+    const sd = seedOf(it.file); if (!have(it.file) && sd && have(sd)) { onProgress({ index: i, count: items.length, label: 'Copying ' + it.label, got: 0, total: 1 }); fs.mkdirSync(path.dirname(it.file), { recursive: true }); await fs.promises.copyFile(sd, it.file); }
     if (!have(it.file)) await download(it.url, it.file, (got, total) => onProgress({ index: i, count: items.length, label: it.label, got, total }));
     if (it.unpack && !fs.existsSync(piperExe())) { execFileSync('tar', ['-xf', it.file, '-C', BIN]); if (process.platform !== 'win32') fs.chmodSync(piperExe(), 0o755); fs.rmSync(it.file, { force: true }); }
     onProgress({ index: i + 1, count: items.length, label: it.label, got: 1, total: 1 });

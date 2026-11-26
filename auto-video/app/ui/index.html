@@ -4,6 +4,8 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' av:; script-src 'self' av:; style-src 'self' av: 'unsafe-inline'; img-src 'self' av: data: blob:; media-src av: blob:; connect-src av: blob: data:; worker-src blob:">
 <link rel="stylesheet" href="ui.css">
 </head><body>
+<div id="boot" class="boot"><div class="spin"></div><div>Loading Auto Video Studio…</div></div>
+<div id="busy" class="busy" hidden><b id="busyTitle">Working…</b><div class="bar"><div id="busyBar"></div></div><div id="busyMsg" class="small"></div></div>
 <header>
   <div class="brand">🎬 Auto Video Studio</div>
   <nav id="tabs">
@@ -114,7 +116,7 @@
         <div id="bgEdit"><img id="bgImg" alt=""><div id="bgNear" class="gline near"></div><div id="bgFar" class="gline far"></div><div id="bgFigs"></div><div id="bgSeats"></div></div>
         <label>Character height (front row)<input type="range" id="bgH" min="0.25" max="0.95" step="0.01"></label>
         <h3>Places in this background</h3>
-        <div class="row"><select id="bgMType"><option value="seat">Seat (chair, sofa, charpai, bench)</option><option value="desk">Behind desk — sits (inspector, doctor, officer)</option><option value="judge">Judge bench (court)</option><option value="witness">Witness box / kathghara (court)</option><option value="counter">Behind counter / lab table — stands</option><option value="bed">Bed (patient lies down)</option><option value="cell">Jail cell (bars in front)</option><option value="board">Blackboard spot (teacher)</option><option value="climb">Climb to: top of tree / wall / roof</option><option value="window">Window (train / plane / bus — moving view)</option></select>
+        <div class="row"><select id="bgMType"><option value="door">Door (people walk in / out)</option><option value="seat">Seat (chair, sofa, charpai, bench)</option><option value="desk">Behind desk — sits (inspector, doctor, officer)</option><option value="judge">Judge bench (court)</option><option value="witness">Witness box / kathghara (court)</option><option value="counter">Behind counter / lab table — stands</option><option value="bed">Bed (patient lies down)</option><option value="cell">Jail cell (bars in front)</option><option value="board">Blackboard spot (teacher)</option><option value="climb">Climb to: top of tree / wall / roof</option><option value="window">Window (train / plane / bus — moving view)</option></select>
           <button id="bgSeat" class="ghost" type="button">Add place</button><button id="bgClearSeats" class="ghost" type="button">Clear all</button></div>
         <div id="bgHint" class="small" style="color:var(--acc);min-height:18px"></div>
         <div id="bgMarks" class="chips"></div>
@@ -176,7 +178,7 @@
 
 <div id="setup" class="modal" hidden><div class="card">
   <h2>First-time setup</h2>
-  <p class="muted">Downloading 3D models, Piper + Kokoro (voice engines) and the Hindi voices (~400 MB, only once).</p>
+  <p class="small muted">Setting up the 3D models, the voice engines (Piper + Kokoro) and the Hindi voices. The full ZIP already contains them, so this only copies (about a minute). Without them it downloads ~400 MB, only once.</p>
   <div class="bar"><div id="setupBar"></div></div><div id="setupMsg" class="small"></div>
   <div class="btns"><button id="setupRetry" class="primary" hidden>Try again</button></div>
 </div></div>
