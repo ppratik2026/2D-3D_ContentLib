@@ -171,10 +171,10 @@ export function poseFlat(a, t, st) {
   const seat = Math.max(sit, ride);
   // gait with planted feet: each foot stays on the ground while the body passes over it (no sliding), then swings forward with a lift
   let drop = 0, gaitP = 0, gait = false, rollF = 0, rollB = 0;
-  if (moving && seat < 0.5 && !st.lie) { gait = true; const run = r > 0; const L = (run ? 1.75 : 1.05) * k, sF = run ? 0.36 : 0.62, S = sF * L, lift = (run ? 0.17 : 0.075) * k; const legL = P.thigh + P.shin;
+  if (moving && seat < 0.5 && !st.lie) { gait = true; const run = r > 0; const legL = P.thigh + P.shin; const S = (run ? 0.95 : 0.6) * legL, sF = run ? 0.38 : 0.62, L = S / sF, lift = (run ? 0.18 : 0.065) * k; // short cartoon steps: the standing leg stays almost straight
     gaitP = (((dist / L) + (a.id.length % 7) * 0.13) % 1 + 1) % 1;
     const foot = (u) => { u = ((u % 1) + 1) % 1; if (u < sF) return { x: S / 2 - (u / sF) * S, y: 0, st: true }; const v = (u - sF) / (1 - sF); const e = v * v * (3 - 2 * v); return { x: -S / 2 + e * S, y: lift * Math.sin(Math.PI * v), st: false }; };
-    const fF = foot(gaitP), fB = foot(gaitP + 0.5); const roll = (u) => { u = ((u % 1) + 1) % 1; if (u < 0.14) return 0.32 * (1 - u / 0.14); if (u < sF && u > sF - 0.16) return -0.55 * ((u - (sF - 0.16)) / 0.16); if (u >= sF) { const v = (u - sF) / (1 - sF); return -0.55 * (1 - Math.min(1, v * 3)) + 0.18 * Math.sin(Math.PI * v); } return 0; }; rollF = roll(gaitP); rollB = roll(gaitP + 0.5); const reach = legL * 0.985; let hh = Infinity;
+    const fF = foot(gaitP), fB = foot(gaitP + 0.5); const roll = (u) => { u = ((u % 1) + 1) % 1; if (u < 0.14) return 0.32 * (1 - u / 0.14); if (u < sF && u > sF - 0.16) return -0.55 * ((u - (sF - 0.16)) / 0.16); if (u >= sF) { const v = (u - sF) / (1 - sF); return -0.55 * (1 - Math.min(1, v * 3)) + 0.18 * Math.sin(Math.PI * v); } return 0; }; rollF = roll(gaitP); rollB = roll(gaitP + 0.5); const reach = legL * 0.995; let hh = Infinity;
     for (const f of [fF, fB]) if (f.st) hh = Math.min(hh, Math.sqrt(Math.max(0.01, reach * reach - f.x * f.x)));
     if (hh === Infinity) hh = reach + lift * 0.35; // both feet in the air (running)
     hh = Math.min(hh, legL); drop = legL - hh; const ank = 0.03 * k;

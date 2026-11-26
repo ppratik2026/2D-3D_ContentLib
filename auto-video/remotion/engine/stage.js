@@ -101,8 +101,8 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
   function flatExtra(i) { const TOPS = ['#d9534f', '#3f7fbf', '#3f9b5a', '#e67ab4', '#f39c32', '#7a4fb3', '#2f8f8f', '#c0583f', '#5aa5c9']; const fem = i % 2 === 1;
     const ch = { id: 'extra' + i + 'x'.repeat(i % 5), name: '', gender: fem ? 'female' : 'male', age: i % 7 === 3 ? 'old' : i % 6 === 5 ? 'child' : 'adult', role: 'crowd', top_color: TOPS[i % TOPS.length], bottom_color: ['#2f3a4f', '#f2c418', '#5a3a2a', '#e8e0d0'][i % 4] };
     const a = createFlatActor(new THREE.Group(), ch); const g = new THREE.Group(); a.o.parent?.remove(a.o); g.add(a.o);
-    return { flat: true, group: g, set(t, mood) { const walk = mood === 'walk'; const name = { dance: 'dance', cheer: (i + Math.floor(t * 0.5)) % 3 ? 'wave' : 'clap', clap: 'clap', watch: i % 4 === 0 ? 'point' : '' }[mood] || '';
-      poseFlat(a, t + i * 0.37, { yaw: walk ? 1.4 : ((i % 3) - 1) * 0.3, walk: walk ? 1 : 0, walkDist: walk ? (t + i) * 1.1 : null, gesture: name ? { name, k: 1, ph: ((t + i * 0.3) * 0.5) % 1 } : null, emotion: mood === 'watch' ? 'neutral' : 'happy', mouth: mood === 'cheer' ? Math.abs(Math.sin(t * 6 + i)) * 0.6 : 0 }); } }; }
+    return { flat: true, group: g, set(t, mood_) { const mood = mood_ && mood_.mood ? mood_.mood : mood_; const dist = mood_ && mood_.dist != null ? mood_.dist : t * 0.3; const walk = mood === 'walk'; const name = { dance: 'dance', cheer: (i + Math.floor(t * 0.5)) % 3 ? 'wave' : 'clap', clap: 'clap', watch: i % 4 === 0 ? 'point' : '' }[mood] || '';
+      poseFlat(a, t + i * 0.37, { yaw: walk ? 1.4 : ((i % 3) - 1) * 0.3, walk: walk ? 1 : 0, walkDist: walk ? dist + i * 0.37 : null, gesture: name ? { name, k: 1, ph: ((t + i * 0.3) * 0.5) % 1 } : null, emotion: mood === 'watch' ? 'neutral' : 'happy', mouth: mood === 'cheer' ? Math.abs(Math.sin(t * 6 + i)) * 0.6 : 0 }); } }; }
   const safa = makeSafa(grad); safa.visible = false; scene.add(safa);
   const confetti = []; { const cols = [0xff4d6d, 0xffd166, 0x06d6a0, 0x4cc9f0, 0xf72585, 0xffffff]; for (let i = 0; i < 46; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.012, 0.018), new THREE.MeshBasicMaterial({ color: cols[i % cols.length], side: THREE.DoubleSide, depthTest: false, toneMapped: false })); m.userData.outlineParameters = { visible: false }; m.visible = false; m.position.z = 44; scene.add(m); confetti.push(m); } }
   // cinematic rig (far away from the stage): the speaker faces a perspective camera, the listener's shoulder in front,
@@ -304,7 +304,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
         case 'foot_chase': { const active = t < until; const tt = Math.min(t, until); const ch = [e.char, ...(e.chasers || [])].filter((id) => C[id]);
           ch.forEach((id, i) => { const cc = C[id]; free(cc); cc.inV = null; cc.visible = true; cc.face = 1; cc.run = active ? 1 : 0; cc.walk = 0; cc.row = i === 0 ? 0 : (i % 2) * 0.45; cc.x = i === 0 ? 0.68 + 0.04 * Math.sin((tt - e.t0) * 1.1) : 0.36 - 0.1 * (i - 1) + 0.05 * Math.sin((tt - e.t0) * 0.8 + i); });
           for (const id of Object.keys(C)) if (!ch.includes(id) && !C[id].inV) C[id].visible = false;
-          if (active) { chasing = { kind: 'foot', runner: e.char }; crowd = { mood: null, count: 0 }; } const fs = tl.flat ? 0.42 : 0.22; scroll += (tt - e.t0) * fs; for (const v of Object.values(V)) { v.x -= (tt - e.t0) * fs; v.siren = false; v.bob = 0; if (v.x < -0.8) v.visible = false; } break; }
+          if (active) { chasing = { kind: 'foot', runner: e.char }; crowd = { mood: null, count: 0 }; } const fs = tl.flat ? 0.42 : 0.22; scroll += (tt - e.t0) * fs; for (const an of Object.values(A)) an.x -= (tt - e.t0) * fs; /* animals stay on the ground that scrolls */ for (const v of Object.values(V)) { v.x -= (tt - e.t0) * fs; v.siren = false; v.bob = 0; if (v.x < -0.8) v.visible = false; } break; }
         case 'catch': { const tc = C[e.target]; if (!tc) break; const x0 = c.x; free(c); c.row = tc.row; const x1 = tc.x - (x0 < tc.x ? 0.1 : -0.1); const kw = sm(0, 0.55, k); c.x = lerp(x0, x1, kw); c.run = kw < 1 ? 1 : 0; c.walk = 0; c.face = x1 >= x0 ? 1 : -1;
           tc.run = 0; tc.walk = 0; if (k > 0.5) { c.grab = e.target; tc.struggle = 1 - sm(0.9, 1, k) * 0.5; c.face = tc.x > c.x ? 1 : -1; tc.face = -c.face; } break; }
         case 'handcuff': { const tc = C[e.target]; if (!tc) break; const g = Object.values(C).find((o) => o !== c && o.grab === e.target);
@@ -419,8 +419,8 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
   // odometer: how far each person really moved on the ground (body + scrolling ground), so the feet never slide
   const odo = {};
   function odometer(id, t, S) { const H = holders[id].h; const s = Math.max(1e-4, H.scale.x); const gx = H.position.x + (S.scroll || 0) * AR, gy = H.position.z * 0.05;
-    const o = odo[id]; if (!o || t <= o.t || t - o.t > 0.25) { odo[id] = { t, gx, gy, d: o ? o.d : 0 }; return odo[id].d; }
-    o.d += Math.hypot(gx - o.gx, (gy - o.gy) * 2.2) / s; o.t = t; o.gx = gx; o.gy = gy; return o.d; }
+    const o = odo[id]; if (!o || t <= o.t || t - o.t > 0.25) { odo[id] = { t, gx, gy, d: o ? o.d : 0, v: 0, ok: false }; return odo[id]; }
+    const dd = Math.hypot(gx - o.gx, (gy - o.gy) * 2.2) / s; o.v = o.v * 0.55 + (dd / (t - o.t)) * 0.45; o.d += dd; o.t = t; o.gx = gx; o.gy = gy; o.ok = true; return o; }
   // flat style: vehicles, animals and props lose their 3D shading (flat colours + a dark outline), like vector cartoons
   const flatMats = new Map();
   function flattenScene() { scene.traverse((o) => { if (!o.isMesh || o === bg || o === board) return; const ms = Array.isArray(o.material) ? o.material : [o.material];
@@ -466,8 +466,8 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       m.group.scale.setScalar(sc2); m.group.position.set(a.x * AR, 1 - fy, zOf(fy) + 0.05); m.group.rotation.y = a.face > 0 ? -0.3 : Math.PI + 0.3; m.set(t, { phase: t * (a.run ? 12 : 7), moving: a.move, run: a.run, head: a.head, act: a.act }); }
     // crowd people in the back rows (they face the camera)
     extras.forEach((e, i) => { const on = !!S.crowd.mood && i < S.crowd.count; e.group.visible = on; if (!on) return; const n = S.crowd.count; const row = 0.72 + (i % 2) * 0.28; const fy = rowY(b, row);
-      const walk = S.crowd.mood === 'walk'; const x = ((i + 0.5) / n) * 0.94 + 0.03 + (walk ? ((t * 0.03) % 1) : 0); const sc2 = heightAt(b, fy) / 1.7;
-      e.group.scale.setScalar(sc2); e.group.position.set((((x % 1.1) + 1.1) % 1.1) * AR, 1 - fy, zOf(fy) - 0.2); e.group.rotation.y = e.flat ? 0 : walk ? 0 : -Math.PI / 2 + Math.sin(i) * 0.25; e.set(t, S.crowd.mood); });
+      const walk = S.crowd.mood === 'walk'; const x = ((i + 0.5) / n) * 0.94 + 0.03 + (walk ? ((t * (tl.flat ? 0.055 : 0.03)) % 1) : 0); const sc2 = heightAt(b, fy) / 1.7;
+      e.group.scale.setScalar(sc2); e.group.position.set((((x % 1.1) + 1.1) % 1.1) * AR, 1 - fy, zOf(fy) - 0.2); e.group.rotation.y = e.flat ? 0 : walk ? 0 : -Math.PI / 2 + Math.sin(i) * 0.25; e.set(t, e.flat && S.crowd.mood === 'walk' ? { mood: 'walk', dist: (t * 0.055 * AR) / Math.max(0.05, sc2) } : S.crowd.mood); });
     // baraat: groom's safa + confetti
     confetti.forEach((m, i) => { m.visible = !!(S.baraat && S.baraat.active); if (!m.visible) return; const y = 1.05 - (((t * (0.09 + (i % 5) * 0.012)) + i * 0.137) % 1.15); m.position.x = ((i * 0.618) % 1) * AR + Math.sin(t * 1.7 + i) * 0.02; m.position.y = y; m.rotation.set(t * 2 + i, t * 3 + i * 0.5, 0); });
     // talk / look / gestures
@@ -481,7 +481,9 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       if (!seatLock && !c.walk && !c.run && !c.inV && lookId && !c.lie && !c.swim && !c.frontal && !c.keepFace) c.face = st[lookId].x > c.x ? 1 : -1;
       const frontal = c.frontal ? 0.15 : c.anchor && (c.anchor.type === 'judge' || c.anchor.type === 'desk' || c.anchor.type === 'board') ? 0.4 : 1;
       const yaw = c.swim ? c.face * Math.PI / 2 : c.lie ? Math.PI / 2 : (c.walk || c.run) && !c.inV ? c.face * 1.4 : c.inV ? (c.ride ? Math.PI / 2 - 0.35 : 1.3) : c.face * FACE * frontal;
-      const odoD = a.flat ? odometer(id, t, S) : null;
+      const odo_ = a.flat ? odometer(id, t, S) : null; const odoD = odo_ ? odo_.d : null;
+      if (odo_ && odo_.ok && !c.inV && !c.lie && !c.swim && !(c.sit > 0.5) && !c.climbed) { const v = odo_.v; // legs follow the real speed: no marching on the spot, no sliding
+        if (v < 0.22) { c.walk = 0; c.run = 0; } else if (c.run || v > 2.6) { c.run = 1; c.walk = 0; } else { c.walk = 1; c.run = 0; } }
       const pp = { visible: true, back: !!c.back, pos: V3(0, 0, 0), yaw: c.back ? 0 : yaw, lie: c.lie > 0.5, walk: c.lie ? 0 : c.walk, run: c.lie ? 0 : c.run, sit: c.lie ? 0 : c.sit, drop: Math.max(0.2, a.hipY - 0.5), cuffed: c.cuffed, struggle: c.struggle, swim: c.swim, walkDist: a.flat ? odoD : c.walkDist ?? (c.run || c.walk ? t * 1.3 : null), ride: c.ride || 0, pillion: c.pillion, rideType: c.rideType, moving: !!(c.inV && S.V[c.inV.key]?.bob) };
       pp.look = lookId && !c.lie ? headPos(actors[lookId]).clone() : null;
       if (speaking) { const f = Math.floor((t - line.start) * 30); pp.mouth = line.mouth[f] || 0; pp.talk = c.walk || c.run || c.cuffed || c.inV || c.lie ? 0 : 0.5 * sm(line.start, line.start + 0.3, t) * (1 - sm(line.end - 0.3, line.end, t)); pp.emotion = line.emotion; }
@@ -590,11 +592,17 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       zoom = 1; cx = AR / 2; cy = 0.5;
     } else if (shot.type === 'vehicle' && vehicles[shot.vehicle]?.group.visible) { const m = vehicles[shot.vehicle]; zoom = 1.6; cx = m.group.position.x; cy = m.group.position.y + m.top * m.group.scale.x * 0.55; }
     else if (shot.type === 'hands' && shot.char && vis.includes(shot.char)) { const l = handPos(actors[shot.char], 'Left'), r = handPos(actors[shot.char], 'Right'); zoom = 2.8; cx = (l.x + r.x) / 2; cy = (l.y + r.y) / 2 + 0.02; }
+    if (tl.flat && ['ots', 'cu', 'react'].includes(shot.type) && shot.char && vis.includes(shot.char) && !S.chasing) { // flat style: close shots are zooms into the real scene (2D cartoon framing)
+      let who = shot.char; let lid = shot.listener && vis.includes(shot.listener) ? shot.listener : null;
+      if (lid && Math.abs(st[lid].x - st[who].x) > 0.36) { if (shot.type === 'react') who = lid; lid = null; } // far apart: stay on the speaker
+      const hp = headPos(actors[who]); const push = 1 + 0.05 * sm(shot.t0, shot.t1, t);
+      if (shot.type === 'ots' && lid) { const ho = headPos(actors[lid]); zoom = 1.75 * push; cx = hp.x * 0.62 + ho.x * 0.38; cy = Math.max(hp.y, ho.y) - 0.13; }
+      else { zoom = 2.3 * push; cx = hp.x; cy = hp.y - 0.07; } }
     if (S.shake) { cx += Math.sin(t * 23) * 0.003; cy += Math.sin(t * 31) * 0.003; }
     const hw = AR / 2 / zoom, hh = 0.5 / zoom; cx = Math.min(AR - hw, Math.max(hw, cx)); cy = Math.min(1 - hh, Math.max(hh, cy));
     cam.left = cx - hw; cam.right = cx + hw; cam.top = cy + hh; cam.bottom = cy - hh; cam.updateProjectionMatrix();
     // cinematic shots (fall back to the stage camera when the people are in vehicles, lying, swimming…)
-    const cine = ['ots', 'cu', 'react'].includes(shot.type) && shot.char && vis.includes(shot.char) && !st[shot.char].inV && !st[shot.char].lie && !st[shot.char].swim && !st[shot.char].climbed && !S.chasing;
+    const cine = !tl.flat && ['ots', 'cu', 'react'].includes(shot.type) && shot.char && vis.includes(shot.char) && !st[shot.char].inV && !st[shot.char].lie && !st[shot.char].swim && !st[shot.char].climbed && !S.chasing;
     if (cine) { const sid = shot.char; const lid = shot.listener && vis.includes(shot.listener) && !st[shot.listener].inV && !st[shot.listener].lie ? shot.listener : null; const ots = shot.type === 'ots' && lid;
       for (const id of Object.keys(actors)) holders[id].h.visible = id === sid || (ots && id === lid);
       const side = lid ? (st[lid].x < st[sid].x ? -1 : 1) : (st[sid].face > 0 ? -1 : 1); // where the listener is (camera side)

@@ -46,7 +46,7 @@ class Pic:
             im = im.copy(); base = im.split()[3]
             mask = Image.composite(Image.new('L', (W, H), 255), a, s.keep) if hasattr(s, 'keep') else a
             im.putalpha(mask)
-        im = im.resize((1920, 1080), Image.LANCZOS)
+        pass  # keep 4K so close-up zooms stay sharp
         fn = 'image.png'; im.save(os.path.join(OUT, id_, fn)) if holes else im.convert('RGB').save(os.path.join(OUT, id_, 'image.jpg'), quality=93)
         meta = {'id': id_, 'file': f'backgrounds/{id_}/{fn if holes else "image.jpg"}', **meta}
         json.dump(meta, open(os.path.join(OUT, id_, 'background.json'), 'w'), indent=2)

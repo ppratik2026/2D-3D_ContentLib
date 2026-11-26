@@ -105,8 +105,9 @@ Pick **Style → Flat 2D Explainer** for YouTube-explainer cartoons: big round h
 | put_down | the person puts the cup away |
 | door place + exit | the person walks into the door, seen from behind |
 
-In the over-the-shoulder shots of this style, the listener is drawn from behind (back of the head and shoulders). The real background stays sharp behind them, cropped around the people talking (no blur).
+In the over-the-shoulder shots of this style, the listener is drawn from behind (back of the head and shoulders). In this style, close-ups, over-the-shoulder and reaction shots are zooms into the real scene, so chairs, tables and people stay where they are. The backgrounds are 4K, so zooms stay sharp.
 
+- **Legs follow the real speed.** A person who moves gets steps, a person who stands still stands. Steps are short, cartoon style, and the standing leg stays straight (no crouching).
 - **Walking in detail:**
   - the heel touches first and the toes push off;
   - the far-side arm and leg are a little darker, so you can see which leg is in front;
