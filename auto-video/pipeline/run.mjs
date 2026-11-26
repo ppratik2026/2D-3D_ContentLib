@@ -10,6 +10,8 @@ import { writeStory, normalizeBeats } from './story.mjs';
 import { castVoices, speakAll } from './tts.mjs';
 import { buildTimeline, finalize } from './timeline.mjs';
 import { adaptStory } from './story.mjs';
+import { applySubs, linesFromTimeline, styleFrom } from './subs.mjs';
+import { WIDTH, HEIGHT } from './config.mjs';
 import { mixAll } from './audio.mjs';
 import { estimate, fmt } from './estimate.mjs';
 import { actorsFor, assignActors, listCharacters } from './library.mjs';
@@ -89,16 +91,19 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
 
   // 4. render
   const clean = JSON.parse(JSON.stringify(tl)); for (const l of clean.lines) delete l.file;
+  const subStyle = styleFrom(subs, opts.subStyle); clean.subsPreset = subs; clean.subs = 'none'; // subtitles are burned afterwards (editable)
   fs.writeFileSync(path.join(work, 'timeline.json'), JSON.stringify(clean));
-  const out = path.join(work, 'final.mp4');
+  const out = path.join(work, 'video_clean.mp4');
   const onProgress = (p, frames, secs) => { step('render', `Rendering ${(p * 100).toFixed(0)}% (${frames}/${clean.durationInFrames} frames)`, { progress: p, eta: p > 0.02 ? secs / p - secs : null, stage: { name: 'render', done: frames, total: clean.durationInFrames, label: `Frames ${frames}/${clean.durationInFrames}` } }); };
   const onSave = () => stage('save', 0, 1, 'Adding audio and saving MP4');
   let r;
   if (renderer === 'remotion') { const { renderVideo } = await import('./render.mjs'); r = await renderVideo({ tl: clean, mix: `jobs/${id}/mix.wav`, out, concurrency: opts.concurrency, onProgress }); }
   else r = await opts.renderFn({ tl: clean, mixFile, out, onProgress, onSave, signal });
-  stage('save', 1, 1, 'Saved');
   check();
-  writeSubtitles(clean, path.join(work, 'subtitles.srt'));
+  stage('save', 0, 1, 'Adding subtitles');
+  await applySubs({ ffmpegPath: opts.ffmpegPath || (await import('ffmpeg-static')).default, folder: work, lines: linesFromTimeline(clean), style: subStyle, W: WIDTH, H: HEIGHT, duration: tl.duration,
+    onProgress: (p) => stage('save', Math.round(p * 100), 100, `Adding subtitles ${Math.round(p * 100)}%`) });
+  stage('save', 1, 1, 'Saved');
   fs.rmSync(pubDir, { recursive: true, force: true }); fs.rmSync(path.join(work, 'voice'), { recursive: true, force: true });
   // final folder: Videos/<date>_<category>_<title>/
   const final = path.join(OUTPUT, `${id}_${slug(story.title)}`); fs.renameSync(work, final);

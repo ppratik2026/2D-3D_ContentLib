@@ -98,6 +98,18 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
   P.test_tube = (() => { const g = new THREE.Group(); const t = noOutline(new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.15, 10), new THREE.MeshBasicMaterial({ color: 0xdff4ff, transparent: true, opacity: 0.6 }))); const liq = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.07, 10), new THREE.MeshBasicMaterial({ color: 0x3fd47a })); liq.position.y = -0.035; g.add(t, liq); return g; })();
   P.gavel = (() => { const g = new THREE.Group(); const hd = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.13, 12), toon('#6b3d1f')); hd.rotation.z = Math.PI / 2; hd.position.y = 0.09; const st = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.2, 8), toon('#6b3d1f')); g.add(hd, st); return g; })();
   P.torch = (() => { const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, 0.16, 10), toon('#2a2a30')); b.rotation.z = Math.PI / 2; const beam = noOutline(new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.6, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff6c8, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }))); beam.rotation.z = Math.PI / 2; beam.position.x = 0.88; g.add(b, beam); return g; })();
+  const grp = (...ms) => { const g = new THREE.Group(); ms.forEach((m) => g.add(m)); return g; };
+  const mesh = (geo, c, x = 0, y = 0, z = 0, rz = 0, rx = 0) => { const m = new THREE.Mesh(geo, typeof c === 'string' ? toon(c) : c); m.position.set(x, y, z); m.rotation.z = rz; m.rotation.x = rx; return m; };
+  P.cook = grp(mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.05, 20), '#2b2b30', 0.16, -0.02, 0), mesh(new THREE.BoxGeometry(0.2, 0.025, 0.03), '#3a2b1c', 0.0, 0, 0));
+  P.chop = grp(mesh(new THREE.BoxGeometry(0.26, 0.06, 0.012), '#e3e7ee', 0.17, 0, 0), mesh(new THREE.BoxGeometry(0.11, 0.045, 0.03), '#3a2b1c', 0, 0, 0));
+  P.eat = grp(mesh(new THREE.CylinderGeometry(0.11, 0.1, 0.02, 20), '#f4f4f2', 0, 0, 0, 0, Math.PI / 2 - 0.4), mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.025, 14), '#e0a95a', 0, 0.015, 0.01, 0, Math.PI / 2 - 0.4)); P.eat.userData.hand = 'Left';
+  P.serve = grp(mesh(new THREE.BoxGeometry(0.34, 0.02, 0.22), '#b98a4c', 0, 0, 0), mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.08, 12), '#ffffff', -0.07, 0.05, 0), mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.08, 12), '#ffffff', 0.07, 0.05, 0));
+  P.sweep = grp(mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.9, 8), '#c9a15a', 0, -0.3, 0), mesh(new THREE.ConeGeometry(0.1, 0.32, 10), '#d8c27a', 0, -0.85, 0)); P.sweep.userData.rot = 0.35;
+  P.aarti = grp(mesh(new THREE.CylinderGeometry(0.13, 0.12, 0.015, 24), '#d4a017', 0, 0, 0), mesh(new THREE.ConeGeometry(0.02, 0.06, 8), new THREE.MeshBasicMaterial({ color: 0xffa31a, toneMapped: false }), 0, 0.045, 0), mesh(new THREE.SphereGeometry(0.02, 8, 8), '#e0402a', 0.07, 0.02, 0));
+  P.type = grp(mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24), '#3a3d45', 0, 0, 0), mesh(new THREE.BoxGeometry(0.34, 0.22, 0.015), '#3a3d45', 0, 0.11, -0.12, 0, -0.25), mesh(new THREE.PlaneGeometry(0.3, 0.18), new THREE.MeshBasicMaterial({ color: 0x9fd0ff, toneMapped: false }), 0, 0.11, -0.11, 0, -0.25)); P.type.userData.mid = true;
+  P.give = grp(mesh(new THREE.BoxGeometry(0.14, 0.12, 0.12), '#d63a4a', 0, 0, 0), mesh(new THREE.BoxGeometry(0.15, 0.025, 0.125), '#ffd166', 0, 0, 0));
+  P.money = mesh(new THREE.BoxGeometry(0.16, 0.08, 0.02), '#5aa55a');
+  P.receive = P.give;
   for (const p of Object.values(P)) { p.visible = false; scene.add(p); }
   const cuffs = {}; const cuffMesh = () => { const g = new THREE.Group(); const m = toon('#c9ccd4'); for (const dx of [-0.05, 0.05]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.009, 8, 20), m); r.position.x = dx; g.add(r); } const c = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.008, 0.008), m); g.add(c); g.visible = false; scene.add(g); return g; };
   // speed lines for chases
@@ -191,6 +203,16 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
         case 'handcuff': { const tc = C[e.target]; if (!tc) break; const g = Object.values(C).find((o) => o !== c && o.grab === e.target);
           for (const o of Object.values(C)) if (o.grab === e.target && k > 0.25) { o.grab = null; if (o !== c) { o.x += (o.x < tc.x ? -0.04 : 0.04) * sm(0.25, 0.4, k); } } const sideX = g ? (g.x < tc.x ? 1 : -1) : (c.x < tc.x ? -1 : 1); const x0 = c.x, x1 = tc.x + sideX * 0.1;
           if (Math.abs(x1 - x0) > 0.01) { free(c); c.row = tc.row; const kw = sm(0, 0.3, k); c.x = lerp(x0, x1, kw); c.walk = kw < 1 ? 1 : 0; } c.grab = null; c.face = tc.x > c.x ? 1 : -1; tc.struggle = 0.4 * (1 - sm(0.4, 0.6, k)); if (k >= 0.5) tc.cuffed = true; c._cuff = k > 0.3 && !done; break; }
+        case 'hug': case 'fight': case 'push': case 'slap': case 'give': { const tc = C[e.target]; if (!tc) break; const x0 = c.x; free(c); c.row = tc.row; const gap = e.kind === 'hug' ? 0.06 : e.kind === 'fight' ? 0.09 : 0.085;
+          const x1 = tc.x + (x0 < tc.x ? -gap : gap); const kw = sm(0, 0.35, k); c.x = lerp(x0, x1, kw); c.walk = kw < 1 && Math.abs(x1 - x0) > 0.01 ? 1 : 0; if (kw >= 1) { c.face = tc.x > c.x ? 1 : -1; tc.face = -c.face; }
+          const act = k > 0.35 && !done; const kk = sm(0.35, 0.45, k) * (1 - sm(0.92, 1, k));
+          if (e.kind === 'hug' && act) { c._g = { name: 'hug', k: kk }; tc._g = { name: 'hug', k: kk }; tc.walk = tc.run = 0; }
+          if (e.kind === 'fight' && act) { c._g = { name: 'punch', k: kk }; tc._g = { name: Math.floor(t * 3) % 2 ? 'punch' : 'hit_back', k: kk }; c.struggle = 0.3; tc.struggle = 0.5; shake = 0.6; }
+          if (e.kind === 'push') { if (act) c._g = { name: 'push', k: kk }; if (k > 0.5) { tc.x += (tc.x > c.x ? 1 : -1) * 0.09 * sm(0.5, 0.75, k); tc.struggle = done ? 0 : 0.6; } }
+          if (e.kind === 'slap' && act) { c._g = { name: 'slap', k: kk }; if (k > 0.6) tc._g = { name: 'hit_back', k: sm(0.6, 0.7, k) * (1 - sm(0.9, 1, k)) }; }
+          if (e.kind === 'give' && act) { const handoff = k > 0.7; c._g = { name: 'give', k: kk, item: handoff ? null : e.item || 'give' }; tc._g = { name: 'receive', k: sm(0.5, 0.6, k) * (1 - sm(0.92, 1, k)), item: handoff ? e.item || 'give' : null }; }
+          break; }
+        case 'sleep': c.lie = sm(0, 0.6, k); c.sit = 0; c.walk = c.run = 0; c.sleeping = true; break;
         default: break;
       }
     }
@@ -237,13 +259,14 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       if (speaking) { const f = Math.floor((t - line.start) * 30); pp.mouth = line.mouth[f] || 0; pp.talk = c.walk || c.run || c.cuffed || c.inV || c.lie ? 0 : 0.5 * sm(line.start, line.start + 0.3, t) * (1 - sm(line.end - 0.3, line.end, t)); pp.emotion = line.emotion; }
       else if (lastLine && lastLine.char === id && t - lastLine.end < 2) pp.emotion = lastLine.emotion;
       const g = sc.events.find((e) => e.kind === 'gesture' && e.char === id && t >= e.t0 && t < e.t1); if (g) pp.gesture = { name: g.name, k: sm(g.t0, g.t0 + 0.3, t) * (1 - sm(g.t1 - 0.3, g.t1, t)) };
-      if (c.grab) pp.gesture = { name: 'grab', k: 1 }; if (c._cuff) pp.gesture = { name: 'cuff', k: 1 };
+      if (c.grab) pp.gesture = { name: 'grab', k: 1 }; if (c._cuff) pp.gesture = { name: 'cuff', k: 1 }; if (c._g && c._g.k > 0) pp.gesture = c._g; if (c.sleeping && c.lie > 0.5) pp.emotion = 'sleep';
       poseActor(a, t, pp);
     }
     // props + handcuffs
     for (const p_ of Object.values(P)) p_.visible = false;
-    for (const id of vis) { const g = sc.events.find((e) => e.kind === 'gesture' && e.char === id && t >= e.t0 && t < e.t1); const pr = g && P[g.name]; if (!pr || pr.visible) continue;
-      const hp = handPos(actors[id]); const s = holders[id].h.scale.x; pr.visible = true; pr.position.copy(hp); pr.scale.setScalar(s * (actors[id].height / 1.7)); pr.position.z += 0.02;
+    for (const id of vis) { const ev = sc.events.find((e) => e.kind === 'gesture' && e.char === id && t >= e.t0 && t < e.t1); const g = st[id]._g?.item ? { name: st[id]._g.item === 'money' ? 'money' : 'give' } : ev; const pr = g && P[g.name]; if (!pr || pr.visible) continue;
+      const hp = pr.userData.mid ? handPos(actors[id], 'Left').add(handPos(actors[id])).multiplyScalar(0.5) : handPos(actors[id], pr.userData.hand || 'Right'); const s = holders[id].h.scale.x; pr.visible = true; pr.position.copy(hp); pr.scale.setScalar(s * (actors[id].height / 1.7)); pr.position.z += 0.02;
+      if (pr.userData.rot) { pr.rotation.set(0, 0, pr.userData.rot * st[id].face); continue; }
       pr.rotation.set(0, 0, g.name === 'torch' ? (st[id].face > 0 ? -0.35 : Math.PI + 0.35) : 0); if (g.name === 'gavel') pr.rotation.z = 0.6; }
     for (const [id, c] of Object.entries(st)) { if (!c.cuffed && !cuffs[id]) continue; cuffs[id] ||= cuffMesh(); const m = cuffs[id]; m.visible = c.cuffed && vis.includes(id) && !c.inV; if (!m.visible) continue;
       const l = handPos(actors[id], 'Left'), r = handPos(actors[id], 'Right'); m.position.copy(l).add(r).multiplyScalar(0.5); m.position.z += 0.03; m.scale.setScalar(holders[id].h.scale.x * 1.3); m.rotation.set(0, 0, Math.atan2(r.y - l.y, r.x - l.x)); }

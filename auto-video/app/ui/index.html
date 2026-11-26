@@ -168,6 +168,32 @@
   <div class="bar"><div id="setupBar"></div></div><div id="setupMsg" class="small"></div>
   <div class="btns"><button id="setupRetry" class="primary" hidden>Try again</button></div>
 </div></div>
+<div id="subEd" class="modal" hidden><div class="card wide subed">
+  <div class="qhead"><b id="seTitle">Edit subtitles</b><div class="btns"><button id="seDefault" class="ghost small-btn" type="button">Use as my default style</button><button id="seClose" class="ghost small-btn" type="button">Close</button></div></div>
+  <div id="seWarn" class="warn small" hidden>This video was made before v0.9: its subtitles are inside the picture. You can still edit and export the .srt file.</div>
+  <div class="segrid">
+    <div>
+      <div class="sevid"><video id="seVideo" controls></video><div id="seOv"></div></div>
+      <div class="row sest">
+        <label>Preset<select id="sePreset"></select></label><label>Font<select id="seFont"></select></label>
+        <label>Language<select id="seLang"><option value="hinglish">Hinglish</option><option value="hindi">Hindi (देवनागरी)</option><option value="english">English</option><option value="dual">Hinglish + English</option></select></label>
+        <label>Position<select id="sePos"><option value="bottom">Bottom</option><option value="middle">Middle</option><option value="top">Top</option></select></label>
+      </div>
+      <div class="row sest">
+        <label>Size<input type="range" id="seSize" min="3" max="9.5" step="0.1"></label><label>Distance from edge<input type="range" id="seMargin" min="1" max="30" step="0.5"></label><label>Outline<input type="range" id="seOutW" min="0" max="8" step="0.5"></label>
+      </div>
+      <div class="row sest">
+        <label>Text<input type="color" id="seColor"></label><label>Name<input type="color" id="seNameColor"></label><label>Outline<input type="color" id="seOutline"></label><label>Box<input type="color" id="seBoxColor"></label>
+        <label>Box opacity<input type="range" id="seBoxOp" min="0" max="1" step="0.05"></label><label>Karaoke<input type="color" id="seKColor"></label>
+      </div>
+      <div class="row sest checks">
+        <label class="check"><input type="checkbox" id="seBox"> Box behind text</label><label class="check"><input type="checkbox" id="seName"> Show names</label><label class="check"><input type="checkbox" id="seKara"> Karaoke (word by word)</label><label class="check"><input type="checkbox" id="seItalic"> Italic</label><label class="check"><input type="checkbox" id="seUpper"> CAPITALS</label>
+      </div>
+    </div>
+    <div class="selines"><div class="muted small">Click a line to jump to it. Edit the text, or the start / end time (seconds).</div><div id="seLines"></div></div>
+  </div>
+  <div class="btns"><button id="seSave" class="primary" type="button">Save &amp; burn subtitles</button><span id="seMsg" class="small"></span></div>
+</div></div>
 <div id="player" class="modal" hidden><div class="card wide"><video id="playerVideo" controls></video><div class="btns"><button id="playerClose" class="ghost">Close</button></div></div></div>
 
 <script src="../build/preview.js"></script>

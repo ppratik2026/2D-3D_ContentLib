@@ -1,0 +1,49 @@
+{
+  "title": "Pinky Ki Shaadi Ki Taiyaari",
+  "title_hindi": "पिंकी की शादी की तैयारी",
+  "logline": "Ghar me shaadi ki taiyaari, bazaar me ek jhagda, aur ant me sab khush.",
+  "moral": "Pyaar se sab mushkilein aasaan ho jaati hain.",
+  "category": "drama",
+  "characters": [
+    { "id": "maa", "name": "Maa", "gender": "female", "age": "adult", "role": "mother, cook", "top_color": "#c0392b", "bottom_color": "#f2c418", "hair_color": "#1c1612", "personality": "loving" },
+    { "id": "pinky", "name": "Pinky", "gender": "female", "age": "young", "role": "daughter", "top_color": "#e67ab4", "bottom_color": "#f4f1e8", "hair_color": "#1c1612", "personality": "cheerful" },
+    { "id": "raju", "name": "Raju", "gender": "male", "age": "young", "role": "son", "top_color": "#2f6fb5", "bottom_color": "#2b2b30", "hair_color": "#1c1612", "personality": "brave" },
+    { "id": "sheru", "name": "Sheru", "gender": "male", "age": "adult", "role": "local goon", "top_color": "#1d1d1f", "bottom_color": "#5a3a2a", "hair_color": "#1c1612", "personality": "rude" }
+  ],
+  "scenes": [
+    { "background": "bg_kitchen", "time_of_day": "morning", "present": ["maa", "pinky"], "summary": "Maa cooks, Pinky helps.", "seconds": 30,
+      "beats": [
+        { "type": "action", "char": "maa", "action": "go_to", "place": "counter" },
+        { "type": "action", "char": "maa", "action": "cook", "seconds": 6 },
+        { "type": "line", "char": "maa", "emotion": "happy", "hindi": "आज पिंकी के लिए उसका पसंदीदा हलवा बन रहा है।", "hinglish": "Aaj Pinky ke liye uska pasandeeda halwa ban raha hai.", "english": "Today I'm making Pinky's favourite halwa." },
+        { "type": "action", "char": "pinky", "action": "chop", "seconds": 4 },
+        { "type": "line", "char": "pinky", "emotion": "happy", "hindi": "माँ, मैं सब्ज़ी काट देती हूँ।", "hinglish": "Maa, main sabzi kaat deti hoon.", "english": "Mom, I'll cut the vegetables." },
+        { "type": "action", "char": "pinky", "action": "sweep", "seconds": 4 },
+        { "type": "action", "char": "maa", "action": "aarti", "seconds": 4 },
+        { "type": "line", "char": "maa", "emotion": "neutral", "hindi": "भगवान सब अच्छा करे।", "hinglish": "Bhagwaan sab achha kare.", "english": "May God make everything good." },
+        { "type": "action", "char": "pinky", "action": "serve" },
+        { "type": "action", "char": "pinky", "action": "eat", "seconds": 3 }
+      ] },
+    { "background": "bg_front", "time_of_day": "evening", "present": ["raju", "sheru"], "summary": "Sheru troubles Raju; they fight; then make up.", "seconds": 30,
+      "beats": [
+        { "type": "line", "char": "sheru", "emotion": "angry", "hindi": "ए! पैसे निकाल।", "hinglish": "Ae! Paise nikaal.", "english": "Hey! Hand over the money." },
+        { "type": "action", "char": "sheru", "action": "push", "target": "raju" },
+        { "type": "line", "char": "raju", "emotion": "angry", "hindi": "हाथ मत लगाना मुझे!", "hinglish": "Haath mat lagaana mujhe!", "english": "Don't touch me!" },
+        { "type": "action", "char": "raju", "action": "fight", "target": "sheru" },
+        { "type": "action", "char": "raju", "action": "slap", "target": "sheru" },
+        { "type": "action", "char": "sheru", "action": "namaste" },
+        { "type": "line", "char": "sheru", "emotion": "sad", "hindi": "माफ़ कर दो भाई, गलती हो गई।", "hinglish": "Maaf kar do bhai, galti ho gayi.", "english": "Forgive me brother, my mistake." },
+        { "type": "action", "char": "raju", "action": "hug", "target": "sheru" },
+        { "type": "action", "char": "raju", "action": "give", "target": "sheru", "item": "gift" },
+        { "type": "line", "char": "raju", "emotion": "happy", "hindi": "चल, पिंकी की शादी में ज़रूर आना।", "hinglish": "Chal, Pinky ki shaadi mein zaroor aana.", "english": "Come, do come to Pinky's wedding." },
+        { "type": "action", "char": "sheru", "action": "dance", "seconds": 4 }
+      ] },
+    { "background": "bg_inside", "time_of_day": "night", "present": ["raju"], "summary": "Raju sleeps.", "seconds": 10,
+      "beats": [
+        { "type": "action", "char": "raju", "action": "type", "seconds": 3 },
+        { "type": "line", "char": "raju", "emotion": "happy", "hindi": "बस, अब सो जाता हूँ।", "hinglish": "Bas, ab so jaata hoon.", "english": "That's it, now I'll sleep." },
+        { "type": "action", "char": "raju", "action": "sleep" },
+        { "type": "action", "char": "raju", "action": "knock" }
+      ] }
+  ]
+}

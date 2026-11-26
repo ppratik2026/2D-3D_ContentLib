@@ -47,7 +47,7 @@ function readSettings() { try { return { ...DEFAULTS, ...JSON.parse(fs.readFileS
 function writeSettings(s) { fs.writeFileSync(SETTINGS, JSON.stringify(s, null, 2)); }
 function getKey() { const s = readSettings(); try { if (s.keyEnc && safeStorage.isEncryptionAvailable()) return safeStorage.decryptString(Buffer.from(s.keyEnc, 'base64')); } catch {} return s.keyPlain || process.env.GEMINI_API_KEY || ''; }
 function setKey(k) { const s = readSettings(); k = String(k || '').trim(); if (safeStorage.isEncryptionAvailable()) { s.keyEnc = k ? safeStorage.encryptString(k).toString('base64') : ''; s.keyPlain = ''; } else { s.keyPlain = k; s.keyEnc = ''; } writeSettings(s); }
-const publicSettings = () => { const s = readSettings(); const k = getKey() || ['groq', 'openrouter', 'mistral', 'cerebras', 'custom'].map((n) => dec((s.ai?.providers || {})[n])).find(Boolean) || ''; return { model: s.model, renderer: s.renderer, concurrency: s.concurrency, hasKey: !!k, keyHint: k ? k.slice(0, 4) + '…' + k.slice(-4) : '', dataDir: process.env.AUTOVIDEO_DATA }; };
+const publicSettings = () => { const s = readSettings(); const k = getKey() || ['groq', 'openrouter', 'mistral', 'cerebras', 'custom'].map((n) => dec((s.ai?.providers || {})[n])).find(Boolean) || ''; return { model: s.model, renderer: s.renderer, concurrency: s.concurrency, hasSubStyle: !!s.subStyle, hasKey: !!k, keyHint: k ? k.slice(0, 4) + '…' + k.slice(-4) : '', dataDir: process.env.AUTOVIDEO_DATA }; };
 
 // ---------- Story AI providers (one key per provider, encrypted) ----------
 const ai = await import('../pipeline/ai.mjs');
@@ -99,7 +99,7 @@ async function pump() {
   const s = readSettings();
   try {
     const chain = job.opts.storyJson || job.opts.demo ? [] : await buildChain(job.opts.storyAI);
-    const r = await makeVideo({ ...job.opts, id: job.id, chain, renderer: s.renderer, concurrency: s.concurrency, renderFn: s.renderer === 'remotion' ? null : chromeRender },
+    const r = await makeVideo({ ...job.opts, id: job.id, chain, ffmpegPath, renderer: s.renderer, concurrency: s.concurrency, renderFn: s.renderer === 'remotion' ? null : chromeRender },
       (e) => { Object.assign(job, { step: e.step, msg: e.msg, elapsed: e.elapsed }); if (e.progress != null) job.progress = e.progress; if (e.eta != null) job.eta = e.eta; if (e.estimate) job.estimate = e.estimate; if (e.title) job.title = e.title; if (e.duration) job.duration = e.duration;
         if (e.stage && job.stages[e.stage.name]) { const i = STAGES.indexOf(e.stage.name); STAGES.forEach((k, j) => { if (j < i) job.stages[k].state = 'done'; });
           Object.assign(job.stages[e.stage.name], { state: e.stage.total && e.stage.done >= e.stage.total ? 'done' : 'active', done: e.stage.done, total: e.stage.total, label: e.stage.label }); }
@@ -193,7 +193,7 @@ const H = {
   'queue:get': () => queueView(),
   'queue:add': async (o) => { const n = Math.max(1, Math.min(20, Number(o.count) || 1)); const ideas = String(o.idea || '').split('\n').map((x) => x.trim()).filter(Boolean);
     let storyJson = null; if (o.pasted) { storyJson = (await import('../pipeline/story.mjs')).parsePastedStory(o.pasted, Number(o.minutes) || 1); }
-    for (let i = 0; i < (storyJson || o.myStory ? 1 : n); i++) { const opts = { category: o.category, idea: storyJson ? storyJson.title : ideas[i] ?? (n > 1 ? '' : o.idea || ''), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs, demo: !!o.demo, storyJson, storyAI: o.storyAI || 'auto', chars: o.chars || 'auto', myStory: storyJson ? '' : o.myStory || '' };
+    for (let i = 0; i < (storyJson || o.myStory ? 1 : n); i++) { const opts = { category: o.category, idea: storyJson ? storyJson.title : ideas[i] ?? (n > 1 ? '' : o.idea || ''), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs === 'mine' ? (readSettings().subStyle ? 'classic' : 'auto') : o.subs, subStyle: o.subs === 'mine' ? readSettings().subStyle || null : null, demo: !!o.demo, storyJson, storyAI: o.storyAI || 'auto', chars: o.chars || 'auto', myStory: storyJson ? '' : o.myStory || '' };
       const est = estimate({ style: opts.style, minutes: opts.minutes, renderer: readSettings().renderer });
       queue.push({ id: newJobId(o.category) + (n > 1 ? `_${i + 1}` : ''), opts, status: 'queued', progress: 0, estimate: est, created: Date.now(), msg: 'Queued', session: SESSION }); }
     if (o.start) autoRun = true; broadcast(true); pump(); return queueView(); },
@@ -205,6 +205,16 @@ const H = {
   'queue:move': ({ id, dir }) => { const i = queue.findIndex((x) => x.id === id), k = i + dir; if (i >= 0 && k >= 0 && k < queue.length) [queue[i], queue[k]] = [queue[k], queue[i]]; broadcast(true); return queueView(); },
   'queue:clearDone': () => { queue = queue.filter((x) => !['done', 'cancelled'].includes(x.status)); broadcast(true); return queueView(); },
   'library:list': () => libraryList(),
+  'subs:load': async (dir) => { const S = await import('../pipeline/subs.mjs'); const f = path.join(OUTPUT, path.basename(dir)); let data = null;
+    try { data = JSON.parse(fs.readFileSync(path.join(f, 'subtitles.json'), 'utf8')); } catch {}
+    if (!data) { const tl = JSON.parse(fs.readFileSync(path.join(f, 'timeline.json'), 'utf8')); data = { lines: S.linesFromTimeline(tl), style: S.styleFrom(tl.subsPreset || tl.subs) }; }
+    const canBurn = fs.existsSync(path.join(f, 'video_clean.mp4'));
+    return { ...data, canBurn, video: `av://videos/${encodeURIComponent(path.basename(dir))}/${canBurn ? 'video_clean.mp4' : 'final.mp4'}`, presets: S.PRESETS, fonts: Object.keys(S.FONTS) }; },
+  'subs:save': async (o, e) => { const S = await import('../pipeline/subs.mjs'); const f = path.join(OUTPUT, path.basename(o.dir)); const { WIDTH, HEIGHT } = await import('../pipeline/config.mjs');
+    if (!fs.existsSync(path.join(f, 'video_clean.mp4'))) { fs.writeFileSync(path.join(f, 'subtitles.json'), JSON.stringify({ style: o.style, lines: o.lines }, null, 2)); S.writeSRT(o.lines, path.join(f, 'subtitles.srt'), o.style.lang === 'hindi' ? 'hindi' : o.style.lang === 'english' ? 'english' : 'hinglish'); return { ok: true, burned: false }; }
+    const dur = Math.max(1, ...o.lines.map((l) => l.end + 4));
+    await S.applySubs({ ffmpegPath, folder: f, lines: o.lines, style: o.style, W: WIDTH, H: HEIGHT, duration: dur, onProgress: (p) => e.sender.send('subs:progress', p) }); return { ok: true, burned: true }; },
+  'subs:default': (style) => { const s = readSettings(); s.subStyle = style; writeSettings(s); return true; },
   'library:open': (dir) => shell.openPath(dir ? path.join(OUTPUT, dir) : OUTPUT),
   'library:delete': (dir) => { fs.rmSync(path.join(OUTPUT, dir), { recursive: true, force: true }); return libraryList(); },
   'chars:list': () => lib.listCharacters().map((c) => ({ ...c, url: 'av://data/' + c.file.split('/').map(encodeURIComponent).join('/') })),
@@ -239,6 +249,7 @@ function createWindow() {
   if (shots > 0) win.webContents.once('did-finish-load', async () => { // dev: screenshots of every tab
     const dir = process.argv[shots + 1]; const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); await wait(2500);
     if (process.argv.includes('--mystory-ui')) { await win.webContents.executeJavaScript(`document.querySelector('#storyMode [data-m=mine]').click(); const t=document.querySelector('#myStory'); t.value='Inspector Arjun: "Raka, gaadi roko!"\\n\\n'+'Raka laal car me highway par bhaag raha tha. '.repeat(120); t.dispatchEvent(new Event('input'));`); await wait(2000); fs.writeFileSync(path.join(dir, 'mystory_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
+    if (process.argv.includes('--subed-ui')) { await win.webContents.executeJavaScript(`document.querySelector('[data-tab=library]').click()`); await wait(2000); await win.webContents.executeJavaScript(`document.querySelector('[data-subs]').click()`); await wait(2500); await win.webContents.executeJavaScript(`(()=>{const v=document.querySelector('#seVideo'); v.currentTime=13.4; document.querySelector('#sePreset').value='youtube'; document.querySelector('#sePreset').onchange();})()`); await wait(2500); fs.writeFileSync(path.join(dir, 'subed_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
     if (process.argv.includes('--paste-ui')) { const demo = fs.readFileSync(path.join(APP_DIR, 'pipeline', 'demo-story.json'), 'utf8');
       await win.webContents.executeJavaScript(`const ss=document.querySelector('#storySrc'); ss.value='paste'; ss.onchange(); const t=document.querySelector('#pasted'); t.value = ${JSON.stringify('Sure! Here is the story:\n' + demo)}; t.dispatchEvent(new Event('input'));`);
       await wait(2500); fs.writeFileSync(path.join(dir, 'paste_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
@@ -275,7 +286,7 @@ async function demoTest() {
   try {
     const arg = (n, d) => (process.argv.includes(n) ? process.argv[process.argv.indexOf(n) + 1] : d);
     const mine = arg('--my-story') ? fs.readFileSync(arg('--my-story'), 'utf8') : '';
-    const r = await makeVideo({ demo: !mine, myStory: mine, chain: mine ? [{ provider: 'custom', baseUrl: arg('--ai-url'), key: 'x', model: 'fake' }] : undefined, minutes: 2, demoFile: arg('--demo-file'), category: arg('--category', 'romance'), style, renderFn: chromeRender }, (e) => console.log(`[${fmt(e.elapsed)}] ${e.step}: ${e.msg}`));
+    const r = await makeVideo({ demo: !mine, myStory: mine, chain: mine ? [{ provider: 'custom', baseUrl: arg('--ai-url'), key: 'x', model: 'fake' }] : undefined, minutes: 2, demoFile: arg('--demo-file'), category: arg('--category', 'romance'), style, ffmpegPath, renderFn: chromeRender }, (e) => console.log(`[${fmt(e.elapsed)}] ${e.step}: ${e.msg}`));
     console.log('DEMO OK', r.file, fmt((Date.now() - t0) / 1000));
   } catch (e) { console.error('DEMO FAIL', e); }
   app.quit();

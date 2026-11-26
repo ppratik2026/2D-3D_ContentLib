@@ -244,6 +244,23 @@ export function poseActor(a, t, st) {
     if (n === 'grab') arm('Right', 1.35 * k, 0.1 * k, 0.35 * k);
     if (n === 'cuff') { arm('Right', 0.95 * k, 0.9 * k, 0.55 * k); arm('Left', 0.95 * k, 0.9 * k, 0.55 * k); rotW(a, 'Spine1', R, 0.12 * k); }
     if (n === 'clap') { const c = Math.abs(Math.sin(t * 10)); arm('Right', 0.9 * k, 1.5 * k, (0.5 + 0.25 * c) * k); arm('Left', 0.9 * k, 1.5 * k, (0.5 + 0.25 * c) * k); face = 'happy'; }
+    if (n === 'cook') { arm('Right', 0.85 * k, 0.75 * k, 0.25 * k); arm('Left', (0.8 + 0.12 * Math.sin(t * 7)) * k, (1.2 + 0.15 * Math.cos(t * 7)) * k, (0.65 + 0.1 * Math.sin(t * 7)) * k); rotW(a, 'Head', R, 0.25 * k); }
+    if (n === 'chop') { arm('Left', 0.7 * k, 0.9 * k, 0.45 * k); const c = Math.abs(Math.sin(t * 8)); arm('Right', (0.8 + 0.35 * c) * k, (0.7 + 0.5 * c) * k, 0.3 * k); rotW(a, 'Head', R, 0.3 * k); rotW(a, 'Spine1', R, 0.1 * k); }
+    if (n === 'eat') { arm('Left', 0.75 * k, 1.1 * k, 0.5 * k); const c = (Math.sin(t * 3.2) + 1) / 2; arm('Right', (0.55 + 0.45 * c) * k, (1.0 + 1.1 * c) * k, (0.35 + 0.15 * c) * k); }
+    if (n === 'serve') { arm('Right', 0.95 * k, 0.6 * k, 0.45 * k); arm('Left', 0.95 * k, 0.6 * k, 0.45 * k); }
+    if (n === 'sweep') { const c = Math.sin(t * 3.5); arm('Right', 0.55 * k, 0.4 * k, (0.35 + 0.35 * c) * k); arm('Left', 0.75 * k, 0.6 * k, (0.5 + 0.35 * c) * k); rotW(a, 'Spine1', R, 0.35 * k); rotW(a, 'Spine', R, 0.12 * k); rotW(a, 'Head', R, 0.2 * k); }
+    if (n === 'aarti') { const c = t * 2.4; arm('Right', (1.0 + 0.18 * Math.sin(c)) * k, (1.05 + 0.18 * Math.cos(c)) * k, (0.45 + 0.15 * Math.cos(c)) * k); arm('Left', 0.25 * k, 0.5 * k, 0); face = 'happy'; }
+    if (n === 'pray') { arm('Right', 0.6 * k, 1.95 * k, 0.78 * k); arm('Left', 0.6 * k, 1.95 * k, 0.78 * k); rotW(a, 'Head', R, 0.28 * k); rotW(a, 'Spine1', R, 0.12 * k); }
+    if (n === 'dance') { const c = Math.sin(t * 6), d = Math.sin(t * 6 + Math.PI); rotW(a, 'RightArm', F, (-1.9 - 0.4 * c) * k); rotW(a, 'LeftArm', F, (1.9 + 0.4 * d) * k); rotW(a, 'RightForeArm', F, (-0.6 * c) * k); rotW(a, 'LeftForeArm', F, (0.6 * d) * k); rotW(a, 'Spine', UP, 0.25 * c * k); rotW(a, 'Hips', F, 0.08 * c * k); face = 'happy'; }
+    if (n === 'knock') { const c = Math.max(0, Math.sin(t * 14)); arm('Right', (1.1 + 0.25 * c) * k, (1.6 - 0.5 * c) * k, 0.1 * k); }
+    if (n === 'shiver') { rotW(a, 'Spine1', UP, Math.sin(t * 31) * 0.06 * k); arm('Right', 0.5 * k, 1.9 * k, 0.9 * k); arm('Left', 0.5 * k, 1.9 * k, 0.9 * k); rotW(a, 'Head', R, 0.15 * k); face = 'scared'; }
+    if (n === 'type') { const c = Math.sin(t * 13); arm('Right', 0.7 * k, (0.75 + 0.06 * c) * k, 0.45 * k); arm('Left', 0.7 * k, (0.75 - 0.06 * c) * k, 0.45 * k); rotW(a, 'Head', R, 0.22 * k); }
+    if (n === 'hug') { arm('Right', 1.25 * k, 0.95 * k, 1.05 * k); arm('Left', 1.25 * k, 0.95 * k, 1.05 * k); rotW(a, 'Spine1', R, 0.1 * k); face = 'happy'; }
+    if (n === 'punch') { const c = Math.max(0, Math.sin(t * 9)), d = Math.max(0, Math.sin(t * 9 + Math.PI)); arm('Right', (0.9 + 0.55 * c) * k, (1.9 - 1.7 * c) * k, 0.25 * k); arm('Left', (0.9 + 0.55 * d) * k, (1.9 - 1.7 * d) * k, 0.25 * k); rotW(a, 'Spine', UP, 0.2 * (c - d) * k); face = 'angry'; }
+    if (n === 'push') { arm('Right', 1.35 * k, 0.15 * k, 0.15 * k); arm('Left', 1.35 * k, 0.15 * k, 0.15 * k); rotW(a, 'Spine1', R, 0.15 * k); face = 'angry'; }
+    if (n === 'slap') { const c = Math.min(1, Math.max(0, (Math.sin(t * 5) + 0.2))); arm('Right', 1.3 * k, 0.3 * k, (-0.6 + 1.6 * c) * k); face = 'angry'; }
+    if (n === 'give' || n === 'receive') arm('Right', 1.1 * k, 0.35 * k, 0.3 * k);
+    if (n === 'hit_back') { rotW(a, 'Spine1', R, -0.22 * k); rotW(a, 'Head', UP, 0.35 * k); face = 'surprised'; }
     if (n === 'angry') { arm('Right', 0.5 * k, 1.7 * k, -0.1 * k); arm('Left', 0.5 * k, 1.7 * k, -0.1 * k); face = 'angry'; }
   }
   if (st.cuffed) { arm('Right', 0.5, 0.75, 0.62); arm('Left', 0.5, 0.75, 0.62); }
@@ -257,7 +274,7 @@ export function poseActor(a, t, st) {
     rotW(a, 'Neck', UP, ang * 0.45); rotW(a, 'Head', UP, ang * 0.55); }
   if (st.talk) rotW(a, 'Head', R, Math.sin(t * 4.1) * 0.04 * st.talk);
   // face
-  const mouth = st.mouth || 0; const per = 3.1 + a.id.length * 0.29, q = (t + a.id.length * 1.7) % per; const blink = face === 'happy' ? 0 : q < 0.16 ? 1 - Math.abs(q - 0.08) / 0.08 : 0;
+  const mouth = st.mouth || 0; const per = 3.1 + a.id.length * 0.29, q = (t + a.id.length * 1.7) % per; const blink = face === 'sleep' ? 1 : face === 'happy' ? 0 : q < 0.16 ? 1 - Math.abs(q - 0.08) / 0.08 : 0;
   if (a.vrm) { const em = a.vrm.expressionManager;
     if (em) { for (const v of VOW) em.setValue(v, 0); if (mouth > 0.02) em.setValue(VOW[Math.floor(t * 7.3 + a.id.length) % 5], Math.min(1, mouth * 1.1));
       em.setValue('blink', blink);

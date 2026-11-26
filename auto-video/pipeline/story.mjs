@@ -113,6 +113,7 @@ export function normalizeBeats(beats, chars, sc) {
       if (b.chaser_vehicle) a.chaser_vehicle = VEHICLES.includes(b.chaser_vehicle) ? b.chaser_vehicle : 'police_jeep';
       if (HEX.test(String(b.color || ''))) a.color = '#' + String(b.color).replace('#', '');
       if (b.place && MARKS[b.place]) a.place = b.place;
+      if (b.item) a.item = String(b.item).toLowerCase() === 'money' ? 'money' : 'give';
       if (Number(b.seconds)) a.seconds = Math.max(4, Math.min(20, Number(b.seconds)));
       for (const f of ['with', 'chasers']) if (Array.isArray(b[f])) a[f] = b[f].map((x) => matchId(x, chars)).filter((x) => x && x !== char);
       if (['get_in', 'get_out', 'drive_in', 'drive_away', 'car_chase'].includes(a.action) && !a.vehicle) a.vehicle = a.action === 'car_chase' ? 'car' : 'police_jeep';
@@ -134,6 +135,8 @@ export function normalizeBeats(beats, chars, sc) {
 function actionHelp(stage) { return `Between dialogue lines add actions (only these words): ${ACTIONS.join(', ')}.
 - "enter"/"exit"/"run_exit" = comes in / leaves; "sit"/"stand"; "walk_to" needs "target" = another character id.
 - Gestures: wave, nod, laugh, point, think, shock, drink, phone, look_around, hands_up, salute, namaste, cry, angry, clap, examine (magnifying glass), test_tube (lab), torch (flashlight at night), read/file (reads a file), write (notes), gavel (judge).
+- Daily life (optional "seconds"): cook (pan at the stove), chop (vegetables), eat, serve (tray with tea), sweep (broom), aarti (temple thali), pray, dance, knock (door), shiver (cold / fear), type (laptop), sleep (lies down asleep; "stand" wakes up). Kitchen/shop/lab: use {"action":"go_to","place":"counter"} first.
+- With another person ("target" = their id): hug, fight, push, slap, give (optional "item":"gift|money").
 ${stage ? `- Places in the background (if the background has them): {"action":"go_to","char":"id","place":"${Object.keys(MARKS).join('|')}"}. People whose role fits (judge, inspector at desk, patient in bed, prisoner in cell, accused in witness box, teacher at board, scientist at lab counter) start there automatically.
 - "faint" = falls down (or a dead body lying), "lie" = lies down; "stand" gets up again.
 - Vehicles (${VEHICLES.join(', ')}): {"action":"drive_in","char":"driver id","vehicle":"police_jeep","with":["passenger ids"]} (arrives and stops), {"action":"get_out","char":"id","vehicle":"police_jeep"}, {"action":"get_in","char":"id","vehicle":"police_jeep"}, {"action":"drive_away","char":"driver id","vehicle":"police_jeep"}.

@@ -14,7 +14,7 @@ async function initNew() {
   O = await api.call('options');
   $('#cats').innerHTML = Object.entries(O.categories).map(([k, v]) => `<span class="chip${k === cat ? ' on' : ''}" data-k="${k}">${esc(v.label)}</span>`).join('');
   $('#cats').onclick = (e) => { const k = e.target.dataset.k; if (!k) return; cat = k; $$('#cats .chip').forEach((c) => c.classList.toggle('on', c.dataset.k === k)); };
-  fill($('#style'), O.styles); fill($('#look'), O.looks, true); fill($('#subs'), O.subs, true);
+  fill($('#style'), O.styles); fill($('#look'), O.looks, true); fill($('#subs'), O.subs, true); ensureMine();
   for (const id of ['#min', '#style', '#count']) $(id).oninput = est; est();
 }
 async function est() {
@@ -97,11 +97,12 @@ api.on('queue', renderQueue);
 async function loadLibrary() {
   const list = await api.call('library:list'); $('#libPath').textContent = (S?.dataDir || '') + '\\Videos';
   $('#libList').innerHTML = list.length ? list.map((v) => `<div class="card lib"><video src="${v.video}#t=4" preload="metadata" data-play="${v.video}"></video><div class="t">${esc(v.title)}</div>
-    <div class="muted small">${new Date(v.created).toLocaleString('en-IN')} · ${v.sizeMB} MB</div><div class="btns"><button class="ghost" data-open="${esc(v.dir)}">Folder</button><button class="danger" data-del="${esc(v.dir)}">Delete</button></div></div>`).join('') : '<div class="muted">No videos yet.</div>';
+    <div class="muted small">${new Date(v.created).toLocaleString('en-IN')} · ${v.sizeMB} MB</div><div class="btns"><button class="ghost" data-subs="${esc(v.dir)}">Subtitles</button><button class="ghost" data-open="${esc(v.dir)}">Folder</button><button class="danger" data-del="${esc(v.dir)}">Delete</button></div></div>`).join('') : '<div class="muted">No videos yet.</div>';
 }
 $('#libList').onclick = async (e) => { const t = e.target;
   if (t.dataset.play) { $('#playerVideo').src = t.dataset.play; $('#player').hidden = false; $('#playerVideo').play(); }
   if (t.dataset.open) api.call('library:open', t.dataset.open);
+  if (t.dataset.subs) openSubEd(t.dataset.subs, t.closest('.lib')?.querySelector('.t')?.textContent || '');
   if (t.dataset.del && confirm('Delete this video?')) { await api.call('library:delete', t.dataset.del); loadLibrary(); } };
 $('#playerClose').onclick = () => { $('#playerVideo').pause(); $('#player').hidden = true; };
 $('#libOpen').onclick = () => api.call('library:open'); $('#libRefresh').onclick = loadLibrary;
@@ -192,7 +193,8 @@ const bz = $('#tab-bgs'); bz.ondragover = (e) => { e.preventDefault(); bz.classL
 bz.ondrop = async (e) => { e.preventDefault(); bz.classList.remove('drop'); const paths = [...e.dataTransfer.files].map((f) => api.pathOf(f)).filter((p) => /\.(jpe?g|png|webp)$/i.test(p)); if (paths.length) { const r = await api.call('bg:importPaths', paths); bsel = r[0]?.id; loadBgs(); } };
 
 // ---------- settings ----------
-async function loadSettings() { S = await api.call('settings:get'); $('#conc').value = S.concurrency; $('#dataDir').textContent = S.dataDir;
+function ensureMine(force) { if ((force || S?.hasSubStyle) && !$('#subs option[value=mine]')) $('#subs').insertAdjacentHTML('beforeend', '<option value="mine">My style (saved in the subtitle editor)</option>'); }
+async function loadSettings() { S = await api.call('settings:get'); ensureMine(); $('#conc').value = S.concurrency; $('#dataDir').textContent = S.dataDir;
   $$('input[name=renderer]').forEach((r) => (r.checked = r.value === S.renderer)); $('#keyWarn').hidden = S.hasKey || src() !== 'api'; }
 $('#conc').onchange = () => api.call('settings:set', { concurrency: Math.max(1, Math.min(8, +$('#conc').value || 2)) });
 $$('input[name=renderer]').forEach((r) => (r.onchange = async () => { await api.call('settings:set', { renderer: r.value }); est(); }));
@@ -259,3 +261,46 @@ $('#updBtn').onclick = async () => { const u = await api.call('update:get'); if 
 api.on('queue', (q) => (queueBusy = q.running));
 
 (async () => { renderUpd(await api.call('update:get')); await loadSettings(); await loadAI(); await initNew(); renderQueue(await api.call('queue:get')); checkSetup(false); })();
+
+// ---------- subtitle editor ----------
+let SE = null; const seF = (id) => document.getElementById(id);
+const SE_MAP = { font: 'seFont', lang: 'seLang', position: 'sePos', size: 'seSize', margin: 'seMargin', outlineW: 'seOutW', color: 'seColor', nameColor: 'seNameColor', outline: 'seOutline', boxColor: 'seBoxColor', boxOpacity: 'seBoxOp', karaokeColor: 'seKColor', box: 'seBox', showName: 'seName', karaoke: 'seKara', italic: 'seItalic', upper: 'seUpper' };
+const PRESET_LABEL = { classic: 'Classic (box)', youtube: 'YouTube bold', karaoke: 'Karaoke', cinematic: 'Cinematic', dual: 'Hinglish + English', hindi: 'Hindi', kids: 'Kids (handwritten)', none: 'No subtitles' };
+async function openSubEd(dir, title) {
+  const d = await api.call('subs:load', dir); SE = { dir, ...d, cur: -1 };
+  seF('seTitle').textContent = 'Edit subtitles — ' + title; seF('seWarn').hidden = d.canBurn; seF('seSave').textContent = d.canBurn ? 'Save & burn subtitles' : 'Save (.srt only)';
+  seF('sePreset').innerHTML = '<option value="">— keep my settings —</option>' + Object.keys(d.presets).map((k) => `<option value="${k}">${PRESET_LABEL[k] || k}</option>`).join('');
+  seF('seFont').innerHTML = d.fonts.map((f) => `<option>${f}</option>`).join('');
+  seFill(); seLines(); seF('seVideo').src = d.video; seF('seMsg').textContent = ''; seF('subEd').hidden = false;
+}
+function seFill() { for (const [k, id] of Object.entries(SE_MAP)) { const el = seF(id); if (el.type === 'checkbox') el.checked = !!SE.style[k]; else el.value = SE.style[k]; } seDraw(); }
+function seRead() { for (const [k, id] of Object.entries(SE_MAP)) { const el = seF(id); SE.style[k] = el.type === 'checkbox' ? el.checked : el.type === 'range' ? +el.value : el.value; } SE.style.off = false; }
+const fieldOf = () => (SE.style.lang === 'hindi' ? 'hindi' : SE.style.lang === 'english' ? 'english' : 'hinglish');
+function seLines() { const f = fieldOf();
+  seF('seLines').innerHTML = SE.lines.map((l, i) => `<div class="seline${i === SE.cur ? ' on' : ''}" data-i="${i}"><div class="h"><b>${esc(l.char === 'narrator' ? 'Narrator' : l.name)}</b><input type="number" step="0.1" data-k="start" value="${l.start}"> – <input type="number" step="0.1" data-k="end" value="${l.end}"></div>
+    <textarea rows="2" data-k="${f}">${esc(l[f] || '')}</textarea>${SE.style.lang === 'dual' ? `<textarea rows="1" data-k="english">${esc(l.english || '')}</textarea>` : ''}</div>`).join(''); }
+seF('seLines').oninput = (e) => { const row = e.target.closest('.seline'); if (!row) return; const l = SE.lines[+row.dataset.i]; const k = e.target.dataset.k; l[k] = k === 'start' || k === 'end' ? +e.target.value : e.target.value; seDraw(); };
+seF('seLines').onclick = (e) => { const row = e.target.closest('.seline'); if (!row || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return; const l = SE.lines[+row.dataset.i]; seF('seVideo').currentTime = l.start + 0.05; };
+for (const id of Object.values(SE_MAP)) seF(id).addEventListener('input', () => { const langBefore = SE.style.lang; seRead(); if (SE.style.lang !== langBefore) seLines(); seDraw(); });
+seF('sePreset').onchange = () => { const k = seF('sePreset').value; if (!k) return; SE.style = { ...SE.presets[k] }; seFill(); seLines(); };
+seF('seVideo').ontimeupdate = seDraw;
+function seDraw() { if (!SE) return; const st = SE.style, v = seF('seVideo'), ov = seF('seOv'); const t = v.currentTime || 0; const i = SE.lines.findIndex((l) => t >= l.start && t < l.end + 0.15);
+  if (i !== SE.cur) { SE.cur = i; document.querySelectorAll('.seline').forEach((r) => r.classList.toggle('on', +r.dataset.i === i)); }
+  const l = SE.lines[i]; if (!l || st.off) { ov.innerHTML = ''; return; }
+  const H = v.clientHeight || 360; const fs = (st.size / 100) * H * 1.4 * 0.72; const nar = l.char === 'narrator';
+  let text = st.lang === 'hindi' ? l.hindi : st.lang === 'english' ? l.english : l.hinglish; if (st.upper) text = String(text).toUpperCase();
+  if (st.karaoke && !nar) { const w = String(text).split(/\s+/); const k = Math.floor(((t - l.start) / Math.max(0.3, l.end - l.start)) * w.length); text = w.map((x, j) => `<span style="color:${j <= k ? st.karaokeColor : st.color}">${esc(x)}</span>`).join(' '); } else text = esc(text);
+  const font = { Poppins: "'Poppins'", Mukta: "'Mukta'", Hind: "'Hind SemiBold'", Kalam: "'Kalam'" }[st.font] || 'sans-serif';
+  const outline = st.box ? 'none' : [...Array(8)].map((_, j) => `${Math.cos(j * Math.PI / 4) * st.outlineW * 0.6}px ${Math.sin(j * Math.PI / 4) * st.outlineW * 0.6}px 0 ${st.outline}`).join(',');
+  const bg = st.box ? `background:${st.boxColor}${Math.round(st.boxOpacity * 255).toString(16).padStart(2, '0')};` : '';
+  const name = st.showName && !nar ? `<span style="color:${st.nameColor}">${esc(l.name)}:</span> ` : '';
+  const second = st.lang === 'dual' && l.english ? `<br><span class="t" style="${bg}font-size:.72em;color:${st.secondColor || '#cfe8ff'}">${esc(l.english)}</span>` : '';
+  ov.style.cssText = `font-family:${font};font-weight:700;font-size:${fs}px;color:${nar ? '#ffe9a8' : st.color};font-style:${st.italic || nar ? 'italic' : 'normal'};text-shadow:${outline};${st.position === 'top' ? `top:${st.margin}%` : st.position === 'middle' ? 'top:45%' : `bottom:${st.margin}%`}`;
+  ov.innerHTML = `<span class="t" style="${bg}">${name}${text}</span>${second}`;
+}
+seF('seClose').onclick = () => { seF('seVideo').pause(); seF('subEd').hidden = true; SE = null; };
+seF('seDefault').onclick = async () => { await api.call('subs:default', SE.style); ensureMine(true); seF('seMsg').textContent = 'Saved as your default style ✓ (New Video → Subtitles → "My style")'; };
+seF('seSave').onclick = async () => { seRead(); seF('seSave').disabled = true; seF('seMsg').className = 'small'; seF('seMsg').textContent = SE.canBurn ? 'Burning subtitles… (a few minutes for a long video)' : 'Saving…';
+  try { const r = await api.call('subs:save', { dir: SE.dir, lines: SE.lines, style: SE.style }); seF('seMsg').textContent = r.burned ? 'Done ✓ final.mp4 has the new subtitles.' : 'Saved ✓ subtitles.srt updated.'; loadLibrary(); }
+  catch (e) { seF('seMsg').className = 'small warn'; seF('seMsg').textContent = String(e.message || e); } finally { seF('seSave').disabled = false; } };
+api.on('subs:progress', (p) => { if (SE) seF('seMsg').textContent = `Burning subtitles… ${Math.round(p * 100)}%`; });
