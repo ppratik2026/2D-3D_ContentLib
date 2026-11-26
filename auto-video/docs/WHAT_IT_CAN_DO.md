@@ -1,4 +1,4 @@
-# What Auto Video Studio can animate (v0.9)
+# What Auto Video Studio can animate (v1.1)
 
 The story AI uses these automatically. You can also write them yourself in a pasted story.
 
@@ -15,11 +15,21 @@ The story AI uses these automatically. You can also write them yourself in a pas
 
 ## Vehicles
 
-Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren), auto rickshaw, van.
+Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren), auto rickshaw, van, **bike, scooter, cycle** (rider + pillion, pedalling, bell / engine sounds) and a **riding horse**.
 
 - drive_in, get_out, get_in, drive_away
 - car_chase: scrolling road, speed lines and dialogue during the chase
 - foot_chase
+
+## Animals, crowd and baraat (v1.1)
+
+| What | Actions |
+|---|---|
+| Dog | enter, exit, run, bark, sit, follow a person |
+| Cow | enter, exit, graze, moo, follow |
+| Horse | enter, exit, run, neigh, follow (and riding, see Vehicles) |
+| Crowd in the background (up to 14 people) | dance, cheer, clap, watch, walk |
+| Baraat | the groom rides a decorated mare with a safa; relatives dance in front; the crowd dances behind; confetti falls; dhol + shehnai + cheering |
 
 ## Places you mark on a background
 
@@ -70,4 +80,4 @@ The video is rendered clean, then the subtitles are added on top. That means you
 
 ## Not yet (send your TO-DO lists)
 
-Bike / scooter / cycle, horse, boat, a moving train, swimming, climbing, fire / explosion, cricket / sports, umbrellas in the rain, crowds of more than 8 people, children playing games, a wedding procession (baraat), animals (dog, cow).
+Boat, a moving train, swimming, climbing, fire / explosion, cricket / sports, umbrellas in the rain, children playing games, more animals (goat, cat, birds, elephant).

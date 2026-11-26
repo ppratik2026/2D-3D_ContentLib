@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { OutlineEffect } from 'three/examples/jsm/effects/OutlineEffect.js';
 import { loadActorKit, createActor, poseActor, headPos, handPos } from './actors.js';
 import { makeVehicle } from './vehicles.js';
+import { makeAnimal, makeExtra, makeSafa } from './creatures.js';
 
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 const sm = (a, b, t) => { const x = Math.min(1, Math.max(0, (t - a) / (b - a))); return x * x * (3 - 2 * x); };
@@ -87,6 +88,11 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
   // vehicles
   const vehicles = {};
   for (const v of tl.vehicles || []) { const m = makeVehicle(v.type, v.color, grad); m.group.visible = false; scene.add(m.group); vehicles[v.key] = m; }
+  // animals, crowd people, baraat extras
+  const animals = {}; for (const a of tl.animals || []) { const m = makeAnimal(a.type, a.seed || 1, { grad }); m.group.visible = false; scene.add(m.group); animals[a.key] = m; }
+  const extras = []; for (let i = 0; i < Math.min(14, tl.crowdMax || 0); i++) { const e = makeExtra(i + 1, grad); e.group.visible = false; scene.add(e.group); extras.push(e); }
+  const safa = makeSafa(grad); safa.visible = false; scene.add(safa);
+  const confetti = []; { const cols = [0xff4d6d, 0xffd166, 0x06d6a0, 0x4cc9f0, 0xf72585, 0xffffff]; for (let i = 0; i < 46; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.012, 0.018), new THREE.MeshBasicMaterial({ color: cols[i % cols.length], side: THREE.DoubleSide, depthTest: false, toneMapped: false })); m.userData.outlineParameters = { visible: false }; m.visible = false; m.position.z = 44; scene.add(m); confetti.push(m); } }
   // props held in the hand
   const P = {};
   P.cup = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.035, 0.09, 12), toon('#ffffff'));
@@ -134,7 +140,9 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     const vkeys = [...new Set(ev.map((e) => e.vehicle).concat(ev.map((e) => e.chaser)).filter(Boolean))].filter((k) => vehicles[k]);
     const chase = ev.some((e) => e.kind === 'car_chase' || e.kind === 'foot_chase');
     const involved = new Set(ev.filter((e) => e.kind === 'car_chase' || e.kind === 'foot_chase').flatMap((e) => [e.char, ...(e.chasers || [])]));
+    const akeys = [...new Set(ev.filter((e) => e.kind === 'animal').map((e) => e.animal))].filter((k) => animals[k]);
     const inside = {}; // characters who start the scene inside a vehicle
+    for (const e of ev) if (e.kind === 'baraat' && e.char && e.vehicle && !(e.char in inside)) inside[e.char] = { key: e.vehicle, seat: 0 };
     for (const e of ev) { if (e.kind === 'drive_in' || e.kind === 'car_chase') { [e.char, ...(e.with || [])].forEach((id, i) => { if (id && !(id in inside)) inside[id] = { key: e.vehicle, seat: i }; }); if (e.kind === 'car_chase' && e.chaser) (e.chasers || []).forEach((id, i) => { if (!(id in inside)) inside[id] = { key: e.chaser, seat: i }; }); } }
     // markers taken by role at the start (only for people standing in the scene at the start)
     const anchor = {}; const used = new Set();
@@ -144,14 +152,16 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     const parked = vkeys.some((k) => { const f = ev.find((e) => e.vehicle === k || e.chaser === k); return f && f.kind !== 'drive_in' && f.kind !== 'car_chase'; });
     const free = sc.cast.filter((c) => !anchor[c]); const busy = Object.values(anchor).map((m) => { const w = m.w || 0.12; return [m.x - w / 2, m.x + w / 2]; }); const sp = spots(free, parked, busy);
     // when a chase ends, the next movement of the scene
-    for (const e of ev) if (e.kind === 'car_chase' || e.kind === 'foot_chase') { const nx = ev.find((x) => x.t0 >= e.t1 - 0.01 && x !== e && x.kind !== 'gesture'); e._until = Math.max(e.t1, nx ? nx.t0 : sc.end - 0.4); }
-    const p = { b, ms, ev, vkeys, chase, involved, inside, anchor, sp, parked }; plan.set(sc, p); return p;
+    for (const e of ev) if (e.kind === 'car_chase' || e.kind === 'foot_chase' || e.kind === 'baraat') { const nx = ev.find((x) => x.t0 >= e.t1 - 0.01 && x !== e && x.kind !== 'gesture'); e._until = Math.max(e.t1, nx ? nx.t0 : sc.end - 0.4); }
+    const p = { b, ms, ev, vkeys, akeys, chase, involved, inside, anchor, sp, parked }; plan.set(sc, p); return p;
   }
   const PARK = { x: 0.8, row: 1 }; const VSCALE = 0.85;
   function stateAt(sc, t) {
     const p = planOf(sc); const b = p.b;
-    const C = {}, V = {}; let scroll = 0, chasing = null, shake = 0;
-    p.vkeys.forEach((k, i) => { const f = p.ev.find((e) => e.vehicle === k || e.chaser === k); const visible = f && f.kind !== 'drive_in' && f.kind !== 'car_chase'; const park = [0.78, 0.3, 0.55][i % 3]; V[k] = { visible, park, x: park, row: PARK.row, spin: 0, door: 0, siren: false, bob: 0, used: 0 }; });
+    const C = {}, V = {}; let scroll = 0, chasing = null, shake = 0, crowd = { mood: null, count: 0 }, baraat = null; const A = {};
+    for (const k of p.akeys) { const f = p.ev.find((e) => e.kind === 'animal' && e.animal === k); const type = animals[k].type; const home = type === 'dog' ? { x: 0.08, row: 0.1 } : { x: 0.16, row: 0.92 };
+      A[k] = { visible: f && f.act !== 'enter', x: home.x, row: home.row, home, face: home.x < 0.5 ? 1 : -1, move: 0, run: 0, head: null, act: null }; }
+    p.vkeys.forEach((k, i) => { const f = p.ev.find((e) => e.vehicle === k || e.chaser === k); const visible = f && f.kind !== 'drive_in' && f.kind !== 'car_chase' && f.kind !== 'baraat'; const park = [0.78, 0.3, 0.55][i % 3]; V[k] = { visible, park, x: park, row: PARK.row, spin: 0, door: 0, siren: false, bob: 0, used: 0 }; });
     for (const id of sc.cast) {
       const s = p.sp[id] || { x: 0.5, row: 0 }; const an = p.anchor[id];
       C[id] = { visible: sc.initial.includes(id), x: an ? an.x : s.x, row: s.row, home: s, feetY: an ? an.y : null, face: s.x < 0.5 ? 1 : -1, walk: 0, run: 0, sit: an && SIT_TYPES.has(an.type) ? 1 : 0, lie: 0, anchor: an || null, inV: null, inK: 0, cuffed: false, grab: null, struggle: 0 };
@@ -169,6 +179,18 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       const go = (cc, x0, x1, run, kk = k) => { cc.x = lerp(x0, x1, kk); if (kk < 1 && Math.abs(x1 - x0) > 0.005) { cc.face = x1 > x0 ? 1 : -1; cc[run ? 'run' : 'walk'] = 1; } else cc.walk = cc.run = 0; };
       const free = (cc) => { cc.anchor = null; cc.feetY = null; cc.sit = 0; cc.lie = 0; };
       if (e.kind === 'gesture') continue;
+      if (e.kind === 'animal') { const a = A[e.animal]; if (!a) continue; const side = (x) => (x < 0.5 ? -0.15 : 1.15); const on = !done;
+        if (e.act === 'enter') { a.visible = true; const x0 = side(a.home.x); a.x = lerp(x0, a.home.x, k); a.face = a.home.x > x0 ? 1 : -1; a.move = on ? 1 : 0; }
+        else if (e.act === 'exit' || e.act === 'run') { const x0 = a.x, x1 = e.act === 'run' ? (a.face > 0 ? 1.2 : -0.2) : side(x0); a.x = lerp(x0, x1, k); a.face = x1 > x0 ? 1 : -1; a.move = on ? 1 : 0; a.run = e.act === 'run' && on ? 1 : 0; if (done) a.visible = false; }
+        else if (e.act === 'follow' && C[e.target]) { const tc = C[e.target]; a.visible = true; const x0 = a.x, x1 = tc.x + (x0 < tc.x ? -0.09 : 0.09); a.x = lerp(x0, x1, sm(0, 1, k)); a.row = tc.row + 0.05; a.face = x1 > x0 ? 1 : -1; a.move = on ? 1 : 0; }
+        else if (on) { a.visible = true; a.act = ['bark', 'moo', 'neigh'].includes(e.act) ? 'bark' : e.act === 'sit' ? 'sit' : null; a.head = e.act === 'graze' ? 'down' : ['moo', 'neigh'].includes(e.act) ? 'up' : null; }
+        else if (e.act === 'sit') a.act = 'sit';
+        continue; }
+      if (e.kind === 'crowd') { crowd = { mood: e.mood === 'none' ? null : e.mood || 'watch', count: Math.min(extras.length, e.count || 8) }; continue; }
+      if (e.kind === 'baraat') { const v = V[e.vehicle]; const until = e._until ?? e.t1; const active = t < until; const tt = Math.min(t, until);
+        if (v) { v.visible = true; v.row = 0.55; v.x = 0.6 + 0.02 * Math.sin((tt - e.t0) * 0.6); v.spin = (tt - e.t0) * 1.1; v.bob = active ? 1 : 0; }
+        (e.with || []).filter((id) => C[id]).forEach((id, i, arr) => { const cc = C[id]; cc.visible = true; cc.inV = null; cc.anchor = null; cc.feetY = null; cc.row = 0; cc.x = arr.length === 1 ? 0.3 : 0.14 + (0.32 * i) / (arr.length - 1); if (active) cc._g = { name: 'dance', k: 1 }; });
+        crowd = { mood: active ? 'dance' : 'watch', count: Math.max(crowd.count, Math.min(extras.length, 10)) }; scroll += (tt - e.t0) * 0.05; baraat = { groom: e.char, active }; continue; }
       if (!c && !['drive_away'].includes(e.kind)) continue;
       switch (e.kind) {
         case 'enter': c.visible = true; free(c); go(c, side(c.home.x), c.home.x, false); break;
@@ -216,7 +238,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
         default: break;
       }
     }
-    return { C, V, scroll, chasing, shake };
+    return { C, V, A, scroll, chasing, shake, crowd, baraat };
   }
   const TINT = { day: [0xffffff, 1.6, 1.3], morning: [0xfff1dc, 1.5, 1.2], evening: [0xffd2a0, 1.3, 1.0], night: [0x9fb2ff, 0.85, 0.55] };
 
@@ -229,7 +251,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     const line = lineAt(t);
     // vehicles
     for (const [k, m] of Object.entries(vehicles)) { const v = S.V[k]; m.group.visible = !!(v && v.visible); if (!m.group.visible) continue;
-      const fy = rowY(b, v.row); const s = (heightAt(b, fy) / 1.7) * VSCALE; m.group.scale.setScalar(s); m.group.position.set(v.x * AR, 1 - fy + (v.bob ? Math.abs(Math.sin(t * 17 + k.length)) * 0.004 : 0), zOf(fy) - 0.4); m.set(t, { spin: v.spin, door: v.door, siren: v.siren }); }
+      const fy = rowY(b, v.row); const s = (heightAt(b, fy) / 1.7) * VSCALE; m.group.scale.setScalar(s); m.group.position.set(v.x * AR, 1 - fy + (v.bob ? Math.abs(Math.sin(t * 17 + k.length)) * 0.004 : 0), zOf(fy) - 0.4); m.set(t, { spin: v.spin, door: v.door, siren: v.siren, moving: v.bob ? 1 : 0 }); }
     // characters
     for (const id of Object.keys(actors)) holders[id].h.visible = false;
     const st = S.C; const vis = [];
@@ -238,13 +260,25 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       let show = c.visible; let px, py, pz, sc_;
       if (c.inV && S.V[c.inV.key]) { const v = S.V[c.inV.key], m = vehicles[c.inV.key]; show = v.visible && (c.visible || c.inK > 0 || true); const fy = rowY(b, v.row); const s = (heightAt(b, fy) / 1.7) * VSCALE; const seat = m.seats[Math.min(c.inV.seat, m.seats.length - 1)];
         const dX = v.x * AR + (c.inK < 1 ? (doorWorld(m, c.inV.seat) * (1 - c.inK) + seat[0] * c.inK) : seat[0]) * s; px = dX; py = 1 - fy + (seat[1] - 0.5) * s * c.inK + (v.bob ? Math.abs(Math.sin(t * 17)) * 0.004 : 0); pz = zOf(fy) - 0.4 + lerp(1.1, -0.05, c.inK) * s; sc_ = s; c.face = 1; c.sit = c.inK; c.walk = 0; sh.visible = false;
-        if (c.inK > 0.98) c.visible = true; clip.constant = -(1 - fy + 0.36 * s); }
+        if (c.inK > 0.98) c.visible = true;
+        if (m.open) { // riders sit on top: no clipping; hips on the seat, ride pose
+          const hip = a.hipY * (s * 1.7 * (a.height / 1.7) / a.height) * 0.94; py = 1 - fy + lerp(0, seat[1] * s - hip, c.inK) + (v.bob ? Math.abs(Math.sin(t * 17)) * 0.004 : 0); pz = zOf(fy) - 0.4 + lerp(0.6, 0.05, c.inK) * s; c.sit = 0; c.ride = c.inK; c.pillion = c.inV.seat > 0; c.rideType = m.type;
+        } else clip.constant = -(1 - fy + 0.36 * s); }
       else { const fy = c.feetY ?? rowY(b, c.row); sc_ = c.anchor && c.anchor.type === 'bed' ? ((c.anchor.w || 0.3) * AR * 0.8) / 1.7 : heightAt(b, fy) / 1.7; px = c.x * AR; py = 1 - fy; pz = zOf(fy); sh.visible = c.lie < 0.5; }
       if (!show) continue; h.visible = true; vis.push(id);
       const childK = a.height / 1.7; h.scale.setScalar((sc_ * 1.7 * childK) / a.height); h.position.set(px, py, pz);
       // lying down: roll the body flat, head towards the left
       pivot.rotation.z = c.lie * Math.PI / 2; pivot.position.set(c.lie * 0.85, c.lie * 0.12, 0);
     }
+    // animals
+    for (const [k, m] of Object.entries(animals)) { const a = S.A[k]; m.group.visible = !!(a && a.visible); if (!m.group.visible) continue; const fy = rowY(b, a.row); const sc2 = heightAt(b, fy) / 1.7;
+      m.group.scale.setScalar(sc2); m.group.position.set(a.x * AR, 1 - fy, zOf(fy) + 0.05); m.group.rotation.y = a.face > 0 ? -0.3 : Math.PI + 0.3; m.set(t, { phase: t * (a.run ? 12 : 7), moving: a.move, run: a.run, head: a.head, act: a.act }); }
+    // crowd people in the back rows (they face the camera)
+    extras.forEach((e, i) => { const on = !!S.crowd.mood && i < S.crowd.count; e.group.visible = on; if (!on) return; const n = S.crowd.count; const row = 0.72 + (i % 2) * 0.28; const fy = rowY(b, row);
+      const walk = S.crowd.mood === 'walk'; const x = ((i + 0.5) / n) * 0.94 + 0.03 + (walk ? ((t * 0.03) % 1) : 0); const sc2 = heightAt(b, fy) / 1.7;
+      e.group.scale.setScalar(sc2); e.group.position.set((((x % 1.1) + 1.1) % 1.1) * AR, 1 - fy, zOf(fy) - 0.2); e.group.rotation.y = walk ? 0 : -Math.PI / 2 + Math.sin(i) * 0.25; e.set(t, S.crowd.mood); });
+    // baraat: groom's safa + confetti
+    confetti.forEach((m, i) => { m.visible = !!(S.baraat && S.baraat.active); if (!m.visible) return; const y = 1.05 - (((t * (0.09 + (i % 5) * 0.012)) + i * 0.137) % 1.15); m.position.x = ((i * 0.618) % 1) * AR + Math.sin(t * 1.7 + i) * 0.02; m.position.y = y; m.rotation.set(t * 2 + i, t * 3 + i * 0.5, 0); });
     // talk / look / gestures
     let lastLine = null; for (const x of tl.lines) if (x.scene === sc.index && x.start <= t) lastLine = x;
     for (const id of vis) {
@@ -253,8 +287,8 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       const lookId = c.grab || (line && line.char !== id && vis.includes(line.char) ? line.char : lastLine && lastLine.char !== id && vis.includes(lastLine.char) ? lastLine.char : others[0]);
       if (!c.walk && !c.run && !c.inV && lookId && !c.lie) c.face = st[lookId].x > c.x ? 1 : -1;
       const frontal = c.anchor && (c.anchor.type === 'judge' || c.anchor.type === 'desk' || c.anchor.type === 'board') ? 0.4 : 1;
-      const yaw = c.lie ? Math.PI / 2 : c.inV ? 1.3 : c.face * FACE * frontal;
-      const pp = { visible: true, pos: V3(0, 0, 0), yaw, lie: c.lie > 0.5, walk: c.lie ? 0 : c.walk, run: c.lie ? 0 : c.run, sit: c.lie ? 0 : c.sit, drop: Math.max(0.2, a.hipY - 0.5), cuffed: c.cuffed, struggle: c.struggle };
+      const yaw = c.lie ? Math.PI / 2 : c.inV ? (c.ride ? Math.PI / 2 - 0.35 : 1.3) : c.face * FACE * frontal;
+      const pp = { visible: true, pos: V3(0, 0, 0), yaw, lie: c.lie > 0.5, walk: c.lie ? 0 : c.walk, run: c.lie ? 0 : c.run, sit: c.lie ? 0 : c.sit, drop: Math.max(0.2, a.hipY - 0.5), cuffed: c.cuffed, struggle: c.struggle, ride: c.ride || 0, pillion: c.pillion, rideType: c.rideType, moving: !!(c.inV && S.V[c.inV.key]?.bob) };
       pp.look = lookId && !c.lie ? headPos(actors[lookId]).clone() : null;
       if (speaking) { const f = Math.floor((t - line.start) * 30); pp.mouth = line.mouth[f] || 0; pp.talk = c.walk || c.run || c.cuffed || c.inV || c.lie ? 0 : 0.5 * sm(line.start, line.start + 0.3, t) * (1 - sm(line.end - 0.3, line.end, t)); pp.emotion = line.emotion; }
       else if (lastLine && lastLine.char === id && t - lastLine.end < 2) pp.emotion = lastLine.emotion;
@@ -262,6 +296,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       if (c.grab) pp.gesture = { name: 'grab', k: 1 }; if (c._cuff) pp.gesture = { name: 'cuff', k: 1 }; if (c._g && c._g.k > 0) pp.gesture = c._g; if (c.sleeping && c.lie > 0.5) pp.emotion = 'sleep';
       poseActor(a, t, pp);
     }
+    safa.visible = false; if (S.baraat && vis.includes(S.baraat.groom)) { const hp = headPos(actors[S.baraat.groom]); const hs = holders[S.baraat.groom].h.scale.x; safa.visible = true; safa.position.set(hp.x, hp.y + 0.15 * hs, hp.z + 0.01); safa.scale.setScalar(hs * 1.05); }
     // props + handcuffs
     for (const p_ of Object.values(P)) p_.visible = false;
     for (const id of vis) { const ev = sc.events.find((e) => e.kind === 'gesture' && e.char === id && t >= e.t0 && t < e.t1); const g = st[id]._g?.item ? { name: st[id]._g.item === 'money' ? 'money' : 'give' } : ev; const pr = g && P[g.name]; if (!pr || pr.visible) continue;

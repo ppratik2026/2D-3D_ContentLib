@@ -3,7 +3,9 @@
 // shows its side to the camera (+z). Window openings are real holes, so the people sitting inside are visible.
 import * as THREE from 'three';
 
-export const VEHICLE_TYPES = ['car', 'taxi', 'police_jeep', 'ambulance', 'auto', 'van'];
+import { makeAnimal } from './creatures.js';
+export const VEHICLE_TYPES = ['car', 'taxi', 'police_jeep', 'ambulance', 'auto', 'van', 'bike', 'scooter', 'cycle', 'horse'];
+const OPEN = new Set(['bike', 'scooter', 'cycle', 'horse']);
 
 function shapeOf(pts, holes = []) {
   const s = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
@@ -52,7 +54,44 @@ const LOOK = {
   van: { body: null, cab: null, trim: '#1c1c22' },
 };
 
+// two-wheelers and the riding horse: riders sit on top, fully visible
+function makeOpen(type, color, grad) {
+  const g = new THREE.Group(); const toon = (c) => new THREE.MeshToonMaterial({ color: new THREE.Color(c), gradientMap: grad });
+  const tube = (mat, r, x0, y0, x1, y1, z = 0) => { const len = Math.hypot(x1 - x0, y1 - y0); const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 8), mat); m.position.set((x0 + x1) / 2, (y0 + y1) / 2, z); m.rotation.z = Math.atan2(y1 - y0, x1 - x0) - Math.PI / 2; g.add(m); return m; };
+  const wheels = []; const wheel = (x, r, spokes) => { const w = new THREE.Group(); w.position.set(x, r, 0.0);
+    const tyre = new THREE.Mesh(new THREE.TorusGeometry(r * 0.9, r * 0.12, 8, 28), toon('#18181b')); w.add(tyre);
+    if (spokes) for (let i = 0; i < 6; i++) { const s = new THREE.Mesh(new THREE.BoxGeometry(r * 1.75, 0.012, 0.012), toon('#b9bcc4')); s.rotation.z = (i * Math.PI) / 6; s.userData.outlineParameters = { visible: false }; w.add(s); }
+    else { const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.62, r * 0.62, 0.1, 16), toon('#9aa0aa')); hub.rotation.x = Math.PI / 2; w.add(hub); const sp = new THREE.Mesh(new THREE.BoxGeometry(r * 1.1, 0.05, 0.12), toon('#5a5d66')); sp.userData.outlineParameters = { visible: false }; w.add(sp); }
+    g.add(w); wheels.push(w); return w; };
+  const c = color || ({ bike: '#1d1d1f', scooter: '#c0392b', cycle: '#2f6fb5' })[type] || '#c0392b'; const body = toon(c), dark = toon('#2a2a2e'), steel = toon('#b9bcc4'), seatM = toon('#1c1c1f');
+  let seats, len, top, r = 0.3, horse = null;
+  if (type === 'cycle') { r = 0.34; wheel(-0.52, r, true); wheel(0.52, r, true);
+    tube(body, 0.022, -0.52, r, -0.08, r); tube(body, 0.022, -0.08, r, -0.18, 0.88); tube(body, 0.022, -0.52, r, -0.18, 0.84); tube(body, 0.022, -0.18, 0.84, 0.42, 0.9); tube(body, 0.022, -0.08, r, 0.42, 0.9); tube(body, 0.022, 0.42, 0.95, 0.52, r);
+    tube(steel, 0.015, 0.42, 0.9, 0.38, 1.08); tube(dark, 0.02, 0.3, 1.08, 0.5, 1.1, 0); const sd = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.12), seatM); sd.position.set(-0.2, 0.92, 0); g.add(sd);
+    const crank = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.015, 6, 16), steel); crank.position.set(-0.08, r, 0.05); g.add(crank); const rack = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.03, 0.14), steel); rack.position.set(-0.5, 0.8, 0); g.add(rack);
+    seats = [[-0.2, 0.92], [-0.52, 0.84]]; len = 1.75; top = 1.1; }
+  else if (type === 'scooter') { r = 0.27; wheel(-0.62, r, false); wheel(0.62, r, false);
+    const shp = new THREE.Shape([[-0.95, 0.42], [-0.95, 0.72], [-0.55, 0.82], [-0.15, 0.82], [-0.05, 0.45], [0.38, 0.45], [0.5, 1.05], [0.66, 1.08], [0.72, 0.55], [0.82, 0.42], [0.62, 0.36], [-0.3, 0.36]].map(([x, y]) => new THREE.Vector2(x, y)));
+    const geo = new THREE.ExtrudeGeometry(shp, { depth: 0.42, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2 }); geo.translate(0, 0, -0.21); g.add(new THREE.Mesh(geo, body));
+    const sd = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.55, 4, 10), seatM); sd.rotation.z = Math.PI / 2; sd.position.set(-0.52, 0.88, 0); sd.scale.set(0.7, 1, 1.2); g.add(sd);
+    tube(dark, 0.03, 0.58, 1.06, 0.55, 1.22); tube(dark, 0.022, 0.45, 1.22, 0.68, 1.24); const hl = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: 0xfff3c4, toneMapped: false })); hl.position.set(0.72, 1.12, 0); g.add(hl);
+    seats = [[-0.35, 0.9], [-0.72, 0.92]]; len = 1.8; top = 1.25; }
+  else if (type === 'bike') { r = 0.32; wheel(-0.68, r, false); wheel(0.68, r, false);
+    const tank = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.3, 4, 10), body); tank.rotation.z = Math.PI / 2 - 0.15; tank.position.set(0.18, 0.88, 0); tank.scale.set(1, 1, 0.8); g.add(tank);
+    const eng = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.28, 0.3), toon('#55585f')); eng.position.set(0, 0.5, 0); g.add(eng); tube(steel, 0.035, -0.6, 0.4, 0.05, 0.42, 0.18);
+    const sd = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.09, 0.26), seatM); sd.position.set(-0.32, 0.86, 0); g.add(sd); const guard = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.24), body); guard.position.set(-0.72, 0.72, 0); guard.rotation.z = -0.25; g.add(guard);
+    tube(dark, 0.03, -0.68, r, -0.1, 0.62); tube(steel, 0.03, 0.68, r, 0.45, 1.0); tube(dark, 0.022, 0.36, 1.05, 0.56, 1.08); const hl = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 14), new THREE.MeshBasicMaterial({ color: 0xfff3c4, toneMapped: false })); hl.rotation.z = Math.PI / 2; hl.position.set(0.55, 0.95, 0); g.add(hl);
+    seats = [[-0.2, 0.9], [-0.58, 0.92]]; len = 2.05; top = 1.1; }
+  else { horse = makeAnimal('horse', 7, { grad, color: color || '#f3f1ec' }); g.add(horse.group);
+    const cloth = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.74), toon('#c0283a')); cloth.position.set(-0.05, horse.back - 0.12, 0); g.add(cloth);
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.06, 0.76), toon('#e8b923')); trim.position.set(-0.05, horse.back - 0.36, 0); trim.userData.outlineParameters = { visible: false }; g.add(trim);
+    seats = [[-0.05, horse.back + 0.05]]; len = horse.len; top = horse.height; }
+  return { type, group: g, wheels, lights: [], door: null, len, top, seats, wheelR: r, doorX: seats[0][0], open: true,
+    set(t, { spin = 0, moving = 0 } = {}) { for (const w of wheels) w.rotation.z = -spin / r; if (horse) horse.set(t, { phase: spin * 2.6, moving, run: 0 }); } };
+}
+
 export function makeVehicle(type, color, grad) {
+  if (OPEN.has(type)) return makeOpen(type, color, grad);
   const sp = (SPEC[type] || SPEC.car)(); const look = LOOK[type] || LOOK.car;
   const g = new THREE.Group(); const toon = (c, extra = {}) => new THREE.MeshToonMaterial({ color: new THREE.Color(c), gradientMap: grad, ...extra });
   const bodyCol = look.body || color || '#c0392b', cabCol = look.cab || bodyCol;

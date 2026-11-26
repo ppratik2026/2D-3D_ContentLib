@@ -100,6 +100,8 @@ export function normalizeBeats(beats, chars, sc) {
     if (b.type === 'narration' || /^narrat|^sutradhar|^सूत्रधार/i.test(String(b.char || ''))) {
       const hindi = String(b.hindi || b.hinglish || '').trim(), hinglish = String(b.hinglish || b.hindi || '').trim(); if (hindi) out.push({ type: 'line', char: 'narrator', emotion: 'neutral', hindi, hinglish, english: String(b.english || hinglish) });
       continue; }
+    if (b.action === 'animal' || b.action === 'crowd') { // no character needed
+      out.push({ type: 'action', char: null, action: b.action, animal: ['dog', 'cow', 'horse'].includes(b.animal) ? b.animal : 'dog', act: String(b.act || 'enter'), target: matchId(b.target, chars) || null, mood: ['dance', 'cheer', 'clap', 'watch', 'walk', 'none'].includes(b.mood) ? b.mood : 'watch', count: Number(b.count) || 8 }); continue; }
     const char = matchId(b.char, chars);
     if (b.type !== 'line' && !b.hindi && !b.hinglish && b.action && !ACTIONS.includes(b.action)) { unsupported.push(String(b.action).toLowerCase().slice(0, 30)); continue; }
     if (!char) continue;
@@ -137,6 +139,10 @@ function actionHelp(stage) { return `Between dialogue lines add actions (only th
 - Gestures: wave, nod, laugh, point, think, shock, drink, phone, look_around, hands_up, salute, namaste, cry, angry, clap, examine (magnifying glass), test_tube (lab), torch (flashlight at night), read/file (reads a file), write (notes), gavel (judge).
 - Daily life (optional "seconds"): cook (pan at the stove), chop (vegetables), eat, serve (tray with tea), sweep (broom), aarti (temple thali), pray, dance, knock (door), shiver (cold / fear), type (laptop), sleep (lies down asleep; "stand" wakes up). Kitchen/shop/lab: use {"action":"go_to","place":"counter"} first.
 - With another person ("target" = their id): hug, fight, push, slap, give (optional "item":"gift|money").
+- Two-wheelers and horse riding use the vehicle actions with "vehicle":"bike|scooter|cycle|horse" (drive_in / get_in / get_out / drive_away; a thief can run away on a bike in a car_chase).
+- Animals: {"type":"action","action":"animal","animal":"dog|cow|horse","act":"enter|exit|run|bark|moo|neigh|graze|sit|follow","target":"char id for follow"}.
+- Crowd in the background: {"type":"action","action":"crowd","mood":"dance|cheer|clap|watch|walk|none","count":8}.
+- Wedding procession: {"type":"action","action":"baraat","char":"groom id","with":["dancing relatives"],"seconds":12} — the groom rides a decorated horse with a safa, dhol and shehnai play, the crowd dances.
 ${stage ? `- Places in the background (if the background has them): {"action":"go_to","char":"id","place":"${Object.keys(MARKS).join('|')}"}. People whose role fits (judge, inspector at desk, patient in bed, prisoner in cell, accused in witness box, teacher at board, scientist at lab counter) start there automatically.
 - "faint" = falls down (or a dead body lying), "lie" = lies down; "stand" gets up again.
 - Vehicles (${VEHICLES.join(', ')}): {"action":"drive_in","char":"driver id","vehicle":"police_jeep","with":["passenger ids"]} (arrives and stops), {"action":"get_out","char":"id","vehicle":"police_jeep"}, {"action":"get_in","char":"id","vehicle":"police_jeep"}, {"action":"drive_away","char":"driver id","vehicle":"police_jeep"}.

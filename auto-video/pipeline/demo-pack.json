@@ -1,0 +1,46 @@
+{
+  "title": "Raju Ki Baraat",
+  "title_hindi": "राजू की बारात",
+  "logline": "Raju bike par Pinky ko laata hai, aur shaam ko dhoom-dhaam se uski baraat nikalti hai.",
+  "moral": "Khushiyaan baantne se badhti hain.",
+  "category": "comedy",
+  "characters": [
+    { "id": "raju", "name": "Raju", "gender": "male", "age": "young", "role": "groom", "top_color": "#f4e7c4", "bottom_color": "#f4f1e8", "hair_color": "#1c1612", "personality": "happy" },
+    { "id": "pinky", "name": "Pinky", "gender": "female", "age": "young", "role": "sister", "top_color": "#e67ab4", "bottom_color": "#f2c418", "hair_color": "#1c1612", "personality": "cheerful" },
+    { "id": "maa", "name": "Maa", "gender": "female", "age": "adult", "role": "mother", "top_color": "#c0392b", "bottom_color": "#f2c418", "hair_color": "#1c1612", "personality": "loving" },
+    { "id": "ramu", "name": "Ramu Kaka", "gender": "male", "age": "old", "role": "milkman", "top_color": "#f4f1e8", "bottom_color": "#f4f1e8", "hair_color": "#cccccc", "personality": "funny" }
+  ],
+  "scenes": [
+    { "background": "bg_highway", "time_of_day": "day", "present": [], "summary": "Raju brings Pinky on his bike; animals on the road.", "seconds": 30,
+      "beats": [
+        { "type": "action", "action": "animal", "animal": "cow", "act": "enter" },
+        { "type": "action", "action": "animal", "animal": "cow", "act": "graze" },
+        { "type": "action", "char": "raju", "action": "drive_in", "vehicle": "bike", "color": "#1d1d1f", "with": ["pinky"] },
+        { "type": "action", "char": "pinky", "action": "get_out", "vehicle": "bike" },
+        { "type": "line", "char": "pinky", "emotion": "happy", "hindi": "भैया, आज तो आपकी बारात है!", "hinglish": "Bhaiya, aaj toh aapki baraat hai!", "english": "Brother, today is your wedding procession!" },
+        { "type": "action", "action": "animal", "animal": "dog", "act": "enter" },
+        { "type": "action", "action": "animal", "animal": "dog", "act": "bark" },
+        { "type": "action", "action": "animal", "animal": "cow", "act": "moo" },
+        { "type": "action", "action": "animal", "animal": "dog", "act": "follow", "target": "pinky" },
+        { "type": "action", "char": "ramu", "action": "drive_in", "vehicle": "cycle" },
+        { "type": "line", "char": "ramu", "emotion": "happy", "hindi": "बधाई हो राजू बेटा! शाम को मैं भी नाचूँगा।", "hinglish": "Badhaai ho Raju beta! Shaam ko main bhi naachunga.", "english": "Congratulations Raju! I'll dance in the evening too." },
+        { "type": "action", "char": "raju", "action": "drive_away", "vehicle": "bike" }
+      ] },
+    { "background": "bg_front", "time_of_day": "evening", "present": ["raju", "pinky", "maa"], "summary": "The baraat with the groom on a horse.", "seconds": 25,
+      "beats": [
+        { "type": "card", "text": "Shaam ko — Baraat" },
+        { "type": "action", "char": "raju", "action": "baraat", "with": ["pinky", "maa"], "seconds": 10 },
+        { "type": "line", "char": "maa", "emotion": "happy", "hindi": "मेरा राजा बेटा घोड़ी चढ़ गया!", "hinglish": "Mera raja beta ghodi chadh gaya!", "english": "My dear son is on the mare!" },
+        { "type": "line", "char": "raju", "emotion": "happy", "hindi": "चलो सब, नाचते हुए चलो!", "hinglish": "Chalo sab, naachte hue chalo!", "english": "Come everyone, dance along!" },
+        { "type": "action", "action": "crowd", "mood": "cheer", "count": 10 },
+        { "type": "line", "char": "pinky", "emotion": "happy", "hindi": "भैया, बहुत अच्छे लग रहे हो!", "hinglish": "Bhaiya, bahut achhe lag rahe ho!", "english": "Brother, you look great!" }
+      ] },
+    { "background": "bg_highway", "time_of_day": "evening", "present": [], "summary": "Maa arrives on a scooter.", "seconds": 12,
+      "beats": [
+        { "type": "action", "char": "maa", "action": "drive_in", "vehicle": "scooter", "color": "#2f8f3a" },
+        { "type": "line", "char": "maa", "emotion": "happy", "hindi": "मिठाई ले आई!", "hinglish": "Mithaai le aayi!", "english": "I brought the sweets!" },
+        { "type": "action", "action": "animal", "animal": "horse", "act": "enter" },
+        { "type": "action", "action": "animal", "animal": "horse", "act": "neigh" }
+      ] }
+  ]
+}

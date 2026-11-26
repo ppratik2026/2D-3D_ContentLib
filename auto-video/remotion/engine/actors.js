@@ -203,6 +203,7 @@ function rotW(a, bone, axis, ang) { const b = a.bones[bone]; if (!b || !ang) ret
 export const dirs = (yaw) => ({ F: V3(Math.sin(yaw), 0, Math.cos(yaw)), R: V3(Math.sin(yaw), 0, Math.cos(yaw)).cross(UP).normalize() });
 const VOW = ['aa', 'ih', 'ou', 'ee', 'oh'];
 
+const side0 = (st) => (st.rideType === 'cycle' && !st.pillion && st.moving ? 'pedal' : '');
 export function poseActor(a, t, st) {
   // st: {visible,pos,yaw,walk,run,sit,drop,look,gesture:{name,k},mouth,emotion,talk,cuffed,struggle}
   a.o.visible = st.visible !== false; if (!a.o.visible) return;
@@ -218,6 +219,9 @@ export function poseActor(a, t, st) {
     for (const side of ['Left', 'Right']) { rotW(a, side + 'UpLeg', R, 1.5 * s); rotW(a, side + 'Leg', R, -1.45 * s); }
     rotW(a, 'Spine', R, -0.04 * s); }
   const arm = (side, up, fore, inward = 0) => { rotW(a, side + 'Arm', R, up); if (inward) rotW(a, side + 'Arm', UP, (side === 'Right' ? 1 : -1) * inward); rotW(a, side + 'ForeArm', R, fore); };
+  if (st.ride) { const r = st.ride; for (const side of ['Left', 'Right']) { rotW(a, side + 'UpLeg', R, 1.0 * r); rotW(a, side + 'Leg', R, -1.05 * r); }
+    if (side0(st) === 'pedal') { rotW(a, 'LeftUpLeg', R, Math.sin(t * 7) * 0.35 * r); rotW(a, 'RightUpLeg', R, -Math.sin(t * 7) * 0.35 * r); }
+    if (!st.gesture) { if (st.pillion) { arm('Right', 0.35 * r, 0.7 * r, 0.3 * r); arm('Left', 0.35 * r, 0.7 * r, 0.3 * r); } else if (st.rideType === 'horse') { arm('Right', 0.75 * r, 0.9 * r, 0.35 * r); arm('Left', 0.75 * r, 0.9 * r, 0.35 * r); } else { arm('Right', 1.15 * r, 0.35 * r, 0.25 * r); arm('Left', 1.15 * r, 0.35 * r, 0.25 * r); } } }
   if (st.lie && !st.gesture) { arm('Right', 0.05, 0.25, -0.15); arm('Left', 0.05, 0.25, -0.15); }
   if (s > 0.5 && !st.gesture) { arm('Right', 0.35 * s, 0.6 * s, 0.25 * s); arm('Left', 0.35 * s, 0.6 * s, 0.25 * s); }
   if (st.talk) { const k = st.talk; arm('Right', (0.3 + 0.12 * Math.sin(t * 3.1)) * k, (0.8 + 0.3 * Math.sin(t * 5.3)) * k, 0.15 * k); }
