@@ -20,11 +20,12 @@ const meta = (id) => path.join(BG_DIR, id, 'background.json');
 // starter backgrounds shipped with the app (flat explainer set): copied once; deleting one later keeps it deleted
 export function seedStarter() { const src = path.join(path.dirname(fileURLToPath(import.meta.url)), 'starter', 'backgrounds'); /* fileURLToPath: works with spaces in the install folder */ const done = path.join(BG_DIR, '.starter.json');
   try { const seen = fs.existsSync(done) ? JSON.parse(fs.readFileSync(done, 'utf8')) : []; let changed = false;
-    for (const id of fs.existsSync(src) ? fs.readdirSync(src) : []) { if (seen.includes(id)) continue; if (!fs.existsSync(path.join(BG_DIR, id))) fs.cpSync(path.join(src, id), path.join(BG_DIR, id), { recursive: true }); seen.push(id); changed = true; }
+    for (const id of fs.existsSync(src) ? fs.readdirSync(src) : []) { try { const nb = JSON.parse(fs.readFileSync(path.join(src, id, 'background.json'), 'utf8')); const mf = path.join(BG_DIR, id, 'background.json'); if (fs.existsSync(mf)) { const ob = JSON.parse(fs.readFileSync(mf, 'utf8')); if ((nb.rev || 0) > (ob.rev || 0)) fs.writeFileSync(mf, JSON.stringify(nb, null, 2)); } } catch {} /* newer ready-made settings (places, chair directions) */
+      if (seen.includes(id)) continue; if (!fs.existsSync(path.join(BG_DIR, id))) fs.cpSync(path.join(src, id), path.join(BG_DIR, id), { recursive: true }); seen.push(id); changed = true; }
     if (changed) fs.writeFileSync(done, JSON.stringify(seen)); } catch (e) { console.warn('starter backgrounds:', e.message); } }
 seedStarter();
 export function listBackgrounds() {
-  if (!fs.readdirSync(BG_DIR).some((d) => d.startsWith('bg_'))) seedStarter(); // nothing yet: copy the ready-made set
+  if (!fs.readdirSync(BG_DIR).some((d) => d.startsWith('bg_'))) seedStarter(); /* nothing yet: copy the ready-made set */
   const out = [];
   for (const id of fs.readdirSync(BG_DIR)) { try { out.push(JSON.parse(fs.readFileSync(meta(id), 'utf8'))); } catch {} }
   return out.sort((a, b) => (a.name || '').localeCompare(b.name || ''));

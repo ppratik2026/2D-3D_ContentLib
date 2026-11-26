@@ -214,7 +214,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       if (used.has(m.i)) continue; const id = sc.initial.find((c) => !anchor[c] && !(c in inside) && re.test(roleOf[c] || '')); if (id) { anchor[id] = m; used.add(m.i); }
     }
     const parked = vkeys.some((k) => { const f = ev.find((e) => e.vehicle === k || e.chaser === k); return f && f.kind !== 'drive_in' && f.kind !== 'car_chase'; });
-    const free = sc.cast.filter((c) => !anchor[c]); const busy = Object.values(anchor).map((m) => { const w = m.w || 0.12; return [m.x - w / 2, m.x + w / 2]; }); const sp = spots(free, parked, busy);
+    const free = sc.cast.filter((c) => !anchor[c]); const busy = [...new Set([...Object.values(anchor), ...ms.filter((m) => ['counter', 'desk', 'judge', 'witness', 'bed', 'cell'].includes(m.type))])].map((m) => { const w = m.w || 0.12; return [m.x - w / 2, m.x + w / 2]; }); /* nobody stands inside a counter / desk / bench painting */ const sp = spots(free, parked, busy);
     // when a chase ends, the next movement of the scene
     for (const e of ev) if (['car_chase', 'foot_chase', 'baraat', 'game', 'swim', 'birthday', 'garba', 'beat'].includes(e.kind)) { const nx = ev.find((x) => x.t0 >= e.t1 - 0.01 && x !== e && !['gesture', 'animal', 'crowd', 'fire', 'fire_out', 'holi', 'diwali', 'cracker', 'fly_by', 'eid', 'christmas', 'moving_view'].includes(x.kind)); e._until = Math.max(e.t1, nx ? nx.t0 : sc.end - 0.4); }
     const p = { b, ms, ev, vkeys, akeys, chase, involved, inside, anchor, sp, parked }; plan.set(sc, p); return p;
@@ -277,9 +277,9 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
         crowd = { mood: active ? 'dance' : 'watch', count: Math.max(crowd.count, Math.min(extras.length, 10)) }; scroll += (tt - e.t0) * 0.05; baraat = { groom: e.char, active }; continue; }
       if (!c && !['drive_away'].includes(e.kind)) continue;
       switch (e.kind) {
-        case 'enter': c.visible = true; free(c); go(c, side(c.home.x), c.home.x, false); break;
+        case 'enter': c.visible = true; free(c); go(c, side(c.home.x), c.home.x, false); c.leaving = !done; break;
         case 'exit': case 'run_exit': { if (c.anchor && c.anchor.type === 'door' && e.kind === 'exit') { const m = c.anchor; c.walk = done ? 0 : 1; c.back = true; c.x = m.x; c.feetY = lerp(m.y, m.y - 0.035, k); c.walkDist = k * 1.2; c.fade = sm(0.55, 1, k); if (done) c.visible = false; break; }
-          const x0 = c.x, fy = c.feetY; free(c); c.feetY = fy; go(c, x0, side(x0), e.kind === 'run_exit'); if (done) c.visible = false; break; }
+          c.leaving = true; const x0 = c.x, fy = c.feetY; free(c); c.feetY = fy; go(c, x0, side(x0), e.kind === 'run_exit'); if (done) c.visible = false; break; }
         case 'walk_to': { const tc = e.target && C[e.target]; const x0 = c.x; const x1 = tc ? tc.x + (x0 < tc.x ? -0.11 : 0.11) : c.home.x; free(c); c.row = tc ? tc.row : c.home.row; go(c, x0, x1, false); if (done && tc) c.face = tc.x > c.x ? 1 : -1; break; }
         case 'go_to': { const m = p.ms.find((x) => x.type === e.place) || p.ms.find((x) => x.type === 'seat'); if (!m) break; const x0 = c.x, y0 = feet(c); c.anchor = null; c.lie = 0;
           const kw = sm(0, 0.75, k); c.x = lerp(x0, m.x, kw); c.feetY = lerp(y0, m.y, kw); if (kw < 1 && Math.abs(m.x - x0) > 0.005) { c.face = m.x > x0 ? 1 : -1; c.walk = 1; } else c.walk = 0;
@@ -375,13 +375,14 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       }
     }
     applyLinks();
+    for (const c0 of Object.values(C)) if (c0.visible && !c0.inV && !c0.leaving && !c0.link && !chasing && !c0.anchor) c0.x = Math.min(0.9, Math.max(0.1, c0.x)); /* stay inside the picture (only entering / leaving people use the edges) */
     // keep people apart (except those touching on purpose)
     { const TOUCH = new Set(['hug', 'punch', 'hit_back', 'grab', 'cuff', 'give', 'receive', 'push', 'slap', 'aarti', 'dandiya']); const touching = new Set(Object.entries(C).filter(([, c]) => c.grab || c._cuff || c.link || c.linkLead || c._touch || (c._g && TOUCH.has(c._g.name))).map(([id]) => id));
       const L = Object.entries(C).filter(([, c]) => c.visible && !c.inV && !c.lie && !c.swim && !c.climbed && !(c.anchor && SIT_TYPES.has(c.anchor.type)));
       for (let it = 0; it < 5; it++) for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) { const [ia, A1] = L[i], [ib, B1] = L[j]; if (touching.has(ia) && touching.has(ib)) continue;
         const fa = feet(A1), fb = feet(B1); if (Math.abs(fa - fb) > 0.3) continue; const gap = (0.42 * Math.max(heightAt(b, fa), heightAt(b, fb))) / AR; const dx = B1.x - A1.x; if (Math.abs(dx) >= gap) continue;
         const push = (gap - Math.abs(dx)) / 2; const sgn = dx === 0 ? (ia < ib ? 1 : -1) : Math.sign(dx); const am = A1.anchor ? 0 : 1, bm = B1.anchor ? 0 : 1; const tot = Math.max(1, am + bm);
-        A1.x = Math.max(0.04, Math.min(0.96, A1.x - sgn * push * 2 * (am / tot))); B1.x = Math.max(0.04, Math.min(0.96, B1.x + sgn * push * 2 * (bm / tot))); } }
+        A1.x = Math.max(0.08, Math.min(0.92, A1.x - sgn * push * 2 * (am / tot))); B1.x = Math.max(0.08, Math.min(0.92, B1.x + sgn * push * 2 * (bm / tot))); } }
     return { C, V, A, FX, scroll, chasing, shake, crowd, baraat };
   }
   const TINT = { day: [0xffffff, 1.6, 1.3], morning: [0xfff1dc, 1.5, 1.2], evening: [0xffd2a0, 1.3, 1.0], night: [0x9fb2ff, 0.85, 0.55] };
@@ -477,7 +478,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       const c = st[id]; const a = actors[id]; const speaking = line && line.char === id;
       const others = vis.filter((x) => x !== id);
       const lookId = c.grab || (line && line.char !== id && vis.includes(line.char) ? line.char : lastLine && lastLine.char !== id && vis.includes(lastLine.char) ? lastLine.char : others[0]);
-      let seatLock = false; if (c.sit > 0.5 && c.anchor && c.anchor.type === 'seat') { const mate = vis.filter((o) => o !== id && st[o].sit > 0.5 && st[o].anchor && st[o].anchor.type === 'seat').sort((p_, q) => Math.abs(st[p_].x - c.x) - Math.abs(st[q].x - c.x))[0]; if (mate && Math.abs(st[mate].x - c.x) < 0.4) { c.face = st[mate].x > c.x ? 1 : -1; seatLock = true; } } // people at a table face each other
+      let seatLock = false; if (c.sit > 0.5 && c.anchor && c.anchor.type === 'seat' && c.anchor.face) { c.face = c.anchor.face; seatLock = true; } else if (c.sit > 0.5 && c.anchor && c.anchor.type === 'seat') { const mate = vis.filter((o) => o !== id && st[o].sit > 0.5 && st[o].anchor && st[o].anchor.type === 'seat').sort((p_, q) => Math.abs(st[p_].x - c.x) - Math.abs(st[q].x - c.x))[0]; if (mate && Math.abs(st[mate].x - c.x) < 0.4) { c.face = st[mate].x > c.x ? 1 : -1; seatLock = true; } } // people at a table face each other
       if (!seatLock && !c.walk && !c.run && !c.inV && lookId && !c.lie && !c.swim && !c.frontal && !c.keepFace) c.face = st[lookId].x > c.x ? 1 : -1;
       const frontal = c.frontal ? 0.15 : c.anchor && (c.anchor.type === 'judge' || c.anchor.type === 'desk' || c.anchor.type === 'board') ? 0.4 : 1;
       const yaw = c.swim ? c.face * Math.PI / 2 : c.lie ? Math.PI / 2 : (c.walk || c.run) && !c.inV ? c.face * 1.4 : c.inV ? (c.ride ? Math.PI / 2 - 0.35 : 1.3) : c.face * FACE * frontal;
@@ -618,7 +619,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       look.y = hp.y + 0.02; if (ots) { rigCam.fov = 30; rigCam.position.set(RIG.x + side * (tl.flat ? 0.5 : 0.95), Math.max(hp.y, headPos(actors[lid]).y) + 0.08, 2.9); }
       else { rigCam.fov = shot.type === 'react' ? 24 : 26; rigCam.position.set(RIG.x + side * 0.45, hp.y + 0.06, 2.15); look.y = hp.y - 0.06; }
       rigCam.aspect = AR; rigCam.updateProjectionMatrix(); rigCam.lookAt(look);
-      if (tl.flat && bgTex[sc.background]) { // flat style: the real background, sharp, cropped around the people talking (no blur)
+      if (bgTex[sc.background]) { // close shots: the real background, sharp, cropped around the people talking (no blur)
         const id = sc.background; sharpTex[id] ||= (() => { const c = bgTex[id].clone(); c.wrapS = c.wrapT = THREE.ClampToEdgeWrapping; c.needsUpdate = true; return c; })(); const tx = sharpTex[id]; const f = fit[id];
         const fyS = st[sid].feetY ?? rowY(b, st[sid].row); const hS = heightAt(b, fyS); const cw = ots ? 0.62 : 0.44, ch = cw;
         let cx = ots && lid ? (st[sid].x * 0.65 + st[lid].x * 0.35) : st[sid].x, cy = fyS - hS * 0.62; cx = Math.min(1 - cw / 2, Math.max(cw / 2, cx)); cy = Math.min(1 - ch / 2, Math.max(ch / 2, cy));
