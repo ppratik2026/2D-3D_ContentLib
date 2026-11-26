@@ -1,0 +1,63 @@
+{
+  "title": "Laal Car Ka Raaz",
+  "title_hindi": "लाल कार का राज़",
+  "logline": "Ek jewellery chor laal car me bhagta hai, Inspector Arjun uska peecha karke use court tak le jaate hain.",
+  "moral": "Chor kitna bhi tez bhaage, kanoon se nahi bach sakta.",
+  "category": "crime",
+  "characters": [
+    { "id": "arjun", "name": "Inspector Arjun", "gender": "male", "age": "adult", "role": "police inspector", "top_color": "#b59a63", "bottom_color": "#8c7548", "hair_color": "#1c1612", "personality": "brave, sharp" },
+    { "id": "kavya", "name": "SI Kavya", "gender": "female", "age": "young", "role": "sub-inspector officer", "top_color": "#b59a63", "bottom_color": "#8c7548", "hair_color": "#1c1612", "personality": "smart, fast" },
+    { "id": "raka", "name": "Raka", "gender": "male", "age": "young", "role": "thief", "top_color": "#2b2b30", "bottom_color": "#5a3a2a", "hair_color": "#1c1612", "personality": "sly" },
+    { "id": "judge", "name": "Judge Saheb", "gender": "male", "age": "old", "role": "judge", "top_color": "#151518", "bottom_color": "#151518", "hair_color": "#cccccc", "personality": "calm, strict" },
+    { "id": "mehra", "name": "Advocate Mehra", "gender": "female", "age": "adult", "role": "lawyer", "top_color": "#151518", "bottom_color": "#f2f0ea", "hair_color": "#1c1612", "personality": "clever" }
+  ],
+  "scenes": [
+    { "background": "bg_police_inside", "time_of_day": "day", "present": ["arjun", "kavya"], "summary": "News of a jewellery theft reaches the police station.", "seconds": 20,
+      "beats": [
+        { "type": "action", "char": "arjun", "action": "phone" },
+        { "type": "line", "char": "arjun", "emotion": "angry", "hindi": "क्या? सेठ जी की दुकान से हार चोरी हो गया?", "hinglish": "Kya? Seth ji ki dukaan se haar chori ho gaya?", "english": "What? A necklace was stolen from Seth ji's shop?" },
+        { "type": "line", "char": "kavya", "emotion": "surprised", "hindi": "सर, चोर लाल कार में हाईवे की तरफ़ भागा है!", "hinglish": "Sir, chor laal car mein highway ki taraf bhaaga hai!", "english": "Sir, the thief ran towards the highway in a red car!" },
+        { "type": "action", "char": "arjun", "action": "stand" },
+        { "type": "line", "char": "arjun", "emotion": "angry", "hindi": "जीप निकालो कविता, आज वो बच नहीं पाएगा।", "hinglish": "Jeep nikaalo Kavya, aaj woh bach nahi paayega.", "english": "Get the jeep, Kavya, he won't escape today." },
+        { "type": "action", "char": "kavya", "action": "salute" },
+        { "type": "action", "char": "kavya", "action": "run_exit" },
+        { "type": "action", "char": "arjun", "action": "run_exit" }
+      ] },
+    { "background": "bg_highway", "time_of_day": "day", "present": ["raka", "arjun", "kavya"], "summary": "Car chase on the highway, then a foot chase and the arrest.", "seconds": 40,
+      "beats": [
+        { "type": "action", "char": "raka", "action": "car_chase", "vehicle": "car", "color": "#c0392b", "chaser_vehicle": "police_jeep", "chasers": ["arjun", "kavya"], "seconds": 7 },
+        { "type": "line", "char": "arjun", "emotion": "angry", "hindi": "राका! गाड़ी रोको!", "hinglish": "Raka! Gaadi roko!", "english": "Raka! Stop the car!" },
+        { "type": "line", "char": "raka", "emotion": "happy", "hindi": "पकड़ के दिखाओ, इंस्पेक्टर!", "hinglish": "Pakad ke dikhao, Inspector!", "english": "Catch me if you can, Inspector!" },
+        { "type": "action", "char": "raka", "action": "get_out", "vehicle": "car" },
+        { "type": "action", "char": "arjun", "action": "get_out", "vehicle": "police_jeep" },
+        { "type": "action", "char": "raka", "action": "foot_chase", "chasers": ["arjun", "kavya"], "seconds": 6 },
+        { "type": "action", "char": "arjun", "action": "catch", "target": "raka" },
+        { "type": "line", "char": "raka", "emotion": "scared", "hindi": "छोड़ो मुझे! छोड़ो!", "hinglish": "Chhodo mujhe! Chhodo!", "english": "Let me go! Let go!" },
+        { "type": "action", "char": "kavya", "action": "handcuff", "target": "raka" },
+        { "type": "line", "char": "arjun", "emotion": "angry", "hindi": "अब भाग के कहाँ जाओगे, राका?", "hinglish": "Ab bhaag ke kahaan jaoge, Raka?", "english": "Where will you run now, Raka?" },
+        { "type": "action", "char": "raka", "action": "get_in", "vehicle": "police_jeep" },
+        { "type": "action", "char": "kavya", "action": "get_in", "vehicle": "police_jeep" },
+        { "type": "action", "char": "arjun", "action": "get_in", "vehicle": "police_jeep" },
+        { "type": "action", "char": "arjun", "action": "drive_away", "vehicle": "police_jeep" }
+      ] },
+    { "background": "bg_jail", "time_of_day": "night", "present": ["raka", "arjun"], "summary": "Raka in the lock-up at night.", "seconds": 15,
+      "beats": [
+        { "type": "action", "char": "raka", "action": "cry" },
+        { "type": "line", "char": "raka", "emotion": "sad", "hindi": "इंस्पेक्टर साहब, मुझे फँसाया गया है।", "hinglish": "Inspector saahab, mujhe phansaaya gaya hai.", "english": "Inspector sir, I have been framed." },
+        { "type": "line", "char": "arjun", "emotion": "neutral", "hindi": "सच क्या है, ये कल कोर्ट में पता चलेगा।", "hinglish": "Sach kya hai, yeh kal court mein pata chalega.", "english": "Tomorrow the court will find out the truth." }
+      ] },
+    { "background": "bg_court", "time_of_day": "day", "present": ["judge", "raka", "mehra", "arjun"], "summary": "Next day in court: evidence, confession and the verdict.", "seconds": 35,
+      "beats": [
+        { "type": "action", "char": "judge", "action": "gavel" },
+        { "type": "line", "char": "judge", "emotion": "neutral", "hindi": "कोर्ट की कार्यवाही शुरू की जाए।", "hinglish": "Court ki kaaryavaahi shuru ki jaaye.", "english": "Let the court proceedings begin." },
+        { "type": "line", "char": "mehra", "emotion": "neutral", "hindi": "जज साहब, मेरे क्लाइंट ने कुछ नहीं किया।", "hinglish": "Judge saahab, mere client ne kuch nahi kiya.", "english": "Your honour, my client did nothing." },
+        { "type": "action", "char": "arjun", "action": "file" },
+        { "type": "line", "char": "arjun", "emotion": "neutral", "hindi": "ये सीसीटीवी फ़ुटेज और सेठ जी का हार, सारे सबूत यही हैं।", "hinglish": "Yeh CCTV footage aur Seth ji ka haar, saare saboot yahi hain.", "english": "This CCTV footage and Seth ji's necklace, here is all the proof." },
+        { "type": "action", "char": "raka", "action": "shock" },
+        { "type": "line", "char": "raka", "emotion": "sad", "hindi": "हाँ... मैंने ही चोरी की थी। मुझे माफ़ कर दीजिए।", "hinglish": "Haan... maine hi chori ki thi. Mujhe maaf kar dijiye.", "english": "Yes... I did steal it. Please forgive me." },
+        { "type": "action", "char": "judge", "action": "gavel" },
+        { "type": "line", "char": "judge", "emotion": "angry", "hindi": "अदालत राका को तीन साल की सज़ा सुनाती है।", "hinglish": "Adaalat Raka ko teen saal ki saza sunaati hai.", "english": "The court sentences Raka to three years." },
+        { "type": "action", "char": "arjun", "action": "salute" }
+      ] }
+  ]
+}

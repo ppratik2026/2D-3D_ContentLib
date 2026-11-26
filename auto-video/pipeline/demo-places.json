@@ -1,0 +1,55 @@
+{
+  "title": "Raat Ka Hamla",
+  "title_hindi": "रात का हमला",
+  "logline": "Seth Dhanraj raat ko sadak par behosh milte hain; police, hospital aur lab milkar sach dhoondhte hain.",
+  "moral": "Har saboot kuch kehta hai.",
+  "category": "crime",
+  "characters": [
+    { "id": "arjun", "name": "Inspector Arjun", "gender": "male", "age": "adult", "role": "police inspector", "top_color": "#b59a63", "bottom_color": "#8c7548", "hair_color": "#1c1612", "personality": "brave" },
+    { "id": "kavya", "name": "SI Kavya", "gender": "female", "age": "young", "role": "sub-inspector", "top_color": "#b59a63", "bottom_color": "#8c7548", "hair_color": "#1c1612", "personality": "smart" },
+    { "id": "seth", "name": "Seth Dhanraj", "gender": "male", "age": "old", "role": "jeweller, injured patient", "top_color": "#f4f1e8", "bottom_color": "#f4f1e8", "hair_color": "#cccccc", "personality": "scared" },
+    { "id": "ramu", "name": "Ramu", "gender": "male", "age": "adult", "role": "ambulance driver", "top_color": "#ffffff", "bottom_color": "#3a5a8a", "hair_color": "#1c1612", "personality": "quick" },
+    { "id": "doctor", "name": "Dr. Shalini", "gender": "female", "age": "adult", "role": "doctor", "top_color": "#ffffff", "bottom_color": "#3b6e8f", "hair_color": "#1c1612", "personality": "calm" },
+    { "id": "neha", "name": "Dr. Neha", "gender": "female", "age": "young", "role": "forensic scientist", "top_color": "#ffffff", "bottom_color": "#2b2b30", "hair_color": "#2a1d14", "personality": "sharp" },
+    { "id": "raju", "name": "Raju", "gender": "male", "age": "young", "role": "auto driver", "top_color": "#d8c07a", "bottom_color": "#5a4a3a", "hair_color": "#1c1612", "personality": "talkative" }
+  ],
+  "scenes": [
+    { "background": "bg_road", "time_of_day": "night", "weather": "fog", "present": ["seth"], "summary": "Seth Dhanraj is found unconscious on the road.", "seconds": 30,
+      "beats": [
+        { "type": "action", "char": "seth", "action": "faint" },
+        { "type": "action", "char": "arjun", "action": "drive_in", "vehicle": "police_jeep", "with": ["kavya"] },
+        { "type": "action", "char": "arjun", "action": "get_out", "vehicle": "police_jeep" },
+        { "type": "action", "char": "kavya", "action": "get_out", "vehicle": "police_jeep" },
+        { "type": "action", "char": "arjun", "action": "torch" },
+        { "type": "line", "char": "arjun", "emotion": "surprised", "hindi": "अरे, ये तो सेठ धनराज हैं!", "hinglish": "Arre, yeh toh Seth Dhanraj hain!", "english": "Hey, this is Seth Dhanraj!" },
+        { "type": "action", "char": "kavya", "action": "examine" },
+        { "type": "line", "char": "kavya", "emotion": "neutral", "hindi": "सर, साँस चल रही है। एम्बुलेंस बुलाइए!", "hinglish": "Sir, saans chal rahi hai. Ambulance bulaaiye!", "english": "Sir, he is breathing. Call an ambulance!" },
+        { "type": "action", "char": "ramu", "action": "drive_in", "vehicle": "ambulance" },
+        { "type": "action", "char": "ramu", "action": "get_out", "vehicle": "ambulance" },
+        { "type": "line", "char": "ramu", "emotion": "neutral", "hindi": "जल्दी, इन्हें अस्पताल ले चलते हैं।", "hinglish": "Jaldi, inhein aspataal le chalte hain.", "english": "Quick, let's take him to the hospital." }
+      ] },
+    { "background": "bg_hospital", "time_of_day": "day", "present": ["seth", "doctor", "arjun"], "summary": "In the hospital, Seth tells what happened.", "seconds": 20,
+      "beats": [
+        { "type": "line", "char": "doctor", "emotion": "neutral", "hindi": "इंस्पेक्टर, इन्हें होश आ गया है।", "hinglish": "Inspector, inhein hosh aa gaya hai.", "english": "Inspector, he is conscious now." },
+        { "type": "line", "char": "seth", "emotion": "scared", "hindi": "दो नकाबपोश थे... उन्होंने मेरी तिजोरी की चाबी छीन ली।", "hinglish": "Do naqaabposh the... unhone meri tijori ki chaabi chheen li.", "english": "There were two masked men... they snatched my safe key." },
+        { "type": "action", "char": "arjun", "action": "write" },
+        { "type": "line", "char": "arjun", "emotion": "neutral", "hindi": "आप चिंता मत कीजिए, हम उन्हें ढूँढ लेंगे।", "hinglish": "Aap chinta mat kijiye, hum unhein dhoondh lenge.", "english": "Don't worry, we will find them." },
+        { "type": "action", "char": "seth", "action": "namaste" }
+      ] },
+    { "background": "bg_lab", "time_of_day": "day", "present": ["neha", "arjun"], "summary": "The forensic lab finds a clue.", "seconds": 18,
+      "beats": [
+        { "type": "action", "char": "neha", "action": "test_tube" },
+        { "type": "line", "char": "neha", "emotion": "happy", "hindi": "सर, चाबी पर मिले फ़िंगरप्रिंट मैच हो गए!", "hinglish": "Sir, chaabi par mile fingerprint match ho gaye!", "english": "Sir, the fingerprints on the key matched!" },
+        { "type": "action", "char": "arjun", "action": "read" },
+        { "type": "line", "char": "arjun", "emotion": "angry", "hindi": "राका! तो ये उसी का काम है।", "hinglish": "Raka! Toh yeh usi ka kaam hai.", "english": "Raka! So this is his doing." }
+      ] },
+    { "background": "bg_front", "time_of_day": "evening", "present": [], "summary": "Kavya arrives by auto rickshaw.", "seconds": 15,
+      "beats": [
+        { "type": "action", "char": "raju", "action": "drive_in", "vehicle": "auto", "with": ["kavya"] },
+        { "type": "action", "char": "kavya", "action": "get_out", "vehicle": "auto" },
+        { "type": "line", "char": "raju", "emotion": "happy", "hindi": "मैडम, पचास रुपये हुए।", "hinglish": "Madam, pachaas rupaye hue.", "english": "Madam, that's fifty rupees." },
+        { "type": "line", "char": "kavya", "emotion": "neutral", "hindi": "ये लो भैया, शुक्रिया।", "hinglish": "Yeh lo bhaiya, shukriya.", "english": "Here you go, brother, thanks." },
+        { "type": "action", "char": "raju", "action": "drive_away", "vehicle": "auto" }
+      ] }
+  ]
+}

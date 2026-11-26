@@ -70,6 +70,10 @@ export const LOCATIONS = {
 };
 
 // Actions the engine can animate. Gemini must use only these.
-export const ACTIONS = ['enter', 'exit', 'walk_to', 'sit', 'stand', 'wave', 'nod', 'laugh', 'point', 'think', 'shock', 'drink', 'phone', 'run_exit', 'look_around'];
+export const ACTIONS = ['enter', 'exit', 'walk_to', 'sit', 'stand', 'wave', 'nod', 'laugh', 'point', 'think', 'shock', 'drink', 'phone', 'run_exit', 'look_around',
+  'go_to', 'faint', 'lie', 'drive_in', 'drive_away', 'get_in', 'get_out', 'car_chase', 'foot_chase', 'catch', 'handcuff',
+  'hands_up', 'salute', 'namaste', 'cry', 'examine', 'test_tube', 'torch', 'read', 'file', 'write', 'gavel', 'clap', 'angry'];
+export const VEHICLES = ['car', 'taxi', 'police_jeep', 'ambulance', 'auto', 'van'];
+export const MARKS = { seat: 'chair / sofa / charpai / bench to sit on', desk: 'sits behind a table (inspector, doctor, officer, teacher)', judge: "judge's high bench (court)", witness: 'witness box / kathghara (court)', counter: 'stands behind a counter / lab table / shop counter', bed: 'bed (patient lies down)', cell: 'jail cell behind bars', board: 'blackboard (teacher stands)' };
 
 export const TIMES_OF_DAY = ['morning', 'day', 'evening', 'night'];

@@ -31,7 +31,9 @@ Files: `Documents\AutoVideo\Videos\<date>_<category>_<title>\` → `final.mp4`, 
 
 - **Stage:** each scene uses a background from the library. Characters (toon-shaded 3D, so they walk, sit and lip-sync) stand on the ground lines, enter and exit from the sides, and the camera cuts between wide, two-shot and speaker close-ups.
 - **Voices:** 20 Hindi voices (Piper + Kokoro-82M, with pitch/speed variants): men, women, old people, kids, a deep inspector voice and a heavy villain voice. Each character keeps one voice for the whole video; characters with a fixed voice in the Characters tab always use it.
-- **Effects:** the story AI chooses weather per scene: rain, storm (lightning flashes + thunder), fog or wind, plus camera shake on shocks. Sound: music by mood, ambience by place (village birds, city traffic, night crickets, jungle), rain/wind loops, thunder, heartbeat in horror/crime scenes, dog barks and owls at night.
+- **Action scenes (v0.7):** cartoon vehicles drawn by the app (car, taxi, police jeep with flashing lights, ambulance, auto rickshaw, van): drive in, get out, get in, drive away, car chase with a scrolling road and speed lines, foot chase, catch, handcuffs with a close-up, faint / lie down, people lying in a hospital bed. Gestures with props: magnifying glass, torch, test tube, file, notepad, judge's gavel, salute, namaste, hands up, crying.
+- **Places:** mark a desk, judge bench, witness box, counter, bed, jail cell or blackboard on a background. People go there by their role (judge, inspector, patient, prisoner, teacher…) and are hidden behind the desk or box, or behind jail bars.
+- **Effects:** the story AI chooses weather per scene: rain, storm (lightning flashes + thunder), fog or wind, plus camera shake on shocks. Sound: siren, engine, brakes and tyre screech, car doors, handcuff click, gavel, jail door; music by mood, ambience by place (village birds, city traffic, night crickets, jungle), rain/wind loops, thunder, heartbeat in horror/crime scenes, dog barks and owls at night.
 
 ## Renderers
 

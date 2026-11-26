@@ -249,7 +249,7 @@ function createWindow() {
     if (only) { await win.webContents.executeJavaScript(`document.querySelector('[data-tab=chars]').click()`); await wait(6000);
       for (const id of process.argv[process.argv.indexOf('--chars-only') + 1].split(',')) { await win.webContents.executeJavaScript(`document.querySelector('.ch[data-id=${id}]').click()`); await wait(14000);
         fs.writeFileSync(path.join(dir, `char_${id}.png`), (await win.webContents.capturePage()).toPNG()); } return app.quit(); }
-    for (const tab of ['new', 'queue', 'library', 'chars', 'bgs', 'settings']) { console.log('TAB', tab, await win.webContents.executeJavaScript(`(() => { try { document.querySelector('[data-tab=${tab}]').click(); return document.querySelector('#tab-' + '${tab}')?.className; } catch (e) { return 'ERR ' + e.message; } })()`)); await wait(tab === 'chars' ? 15000 : 1500);
+    for (const tab of ['new', 'queue', 'library', 'chars', 'bgs', 'settings']) { console.log('TAB', tab, await win.webContents.executeJavaScript(`(() => { try { document.querySelector('[data-tab=${tab}]').click(); return document.querySelector('#tab-' + '${tab}')?.className; } catch (e) { return 'ERR ' + e.message; } })()`)); await wait(tab === 'chars' ? 15000 : 1500); if (tab === 'bgs' && process.argv.includes('--bg-pick')) { await win.webContents.executeJavaScript(`document.querySelector('.bgc[data-id=${process.argv[process.argv.indexOf('--bg-pick') + 1]}]')?.click(); document.querySelector('.mchip')?.click()`); await wait(1500); }
       fs.writeFileSync(path.join(dir, `ui_${tab}.png`), (await win.webContents.capturePage()).toPNG()); }
     app.quit(); });
 }
@@ -272,7 +272,8 @@ async function demoTest() {
   const style = process.argv[process.argv.indexOf('--style') + 1] || 'toon';
   const t0 = Date.now();
   try {
-    const r = await makeVideo({ demo: true, category: 'romance', style, renderFn: chromeRender }, (e) => console.log(`[${fmt(e.elapsed)}] ${e.step}: ${e.msg}`));
+    const arg = (n, d) => (process.argv.includes(n) ? process.argv[process.argv.indexOf(n) + 1] : d);
+    const r = await makeVideo({ demo: true, demoFile: arg('--demo-file'), category: arg('--category', 'romance'), style, renderFn: chromeRender }, (e) => console.log(`[${fmt(e.elapsed)}] ${e.step}: ${e.msg}`));
     console.log('DEMO OK', r.file, fmt((Date.now() - t0) / 1000));
   } catch (e) { console.error('DEMO FAIL', e); }
   app.quit();

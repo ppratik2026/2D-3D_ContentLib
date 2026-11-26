@@ -115,6 +115,43 @@ Use the horror style change for these.
 | 51 | Rainy village | A village street in heavy monsoon rain, puddles on the mud road, dark clouds, wet houses (the app also adds animated rain) |
 | 52 | Hostel room | A college hostel room, two single beds, study tables with books, posters without text, a window, tube light |
 
+## Action / CID sets (v0.7)
+
+The app draws vehicles, jail bars and handcuffs itself, so keep these scenes **empty**: no cars, no bars in front, no people.
+
+| # | Name in app | Place | Prompt |
+|---|---|---|---|
+| 53 | Highway day | highway | A long straight Indian highway seen from the side, road across the whole lower third, white lane markings, trees and hills behind, clear day, **no vehicles** |
+| 54 | Highway night | highway | The same Indian highway at night, street lights, dark blue sky, empty road, no vehicles |
+| 55 | City main road | city_street | A wide Indian city road seen from the side, shops and buildings behind, footpath, empty road across the lower third, no vehicles |
+| 56 | Narrow galli | lane | A narrow Indian lane between old houses, hanging wires, steps and doors, empty paved path through the middle, for a running chase |
+| 57 | Market lane | market | A crowded-looking but empty bazaar lane with shop shutters and awnings, open path in the front |
+| 58 | Police station front desk | police | Inside an Indian police station, the inspector's wooden table **facing the camera** in the middle, an empty chair behind it, files and a phone on the table, notice board and ceiling fan |
+| 59 | Lock-up inside | jail | An empty police lock-up area, grey brick walls, a small barred window high on the wall, a wooden bench, open floor in front, **no bars in the front of the picture** |
+| 60 | Court room (front view) | court | An Indian court room seen from the front: the judge's raised wooden bench in the middle with an **empty** high chair, a scales-of-justice sign above, a witness box (kathghara) on the right, lawyers' table on the left |
+| 61 | Hospital ward (side bed) | hospital | A hospital ward with one bed seen from the side across the middle, white sheets and a pillow on the left, a drip stand, a window, light green walls |
+| 62 | Forensic lab (front counter) | lab | A forensic laboratory with a long white lab counter across the middle facing the camera, beakers, test tubes and a microscope on it, shelves behind |
+| 63 | Bank counter | bank | Inside an Indian bank, a long counter with glass across the middle facing the camera, chairs in front |
+| 64 | Classroom (front) | school | An Indian classroom seen from the students' side: a big green blackboard, the teacher's table in front of it, empty floor in front |
+| 65 | Parking / godown outside | other | An empty open area in front of an old warehouse at night, a single lamp, open ground for a vehicle to stop |
+
+## Marking places (desk, judge, witness box, bed, jail cell…)
+
+After importing, open **Backgrounds**, select the image, pick the type in **Places in this background** and click **Add place**:
+
+| Type | Click 1 | Click 2 | Who goes there automatically |
+|---|---|---|---|
+| Seat | where the feet of a sitting person go | – | people who "sit" |
+| Behind desk (sits) | floor behind the desk, middle | top edge of the desk | inspector, officer, doctor, teacher, boss |
+| Judge bench | behind the bench, middle | top edge of the bench | the judge |
+| Witness box | floor inside the box | top edge of the box | the accused / witness |
+| Behind counter (stands) | floor behind the counter | top edge of the counter | scientist, shopkeeper, cashier, doctor |
+| Bed | middle of the mattress (then set the width to the bed length) | – | the patient (lies down) |
+| Jail cell | floor inside the cell | where the bars should start at the top | the thief / prisoner (bars are drawn in front) |
+| Blackboard spot | floor in front of the board | – | the teacher |
+
+Everything below the top edge you click hides the person, so they look like they are really behind the desk, bench or box.
+
 ---
 
 ## Tips

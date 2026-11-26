@@ -11,7 +11,9 @@ export const PLACES = {
   rich_house: 'haveli / rich house / living room', field: 'farm field / khet', forest: 'forest / jungle', river: 'river / pond / ghat', temple: 'temple / mandir',
   market: 'market / bazaar / shop', city_street: 'city road / street', school: 'school / classroom', hospital: 'hospital', police: 'police station',
   office: 'office', cafe: 'tea stall / cafe / dhaba', haunted: 'old haunted house / ruins', graveyard: 'cremation ground / graveyard', road_night: 'lonely road at night',
-  railway: 'railway station / train', palace: 'palace / court (king story)', other: 'other',
+  railway: 'railway station / train', palace: 'palace / court (king story)',
+  jail: 'jail / lock-up', court: 'court room', lab: 'laboratory / forensic lab', bank: 'bank', restaurant: 'restaurant / dhaba inside', hotel: 'hotel room', shop: 'shop inside',
+  highway: 'highway / long road (chases)', lane: 'narrow lane / galli (foot chases)', bus_stand: 'bus stand', college: 'college / hostel', other: 'other',
 };
 const meta = (id) => path.join(BG_DIR, id, 'background.json');
 export function listBackgrounds() {

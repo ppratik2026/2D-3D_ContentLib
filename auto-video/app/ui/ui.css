@@ -36,4 +36,6 @@ button.primary{background:var(--acc);color:#1b1300;border-color:var(--acc)}butto
 #bgEdit{position:relative;margin:8px 0;user-select:none}#bgImg{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;display:block}
 .gline{position:absolute;left:0;right:0;height:0;border-top:3px solid;cursor:ns-resize}.gline::after{content:'';position:absolute;left:0;right:0;top:-8px;height:16px}.gline.near{border-color:#4cd486}.gline.far{border-color:#6ab0ff}
 .fig{position:absolute;width:0;border-left:0}.fig div{position:absolute;bottom:0;transform:translateX(-50%);background:rgba(255,181,71,.55);border:2px solid #ffb547;border-radius:40% 40% 8px 8px}
-.seat{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#ff6b6b;border:2px solid #fff}
+.seat{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#ff6b6b;border:2px solid #fff;cursor:pointer}.seat.on{box-shadow:0 0 0 3px #fff}.seat span{position:absolute;left:16px;top:-4px;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.6);padding:0 4px;border-radius:4px;white-space:nowrap}
+.mrect{position:absolute;border:2px dashed;background:rgba(0,0,0,.18);pointer-events:none}.mrect.on{background:rgba(255,255,255,.12)}
+.mchip{padding:3px 8px;border:2px solid;border-radius:99px;font-size:12px;cursor:pointer}.mchip.on{background:var(--card2)}.mchip b{margin-left:4px;color:var(--err)}

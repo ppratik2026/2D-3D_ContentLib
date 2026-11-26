@@ -1,6 +1,6 @@
 // Step 1: Gemini writes the story (outline first, then every scene's beats) as strict JSON.
 // Uses Gemini's OpenAI-compatible endpoint with the key as a Bearer token.
-import { CATEGORIES, LOCATIONS, ACTIONS, TIMES_OF_DAY } from './config.mjs';
+import { CATEGORIES, LOCATIONS, ACTIONS, TIMES_OF_DAY, VEHICLES, MARKS } from './config.mjs';
 
 import { askJSON, parseJSON } from './ai.mjs';
 
@@ -100,11 +100,24 @@ export function normalizeBeats(beats, chars, sc) {
       const hindi = String(b.hindi || b.hinglish || '').trim(), hinglish = String(b.hinglish || b.hindi || '').trim();
       if (!hindi) continue;
       out.push({ type: 'line', char, emotion: String(b.emotion || 'neutral'), hindi, hinglish, english: String(b.english || hinglish) });
-    } else if (ACTIONS.includes(b.action)) out.push({ type: 'action', char, action: b.action, target: matchId(b.target, chars) || null });
+    } else if (ACTIONS.includes(b.action)) {
+      const a = { type: 'action', char, action: b.action, target: matchId(b.target, chars) || null };
+      if (b.vehicle) a.vehicle = VEHICLES.includes(b.vehicle) ? b.vehicle : 'car';
+      if (b.chaser_vehicle) a.chaser_vehicle = VEHICLES.includes(b.chaser_vehicle) ? b.chaser_vehicle : 'police_jeep';
+      if (HEX.test(String(b.color || ''))) a.color = '#' + String(b.color).replace('#', '');
+      if (b.place && MARKS[b.place]) a.place = b.place;
+      if (Number(b.seconds)) a.seconds = Math.max(4, Math.min(20, Number(b.seconds)));
+      for (const f of ['with', 'chasers']) if (Array.isArray(b[f])) a[f] = b[f].map((x) => matchId(x, chars)).filter((x) => x && x !== char);
+      if (['get_in', 'get_out', 'drive_in', 'drive_away', 'car_chase'].includes(a.action) && !a.vehicle) a.vehicle = a.action === 'car_chase' ? 'car' : 'police_jeep';
+      if (a.action === 'car_chase' && !a.chasers?.length && a.target) a.chasers = [a.target];
+      if (a.action === 'foot_chase' && !a.chasers?.length && a.target) a.chasers = [a.target];
+      out.push(a);
+    }
   }
   if (!sc.present.length) sc.present = [...new Set(out.map((b) => b.char))].slice(0, 6);
   // anyone who speaks must be in the scene
-  for (const b of out) if (!sc.present.includes(b.char) && sc.present.length < 6 && !out.some((x) => x.type === 'action' && x.action === 'enter' && x.char === b.char)) sc.present.push(b.char);
+  const arrives = (id) => out.some((x) => x.type === 'action' && ((x.action === 'enter' && x.char === id) || (['drive_in', 'car_chase'].includes(x.action) && (x.char === id || x.with?.includes(id) || x.chasers?.includes(id))) || (x.action === 'foot_chase' && (x.char === id || x.chasers?.includes(id)))));
+  for (const b of out) if (!sc.present.includes(b.char) && sc.present.length < 6 && !arrives(b.char)) sc.present.push(b.char);
   return out;
 }
 
@@ -113,10 +126,11 @@ export function buildPastePrompt({ category, minutes, idea = '', actors = [], ba
   const cat = CATEGORIES[category] || CATEGORIES.drama; const totalSec = Math.round(minutes * 60);
   const nScenes = Math.max(2, Math.min(30, Math.round(minutes * 1.6))); const lines = Math.max(6, Math.round(totalSec / 4.2));
   const stage = backgrounds.length > 0;
-  const places = stage ? backgrounds.map((b) => `- ${b.id}: ${b.name}${b.place ? ' (' + b.place.replace(/_/g, ' ') + ')' : ''}, ${b.time}${b.tags?.length ? ', ' + b.tags.join('/') : ''}`).join('\n')
+  const places = stage ? backgrounds.map((b) => `- ${b.id}: ${b.name}${b.place ? ' (' + b.place.replace(/_/g, ' ') + ')' : ''}, ${b.time}${b.tags?.length ? ', ' + b.tags.join('/') : ''}${b.marks?.length ? ' [has: ' + b.marks.join(', ') + ']' : ''}`).join('\n')
     : Object.entries(LOCATIONS).map(([k, v]) => `- ${k}: ${v}`).join('\n');
   const actorList = actors.map((a) => `- ${a.id}: ${a.gender}, ${a.age}${a.tags?.length ? ', ' + a.tags.join('/') : ''}`).join('\n');
   const nChars = chars === 'auto' ? (minutes >= 10 ? '6 to 12' : minutes >= 4 ? '4 to 8' : '2 to 5') : chars;
+  const crimePlan = stage && /crime|thriller|mystery/.test(category) ? '\nCID / police episode structure: crime is found (faint/lie for a body, shock) → police arrive (drive_in) → investigation (examine, lab with test_tube, witnesses, read file) → suspect runs (car_chase and/or foot_chase) → catch + handcuff → get_in police_jeep, drive_away → jail scene (prisoner in cell) → next day court (judge, lawyers, accused in witness box, gavel) → verdict and moral.' : '';
   const genreFx = /horror|thriller|crime|mystery/.test(category) ? 'Use "weather" for mood: rain, storm (thunder and lightning), fog or wind where it fits; most scenes at night.' : 'Use "weather" only when the story needs it (rain, storm, fog, wind), otherwise "none".';
   return `${SYSTEM}
 
@@ -125,9 +139,14 @@ ${idea ? `Idea / title: ${idea}` : 'Invent an original title and idea.'}
 Use ${nChars} characters with clearly different ages and roles (for example dada, dadi, father, mother, son, daughter, child, villager, inspector, constable, doctor, villain).${actorList ? ` Each character is played by one of these actors (write its id in "model"; different characters may share an actor):\n${actorList}` : ''}
 ${stage ? 'Every scene happens in front of one of these painted backgrounds (write its id in "background"):' : 'Every scene uses one of these locations (write the key in "location"):'}
 ${places}
-At most 6 characters in one scene. ${genreFx}
-Between dialogue lines add simple actions, only these words: ${ACTIONS.join(', ')}.
-("enter"/"exit"/"run_exit" = comes in / leaves; "sit"/"stand"; "walk_to" needs "target" = another character id.)
+At most 6 characters in one scene. ${genreFx}${crimePlan}
+Between dialogue lines add actions (only these words): ${ACTIONS.join(', ')}.
+- "enter"/"exit"/"run_exit" = comes in / leaves; "sit"/"stand"; "walk_to" needs "target" = another character id.
+- Gestures: wave, nod, laugh, point, think, shock, drink, phone, look_around, hands_up, salute, namaste, cry, angry, clap, examine (magnifying glass), test_tube (lab), torch (flashlight at night), read/file (reads a file), write (notes), gavel (judge).
+${stage ? `- Places in the background (if the background has them): {"action":"go_to","char":"id","place":"${Object.keys(MARKS).join('|')}"}. People whose role fits (judge, inspector at desk, patient in bed, prisoner in cell, accused in witness box, teacher at board, scientist at lab counter) start there automatically.
+- "faint" = falls down (or a dead body lying), "lie" = lies down; "stand" gets up again.
+- Vehicles (${VEHICLES.join(', ')}): {"action":"drive_in","char":"driver id","vehicle":"police_jeep","with":["passenger ids"]} (arrives and stops), {"action":"get_out","char":"id","vehicle":"police_jeep"}, {"action":"get_in","char":"id","vehicle":"police_jeep"}, {"action":"drive_away","char":"driver id","vehicle":"police_jeep"}.
+- Chases: {"action":"car_chase","char":"thief id","vehicle":"car","color":"#hex","chaser_vehicle":"police_jeep","chasers":["inspector id"],"seconds":8} — the next lines are shouted during the chase; then {"action":"get_out"} + {"action":"foot_chase","char":"thief id","chasers":["ids"],"seconds":6}, then {"action":"catch","char":"police id","target":"thief id"} and {"action":"handcuff","char":"police id","target":"thief id"}. Put a chase in its own scene on a road / lane background.` : ''}
 
 Reply with ONLY this JSON (no other text):
 {"title":"Hinglish title","title_hindi":"हिंदी शीर्षक","logline":"one line","moral":"last message or empty",

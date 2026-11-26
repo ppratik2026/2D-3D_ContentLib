@@ -140,6 +140,7 @@ export async function createActor(kit, scene, ch, cast, opts = {}) {
     const sc = height / Math.max(1e-4, (map.Head.getWorldPosition(V3()).y - low) * 1.07); a.o.scale.multiplyScalar(sc); a.o.updateMatrixWorld(true);
     a.yLift = -(low * sc);
   }
+  a._legRest = {}; for (const b of ['LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RightUpLeg', 'RightLeg', 'RightFoot', 'Spine', 'Spine1', 'Hips']) if (a.bones[b]) a._legRest[b] = a.bones[b].quaternion.clone(); // rest pose (legs straight)
   for (const act of Object.values(a.actions)) { act.play(); act.weight = 0; }
   a.yawOffset = 0; a.actions.idle.weight = 1; a.actions.idle.time = 0; a.mix.update(0); if (a.vrm) a.vrm.update(0); a.o.rotation.set(0, 0, 0); a.o.position.set(0, a.yLift || 0, 0); a.o.updateMatrixWorld(true);
   const f = faceDir(a); a.yawOffset = -Math.atan2(f.x, f.z); a.actions.idle.weight = 0;
@@ -203,11 +204,13 @@ export const dirs = (yaw) => ({ F: V3(Math.sin(yaw), 0, Math.cos(yaw)), R: V3(Ma
 const VOW = ['aa', 'ih', 'ou', 'ee', 'oh'];
 
 export function poseActor(a, t, st) {
-  // st: {visible,pos,yaw,walk,run,sit,drop,look,gesture:{name,k},mouth,emotion,talk}
+  // st: {visible,pos,yaw,walk,run,sit,drop,look,gesture:{name,k},mouth,emotion,talk,cuffed,struggle}
   a.o.visible = st.visible !== false; if (!a.o.visible) return;
   const w = { walk: st.walk || 0, run: st.run || 0 }; w.idle = Math.max(0, 1 - w.walk - w.run);
   for (const [k, act] of Object.entries(a.actions)) { act.weight = w[k] || 0; act.time = (t * (k === 'idle' ? 1 : 1.05) + a.id.length * 0.37) % act.getClip().duration; }
+  if (!a._legRest) { a._legRest = {}; for (const b of ['LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RightUpLeg', 'RightLeg', 'RightFoot', 'Spine', 'Spine1', 'Hips']) if (a.bones[b]) a._legRest[b] = a.bones[b].quaternion.clone(); }
   a.mix.update(0); a.bones.Hips.position.copy(a.hipRest); if (a.jaw) a.jaw.quaternion.copy(a.jawRest);
+  if (st.lie) { for (const [b, q] of Object.entries(a._legRest)) a.bones[b].quaternion.copy(q); } // lying: straight legs and back
   a.o.position.copy(st.pos); a.o.position.y += a.yLift || 0; a.o.rotation.set(0, st.yaw + a.yawOffset, 0);
   const { F, R } = dirs(st.yaw);
   const s = st.sit || 0;
@@ -215,6 +218,7 @@ export function poseActor(a, t, st) {
     for (const side of ['Left', 'Right']) { rotW(a, side + 'UpLeg', R, 1.5 * s); rotW(a, side + 'Leg', R, -1.45 * s); }
     rotW(a, 'Spine', R, -0.04 * s); }
   const arm = (side, up, fore, inward = 0) => { rotW(a, side + 'Arm', R, up); if (inward) rotW(a, side + 'Arm', UP, (side === 'Right' ? 1 : -1) * inward); rotW(a, side + 'ForeArm', R, fore); };
+  if (st.lie && !st.gesture) { arm('Right', 0.05, 0.25, -0.15); arm('Left', 0.05, 0.25, -0.15); }
   if (s > 0.5 && !st.gesture) { arm('Right', 0.35 * s, 0.6 * s, 0.25 * s); arm('Left', 0.35 * s, 0.6 * s, 0.25 * s); }
   if (st.talk) { const k = st.talk; arm('Right', (0.3 + 0.12 * Math.sin(t * 3.1)) * k, (0.8 + 0.3 * Math.sin(t * 5.3)) * k, 0.15 * k); }
   const g = st.gesture; let face = st.emotion || 'neutral';
@@ -227,7 +231,23 @@ export function poseActor(a, t, st) {
     if (n === 'shock') { arm('Right', 0.8 * k, 1.2 * k, -0.3 * k); arm('Left', 0.8 * k, 1.2 * k, -0.3 * k); rotW(a, 'Spine1', R, -0.12 * k); face = 'surprised'; }
     if (n === 'laugh') { rotW(a, 'Head', R, (-0.12 + Math.sin(t * 14) * 0.04) * k); face = 'happy'; }
     if (n === 'nod') rotW(a, 'Head', R, Math.sin(t * 7) * 0.1 * k);
+    if (n === 'hands_up') { rotW(a, 'RightArm', F, -2.5 * k); rotW(a, 'LeftArm', F, 2.5 * k); rotW(a, 'RightForeArm', F, -0.25 * k); rotW(a, 'LeftForeArm', F, 0.25 * k); face = 'scared'; }
+    if (n === 'salute') { arm('Right', 1.3 * k, 2.2 * k, 0.9 * k); rotW(a, 'RightArm', F, -0.5 * k); }
+    if (n === 'namaste') { arm('Right', 0.6 * k, 1.9 * k, 0.75 * k); arm('Left', 0.6 * k, 1.9 * k, 0.75 * k); rotW(a, 'Head', R, 0.12 * k); face = 'happy'; }
+    if (n === 'cry') { arm('Right', 0.9 * k, 2.2 * k, 0.6 * k); arm('Left', 0.9 * k, 2.2 * k, 0.6 * k); rotW(a, 'Head', R, (0.25 + Math.sin(t * 9) * 0.03) * k); rotW(a, 'Spine1', R, 0.12 * k); face = 'sad'; }
+    if (n === 'examine') { arm('Right', 1.0 * k, 1.5 * k, 0.35 * k); rotW(a, 'Spine1', R, 0.18 * k); rotW(a, 'Head', R, 0.15 * k); }
+    if (n === 'test_tube') { arm('Right', 1.05 * k, 1.75 * k, 0.3 * k); rotW(a, 'Head', R, -0.06 * k); }
+    if (n === 'torch') arm('Right', 1.25 * k, 0.15 * k, 0.1 * k);
+    if (n === 'read' || n === 'file') { arm('Right', 0.75 * k, 1.25 * k, 0.55 * k); arm('Left', 0.75 * k, 1.25 * k, 0.55 * k); rotW(a, 'Head', R, 0.2 * k); }
+    if (n === 'write') { arm('Left', 0.7 * k, 1.3 * k, 0.6 * k); arm('Right', (0.75 + 0.06 * Math.sin(t * 11)) * k, 1.35 * k, (0.45 + 0.08 * Math.sin(t * 7)) * k); rotW(a, 'Head', R, 0.22 * k); }
+    if (n === 'gavel') { const h = Math.max(0, Math.sin(t * 9)); arm('Right', (0.9 + 0.5 * h) * k, (0.9 - 0.4 * h) * k, 0.3 * k); }
+    if (n === 'grab') arm('Right', 1.35 * k, 0.1 * k, 0.35 * k);
+    if (n === 'cuff') { arm('Right', 0.95 * k, 0.9 * k, 0.55 * k); arm('Left', 0.95 * k, 0.9 * k, 0.55 * k); rotW(a, 'Spine1', R, 0.12 * k); }
+    if (n === 'clap') { const c = Math.abs(Math.sin(t * 10)); arm('Right', 0.9 * k, 1.5 * k, (0.5 + 0.25 * c) * k); arm('Left', 0.9 * k, 1.5 * k, (0.5 + 0.25 * c) * k); face = 'happy'; }
+    if (n === 'angry') { arm('Right', 0.5 * k, 1.7 * k, -0.1 * k); arm('Left', 0.5 * k, 1.7 * k, -0.1 * k); face = 'angry'; }
   }
+  if (st.cuffed) { arm('Right', 0.5, 0.75, 0.62); arm('Left', 0.5, 0.75, 0.62); }
+  if (st.struggle) { rotW(a, 'Spine1', UP, Math.sin(t * 13) * 0.18 * st.struggle); rotW(a, 'Head', R, -0.08 * st.struggle); face = 'scared'; }
   // head: look at target (measured, so it also corrects for the clip's own twist)
   if (a.vrm) a.vrm.update(0);
   { a.bones.Head.updateWorldMatrix(true, false); const hp = V3().setFromMatrixPosition(a.bones.Head.matrixWorld); let tgt = st.look ? st.look.clone() : hp.clone().addScaledVector(F, 3);

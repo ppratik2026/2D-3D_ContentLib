@@ -97,7 +97,8 @@ function heartbeat() { const o = new Float32Array(Math.floor(1.6 * SR)); for (co
 function crickets(dur) { const o = new Float32Array(Math.ceil(dur * SR)); for (let t = 0; t < dur; t += 0.7 + rnd() * 0.5) for (let k = 0; k < 4; k++) add(o, tone(4300 + rnd() * 300, 0.04, { decay: 50 }), t + k * 0.06, 0.03); return o; }
 function birds(dur) { const o = new Float32Array(Math.ceil(dur * SR)); for (let t = 1; t < dur; t += 2 + rnd() * 4) for (let k = 0; k < 3; k++) add(o, tone(2600 + rnd() * 1800, 0.12, { decay: 25 }), t + k * 0.13, 0.03); return o; }
 const PLACE_AMB = { village_street: 'village', village_house_out: 'village', field: 'village', temple: 'village', river: 'village', forest: 'forest', haunted: 'haunted', graveyard: 'haunted', road_night: 'haunted',
-  market: 'street', city_street: 'street', railway: 'street', house_inside: 'home', rich_house: 'home', police: 'office', office: 'office', school: 'office', hospital: 'office', cafe: 'cafe', palace: 'office' };
+  market: 'street', city_street: 'street', railway: 'street', house_inside: 'home', rich_house: 'home', police: 'office', office: 'office', school: 'office', hospital: 'office', cafe: 'cafe', palace: 'office',
+  jail: 'haunted', court: 'office', lab: 'office', bank: 'office', restaurant: 'cafe', hotel: 'home', shop: 'street', highway: 'street', lane: 'street', bus_stand: 'street', college: 'office', village_inside: 'home' };
 function stageAmbience(kind, night, dur) {
   const n = Math.ceil(dur * SR), o = new Float32Array(n); const w = new Float32Array(n); for (let i = 0; i < n; i++) w[i] = noise();
   if (kind === 'village' || kind === 'forest' || kind === 'haunted') { lowpass(w, 0.02); for (let i = 0; i < n; i++) o[i] = w[i] * (kind === 'haunted' ? 2.2 : 1.2);
@@ -108,6 +109,20 @@ function stageAmbience(kind, night, dur) {
 function step(g = 1) { const n = Math.floor(0.09 * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) { const t = i / SR; o[i] = (noise() * Math.exp(-t * 60) * 0.6 + Math.sin(2 * Math.PI * 95 * t) * Math.exp(-t * 40)) * g; } return lowpass(o, 0.3); }
 function door() { const n = Math.floor(0.7 * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) { const t = i / SR; o[i] = Math.sin(2 * Math.PI * (300 + 200 * Math.sin(t * 9)) * t) * Math.exp(-t * 5) * 0.15 + (t > 0.5 ? noise() * Math.exp(-(t - 0.5) * 30) : 0); } return lowpass(o, 0.2); }
 function whoosh() { const n = Math.floor(0.8 * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) o[i] = noise() * Math.sin(Math.PI * i / n) ** 2; return lowpass(o, 0.06); }
+// vehicles, police and court sounds
+function siren(dur, amb) { const n = Math.ceil(dur * SR), o = new Float32Array(n); let ph = 0;
+  for (let i = 0; i < n; i++) { const t = i / SR; const f = amb ? (Math.floor(t / 0.55) % 2 ? 960 : 770) : 720 + 520 * (0.5 - 0.5 * Math.cos(2 * Math.PI * t / 1.6)); ph += 2 * Math.PI * f / SR; o[i] = (Math.sin(ph) + 0.35 * Math.sin(2 * ph) + 0.15 * Math.sin(3 * ph)) * Math.min(1, t / 0.3, (dur - t) / 0.4); }
+  return lowpass(o, 0.35); }
+function engine(dur, rev = 1) { const n = Math.ceil(dur * SR), o = new Float32Array(n); let ph = 0;
+  for (let i = 0; i < n; i++) { const t = i / SR; const f = 38 + 18 * rev * Math.min(1, t / 1.5) + 3 * Math.sin(t * 2.3); ph += f / SR; const saw = (ph % 1) * 2 - 1; o[i] = (saw * 0.7 + noise() * 0.35) * Math.min(1, t / 0.4, (dur - t) / 0.6); }
+  return lowpass(lowpass(o, 0.06), 0.1); }
+function screech() { const n = Math.floor(1.1 * SR), o = new Float32Array(n); let ph = 0; for (let i = 0; i < n; i++) { const t = i / SR; ph += 2 * Math.PI * (2600 - 900 * t) / SR; o[i] = (Math.sin(ph) * 0.5 + noise() * 0.5 * Math.sin(ph * 0.5)) * Math.min(1, t / 0.05) * Math.exp(-t * 1.6); } return o; }
+function brake() { const o = screech(); for (let i = 0; i < o.length; i++) o[i] *= 0.45 * Math.exp(-i / SR * 2); return o; }
+function carDoor(close) { const n = Math.floor(0.5 * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) { const t = i / SR; o[i] = close ? (Math.sin(2 * Math.PI * 70 * t) * Math.exp(-t * 18) + noise() * Math.exp(-t * 45) * 0.6) : (noise() * Math.exp(-t * 30) * 0.4 + Math.sin(2 * Math.PI * 1400 * t) * Math.exp(-t * 40) * 0.2); } return lowpass(o, close ? 0.2 : 0.5); }
+function metalClick() { const o = new Float32Array(Math.floor(0.6 * SR)); for (const [s, f] of [[0, 3200], [0.09, 4100], [0.16, 2700]]) add(o, tone(f, 0.25, { type: 'bell', decay: 30 }), s, 0.35); for (let i = 0; i < 400; i++) o[i] += noise() * 0.3 * Math.exp(-i / 80); return o; }
+function gavel() { const o = new Float32Array(Math.floor(1.2 * SR)); for (const s of [0, 0.33, 0.66]) { const k = new Float32Array(Math.floor(0.15 * SR)); for (let i = 0; i < k.length; i++) { const t = i / SR; k[i] = Math.sin(2 * Math.PI * 190 * t) * Math.exp(-t * 40) + noise() * Math.exp(-t * 90) * 0.5; } add(o, k, s, 0.8); } return o; }
+function clank() { const o = new Float32Array(Math.floor(1.6 * SR)); for (const f of [210, 317, 488, 911]) add(o, tone(f, 1.5, { type: 'bell', decay: 3 }), 0, 0.18); for (let i = 0; i < 1500; i++) o[i] += noise() * 0.5 * Math.exp(-i / 300); return o; }
+function thud() { const n = Math.floor(0.5 * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) { const t = i / SR; o[i] = Math.sin(2 * Math.PI * (60 + 40 * Math.exp(-t * 20)) * t) * Math.exp(-t * 9) + noise() * Math.exp(-t * 30) * 0.4; } return lowpass(o, 0.25); }
 function sting() { const o = new Float32Array(Math.floor(3 * SR)); for (const m of [50, 57, 62, 66]) add(o, tone(mtof(m), 3, { type: 'bell', decay: 1.1 }), 0, 0.15); return o; }
 
 export function mixAll(tl, mood, outFile) {
@@ -130,6 +145,8 @@ export function mixAll(tl, mood, outFile) {
     if (sc.weather === 'rain' || sc.weather === 'storm') add(mix, fade(rainLoop(d, sc.weather === 'storm')), sc.start - 0.3, sc.weather === 'storm' ? 0.22 : 0.16);
     if (sc.weather === 'wind' || sc.weather === 'storm' || sc.weather === 'fog') add(mix, fade(windLoop(d)), sc.start - 0.3, sc.weather === 'fog' ? 0.08 : 0.12);
     for (const e of sc.events || []) if (e.kind === 'gesture' && e.name === 'shock' && /horror|thriller|crime|mystery/.test(mood)) add(mix, heartbeat(), e.t0, 0.5);
+    for (const e of sc.events || []) if (e.kind === 'gesture' && e.name === 'gavel') add(mix, gavel(), e.t0 + 0.25, 0.7);
+    if (tl.backgrounds?.[sc.background]?.seats?.some((m) => m.type === 'cell')) add(mix, clank(), sc.start + 0.3, 0.4);
   }
   for (const c of tl.cues) if (c.kind === 'thunder') add(mix, thunder(), c.t, 0.55);
   for (const sc of tl.scenes) { const place = tl.backgrounds?.[sc.background]?.place; const a = place ? stageAmbience(PLACE_AMB[place] || 'street', sc.time_of_day === 'night', sc.end - sc.start + 0.6) : ambience(sc.location, sc.time_of_day, sc.end - sc.start + 0.6); for (let i = 0; i < a.length; i++) { const t = i / SR; a[i] *= 0.18 * Math.min(1, t / 0.6, (a.length / SR - t) / 0.6); } add(mix, a, sc.start - 0.3); }
@@ -139,6 +156,18 @@ export function mixAll(tl, mood, outFile) {
     if (c.kind === 'scene' && c.t > 4) add(mix, whoosh(), c.t - 0.5, 0.25);
     if (c.kind === 'door' && c.location !== 'street' && c.location !== 'park' && c.location !== 'forest' && c.location !== 'alley') add(mix, door(), c.t, 0.6);
     if (c.kind === 'walk' || c.kind === 'run') { const gap = c.kind === 'run' ? 0.3 : 0.52; for (let t = c.t; t < c.t1; t += gap) add(mix, step(), t, c.kind === 'run' ? 0.45 : 0.32); }
+    if (c.kind === 'siren') add(mix, siren(c.t1 - c.t, c.amb), c.t, 0.13);
+    if (c.kind === 'engine') add(mix, engine(c.t1 - c.t), c.t, 0.3);
+    if (c.kind === 'chase_car') { const d = c.t1 - c.t; add(mix, engine(d + 0.4, 1.6), c.t, 0.38); add(mix, engine(d + 0.4, 1.3), c.t + 0.2, 0.25); if (c.police) add(mix, siren(d + 0.3), c.t, 0.16); }
+    if (c.kind === 'chase_foot') for (let t = c.t; t < c.t1; t += 0.16) add(mix, step(), t, 0.4);
+    if (c.kind === 'screech') add(mix, screech(), c.t, 0.32);
+    if (c.kind === 'brake') add(mix, brake(), c.t, 0.3);
+    if (c.kind === 'car_door') add(mix, carDoor(false), c.t, 0.5);
+    if (c.kind === 'car_door_close') add(mix, carDoor(true), c.t, 0.7);
+    if (c.kind === 'cuff') add(mix, metalClick(), c.t, 0.8);
+    if (c.kind === 'gavel') add(mix, gavel(), c.t, 0.7);
+    if (c.kind === 'clank') add(mix, clank(), c.t, 0.5);
+    if (c.kind === 'grab' || c.kind === 'fall') add(mix, thud(), c.t, 0.6);
     if (c.kind === 'sit' || c.kind === 'stand') { const s = new Float32Array(Math.floor(0.3 * SR)); for (let i = 0; i < s.length; i++) s[i] = noise() * Math.sin(Math.PI * i / s.length); add(mix, lowpass(s, 0.1), c.t + 0.3, 0.25); }
   }
   let m = 1e-6; for (const v of mix) m = Math.max(m, Math.abs(v)); const g = Math.min(1, 0.9 / m); for (let i = 0; i < n; i++) mix[i] *= g;

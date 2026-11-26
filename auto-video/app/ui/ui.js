@@ -127,7 +127,9 @@ dz.ondrop = async (e) => { e.preventDefault(); dz.classList.remove('drop'); cons
   if (paths.length) { const r = await api.call('chars:importPaths', paths); sel = r[0]?.id; loadChars(); } };
 
 // ---------- backgrounds ----------
-let BG = { list: [], places: {} }, bsel = null, seatMode = false;
+let BG = { list: [], places: {} }, bsel = null, seatMode = false, pend = null, msel = -1;
+const MK = { seat: ['Seat', '#ff6b6b'], desk: ['Behind desk (sits)', '#ffb547'], judge: ['Judge bench', '#c792ea'], witness: ['Witness box', '#6ab0ff'], counter: ['Behind counter (stands)', '#4cd486'], bed: ['Bed (lies down)', '#ff9ad5'], cell: ['Jail cell (bars)', '#a0a8b8'], board: ['Blackboard spot', '#ffe66b'] };
+const COVER = new Set(['desk', 'judge', 'witness', 'counter', 'cell']); const WDEF = { judge: 0.26, desk: 0.22, bed: 0.3, witness: 0.12, counter: 0.22, cell: 0.24 };
 async function loadBgs() {
   BG = await api.call('bg:list');
   $('#bgList').innerHTML = BG.list.length ? BG.list.map((b) => `<div class="bgc${bsel === b.id ? ' on' : ''}" data-id="${b.id}"><img src="${b.url}" loading="lazy"><div class="t">${esc(b.name)}</div><div class="tags">${esc((BG.places[b.place] || b.place || '').split(' (')[0])} · ${esc(b.time)}${b.tags?.length ? ' · ' + esc(b.tags.join(', ')) : ''}</div></div>`).join('')
@@ -140,7 +142,12 @@ function drawBg() {
   const b = curBg(); if (!b) return; $('#bgNear').style.top = b.groundNear * 100 + '%'; $('#bgFar').style.top = b.groundFar * 100 + '%'; $('#bgH').value = b.heightNear;
   const farScale = Math.max(0.45, 1 - (b.groundNear - b.groundFar) * 1.9); const ih = $('#bgImg').clientHeight || 300;
   $('#bgFigs').innerHTML = [[0.3, b.groundNear, 1], [0.7, b.groundFar, farScale]].map(([x, y, k]) => `<div class="fig" style="left:${x * 100}%;top:${y * 100}%"><div style="height:${b.heightNear * k * ih}px;width:${b.heightNear * k * ih * 0.32}px"></div></div>`).join('');
-  $('#bgSeats').innerHTML = (b.seats || []).map((p) => `<div class="seat" style="left:${p.x * 100}%;top:${p.y * 100}%"></div>`).join('');
+  const ms = b.seats || [];
+  $('#bgSeats').innerHTML = ms.map((p, i) => { const [lab, c] = MK[p.type || 'seat'] || MK.seat; const w = p.w || WDEF[p.type] || 0;
+    const rect = (p.cover != null || p.type === 'cell' || p.type === 'bed') && w ? `<div class="mrect${i === msel ? ' on' : ''}" style="left:${(p.x - w / 2) * 100}%;width:${w * 100}%;top:${(p.type === 'bed' ? p.y - 0.06 : p.cover ?? p.y - b.heightNear * 1.3) * 100}%;height:${(p.type === 'bed' ? 0.06 : p.y - (p.cover ?? p.y - b.heightNear * 1.3)) * 100}%;border-color:${c}"></div>` : '';
+    return `${rect}<div class="seat${i === msel ? ' on' : ''}" data-i="${i}" title="${lab}" style="left:${p.x * 100}%;top:${p.y * 100}%;background:${c}"><span>${esc(lab.split(' (')[0])}</span></div>`; }).join('');
+  $('#bgMarks').innerHTML = ms.map((p, i) => `<span class="mchip${i === msel ? ' on' : ''}" data-i="${i}" style="border-color:${(MK[p.type || 'seat'] || MK.seat)[1]}">${esc((MK[p.type || 'seat'] || MK.seat)[0])} <b data-del="${i}">×</b></span>`).join('') || '<span class="muted small">No places marked yet.</span>';
+  const m = ms[msel]; $('#bgWWrap').hidden = !(m && (COVER.has(m.type) || m.type === 'bed')); if (m) $('#bgW').value = m.w || WDEF[m.type] || 0.2;
 }
 function bpick(id) {
   bsel = id; const b = curBg(); $$('.bgc').forEach((x) => x.classList.toggle('on', x.dataset.id === id)); $('#bgImg').src = b.url; $('#bgImg').onload = drawBg;
@@ -155,11 +162,18 @@ for (const [el, key] of [['#bgNear', 'groundNear'], ['#bgFar', 'groundFar']]) $(
   window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
 };
 $('#bgH').oninput = () => { curBg().heightNear = +$('#bgH').value; drawBg(); }; $('#bgH').onchange = () => bgSave({ heightNear: +$('#bgH').value });
-$('#bgSeat').onclick = () => { seatMode = true; $('#bgSeat').textContent = 'Click on the image…'; };
-$('#bgClearSeats').onclick = () => bgSave({ seats: [] });
+$('#bgSeat').onclick = () => { seatMode = true; pend = null; $('#bgHint').textContent = 'Click where the feet go' + ($('#bgMType').value === 'bed' ? ' (on the mattress, middle of the bed)' : '') + '…'; };
+$('#bgClearSeats').onclick = () => { msel = -1; bgSave({ seats: [] }); };
+$('#bgMarks').onclick = (e) => { const d = e.target.closest('[data-del]'); if (d) { const b = curBg(); const ms = [...(b.seats || [])]; ms.splice(+d.dataset.del, 1); msel = -1; bgSave({ seats: ms }); return; } const c = e.target.closest('.mchip'); if (c) { msel = +c.dataset.i; drawBg(); } };
+$('#bgW').oninput = () => { const b = curBg(); const m = b.seats?.[msel]; if (m) { m.w = +$('#bgW').value; drawBg(); } }; $('#bgW').onchange = () => bgSave({ seats: curBg().seats });
 $('#bgEdit').onclick = (e) => {
+  const dot = e.target.closest('.seat'); if (!seatMode && dot) { msel = +dot.dataset.i; drawBg(); return; }
   if (!seatMode || e.target.closest('.gline')) return; const box = $('#bgImg').getBoundingClientRect(); const b = curBg();
-  bgSave({ seats: [...(b.seats || []), { x: +((e.clientX - box.left) / box.width).toFixed(3), y: +((e.clientY - box.top) / box.height).toFixed(3) }] }); seatMode = false; $('#bgSeat').textContent = 'Add seat';
+  const x = +((e.clientX - box.left) / box.width).toFixed(3), y = +((e.clientY - box.top) / box.height).toFixed(3); const type = $('#bgMType').value;
+  if (!pend) { pend = { type, x, y }; if (COVER.has(type)) { $('#bgHint').textContent = type === 'cell' ? 'Now click where the top of the bars should be…' : type === 'bed' ? 'Now click the top edge of the blanket / bed side (the body is hidden below it)…' : 'Now click the TOP EDGE of the ' + (type === 'witness' ? 'witness box' : type === 'judge' ? "judge's bench" : type) + ' (everything below it hides the person)…'; return; } }
+  else pend.cover = Math.min(y, pend.y - 0.01);
+  if (COVER.has(pend.type) || pend.type === 'bed') pend.w = WDEF[pend.type];
+  const ms = [...(b.seats || []), pend]; msel = ms.length - 1; pend = null; seatMode = false; $('#bgHint').textContent = ''; bgSave({ seats: ms });
 };
 $('#bgForm').onsubmit = async (e) => { e.preventDefault(); const f = e.target; await bgSave({ name: f.name.value, place: f.place.value, time: f.time.value, indoor: f.indoor.checked, tags: f.tags.value.split(',').map((x) => x.trim()).filter(Boolean) }); loadBgs(); };
 $('#bgDelete').onclick = async () => { if (confirm('Delete this background?')) { await api.call('bg:delete', bsel); bsel = null; loadBgs(); } };
