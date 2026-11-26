@@ -1,0 +1,36 @@
+{
+  "id": "bg_flat_school",
+  "file": "backgrounds/bg_flat_school/image.jpg",
+  "name": "Flat: school classroom",
+  "place": "school",
+  "time": "day",
+  "indoor": true,
+  "tags": [
+    "flat",
+    "school",
+    "classroom",
+    "kids",
+    "teacher",
+    "college"
+  ],
+  "groundNear": 0.96,
+  "groundFar": 0.8,
+  "heightNear": 0.6,
+  "seats": [
+    {
+      "type": "board",
+      "x": 0.3,
+      "y": 0.8
+    },
+    {
+      "type": "seat",
+      "x": 0.4,
+      "y": 0.93
+    },
+    {
+      "type": "seat",
+      "x": 0.7,
+      "y": 0.93
+    }
+  ]
+}

@@ -290,4 +290,168 @@ def platform():
     p.rect(0.88, 0.71, 0.99, 0.73, '#8a5a3c'); p.rect(0.89, 0.73, 0.9, 0.77, '#3b3b48'); p.rect(0.97, 0.73, 0.98, 0.77, '#3b3b48')
     p.save('bg_flat_platform', {'name': 'Flat: railway platform', 'place': 'railway', 'time': 'day', 'indoor': False, 'tags': ['flat', 'railway', 'station', 'platform', 'train'], 'groundNear': 0.95, 'groundFar': 0.76, 'heightNear': 0.6, 'seats': []})
 
-for f in [cafe_out, cafe_in, market, court, train_in, platform]: f(); print('ok', f.__name__)
+
+def floor_tiles(p, y0, col, line, wood=False):
+    p.rect(-0.01, y0, 1.01, 1.01, col, ol=False); p.line([(0, y0), (1, y0)], w=8)
+    if wood:
+        for i in range(8):
+            yy = y0 + i * (1 - y0) / 7; p.line([(0, yy), (1, yy)], line, 5)
+            for j in range(12): xx = j * 0.09 + (i % 2) * 0.045; p.line([(xx, yy), (xx, yy + (1 - y0) / 7)], line, 4)
+    else:
+        for i in range(14): p.line([(i * 0.08 - 0.05, 1.0), (0.1 + i * 0.065, y0)], line, 5)
+        for yy in [y0 + (1 - y0) * 0.35, y0 + (1 - y0) * 0.7]: p.line([(0, yy), (1, yy)], line, 5)
+
+def window(p, x0, y0, x1, y1, sky='#bfe6f5', night=False, frame='#ffffff'):
+    p.rect(x0, y0, x1, y1, '#1c2440' if night else sky)
+    if night: p.circ(x0 + (x1 - x0) * 0.7, y0 + (y1 - y0) * 0.3, 0.025, '#fff3b0', ol=False)
+    else: p.cloud(x0 + (x1 - x0) * 0.35, y0 + (y1 - y0) * 0.35, 0.45)
+    p.line([((x0 + x1) / 2, y0), ((x0 + x1) / 2, y1)], frame, 14); p.line([(x0, (y0 + y1) / 2), (x1, (y0 + y1) / 2)], frame, 14); p.rect(x0, y0, x1, y1, None, ow=9)
+
+def home_in():
+    p = Pic('#f3dcc2'); p.rect(-0.01, 0.6, 1.01, 0.62, '#c99a6e', ol=False)
+    window(p, 0.08, 0.14, 0.3, 0.44); p.rect(0.05, 0.1, 0.08, 0.5, '#d9534f'); p.rect(0.3, 0.1, 0.33, 0.5, '#d9534f'); p.rect(0.04, 0.09, 0.34, 0.11, '#8a5a3c')
+    # door
+    p.rect(0.86, 0.22, 0.97, 0.8, '#8a5a3c'); p.rect(0.875, 0.25, 0.955, 0.5, '#9b6b4b', r=0.008, ol=False); p.rect(0.875, 0.53, 0.955, 0.77, '#9b6b4b', r=0.008, ol=False); p.circ(0.95, 0.53, 0.008, '#e8b923')
+    # family photo + clock + TV
+    p.rect(0.4, 0.14, 0.52, 0.28, '#ffffff'); [p.circ(0.43 + i * 0.03, 0.22, 0.018, c, ow=4) for i, c in enumerate(['#f1c79a', '#d79d6c', '#eab98c', '#f1c79a'])]
+    p.circ(0.6, 0.2, 0.04, '#ffffff'); p.line([(0.6, 0.2), (0.6, 0.175)], w=5); p.line([(0.6, 0.2), (0.618, 0.2)], w=5)
+    p.rect(0.68, 0.33, 0.82, 0.48, '#2b2b3a', r=0.008); p.rect(0.69, 0.34, 0.81, 0.47, '#5aa5c9', ol=False); p.rect(0.66, 0.6, 0.84, 0.66, '#8a5a3c'); p.rect(0.735, 0.48, 0.765, 0.6, '#3b3b48')
+    # sofa (two seats) + carpet + table
+    p.ell(0.18, 0.86, 0.72, 0.97, '#d9a441', ol=False)
+    p.rect(0.12, 0.6, 0.54, 0.8, '#3f7fbf', r=0.03); p.rect(0.1, 0.68, 0.16, 0.86, '#2f6fae', r=0.02); p.rect(0.5, 0.68, 0.56, 0.86, '#2f6fae', r=0.02); p.rect(0.15, 0.76, 0.51, 0.84, '#4b8ccc', r=0.015)
+    plant(p, 0.62, 0.8, 1.1)
+    floor_tiles(p, 0.84, '#e6d2b5', (210, 190, 160, 255)); p.ell(0.18, 0.88, 0.72, 0.98, '#d9a441', ol=False); p.ell(0.22, 0.9, 0.68, 0.96, '#e8b923', ol=False)
+    p.rect(0.12, 0.6, 0.54, 0.8, None, r=0.03)
+    p.save('bg_flat_home', {'name': 'Flat: home living room', 'place': 'house_inside', 'time': 'day', 'indoor': True, 'tags': ['flat', 'home', 'house', 'ghar', 'living room', 'family'], 'groundNear': 0.97, 'groundFar': 0.86, 'heightNear': 0.62,
+        'seats': [{'type': 'seat', 'x': 0.25, 'y': 0.9}, {'type': 'seat', 'x': 0.41, 'y': 0.9}, {'type': 'door', 'x': 0.915, 'y': 0.86}]})
+
+def hut(p, x, y, w, h, wall='#e8c48f', roof='#c9a15a'):
+    p.rect(x, y - h, x + w, y, wall); p.rect(x + w * 0.38, y - h * 0.62, x + w * 0.62, y, '#6b4426')
+    p.poly([(x - w * 0.12, y - h), (x + w / 2, y - h * 1.75), (x + w * 1.12, y - h)], roof)
+    for i in range(6): p.line([(x + w * (0.05 + i * 0.18), y - h * 1.02), (x + w / 2, y - h * 1.7)], (160, 120, 60, 255), 4)
+
+def village():
+    p = Pic('#bfe6f5'); p.circ(0.85, 0.12, 0.055, '#fff3b0', ol=False); p.cloud(0.2, 0.1, 1.0); p.cloud(0.55, 0.14, 0.8)
+    p.poly([(0, 0.55), (0.2, 0.42), (0.4, 0.52), (0.6, 0.4), (0.8, 0.5), (1, 0.43), (1, 0.6), (0, 0.6)], '#8fbf7a', ol=False)
+    p.rect(-0.01, 0.55, 1.01, 0.7, '#a9cf6a', ol=False)
+    for i in range(16): p.line([(i * 0.07, 0.58), (i * 0.07 + 0.03, 0.69)], (140, 180, 80, 255), 5)
+    hut(p, 0.08, 0.72, 0.18, 0.18); hut(p, 0.62, 0.7, 0.16, 0.16, '#f0d3a0', '#b98a4c')
+    tree(p, 0.42, 0.72, 1.15); tree(p, 0.92, 0.72, 0.9)
+    # well
+    p.rect(0.82, 0.66, 0.9, 0.73, '#b8a48c'); p.ell(0.815, 0.65, 0.905, 0.675, '#6b6f7a'); p.line([(0.825, 0.66), (0.825, 0.58), (0.895, 0.58), (0.895, 0.66)], '#6b4426', 7)
+    p.rect(-0.01, 0.72, 1.01, 1.01, '#e3c48f', ol=False); p.line([(0, 0.72), (1, 0.72)], w=8)
+    for i in range(22): p.circ(random.Random(i).uniform(0, 1), random.Random(i + 9).uniform(0.76, 0.99), 0.004, '#c9a874', ol=False)
+    # charpai
+    p.rect(0.3, 0.76, 0.48, 0.79, '#b98a4c'); 
+    for i in range(7): p.line([(0.305 + i * 0.028, 0.765), (0.305 + i * 0.028, 0.785)], (230, 210, 170, 255), 4)
+    p.rect(0.305, 0.79, 0.315, 0.84, '#6b4426'); p.rect(0.465, 0.79, 0.475, 0.84, '#6b4426')
+    p.save('bg_flat_village', {'name': 'Flat: village', 'place': 'village_street', 'time': 'day', 'indoor': False, 'tags': ['flat', 'village', 'gaon', 'hut', 'farm', 'kids'], 'groundNear': 0.95, 'groundFar': 0.76, 'heightNear': 0.6,
+        'seats': [{'type': 'seat', 'x': 0.35, 'y': 0.84}, {'type': 'seat', 'x': 0.43, 'y': 0.84}]})
+
+def road():
+    p = Pic('#bfe6f5'); p.cloud(0.25, 0.1, 1.0); p.cloud(0.75, 0.08, 0.9)
+    buildings(p, 0.6, ['#f2d0a9', '#e8b4a0', '#c9d8e8', '#d7c4e8', '#bfe3c9', '#f5e0b8'], seed=31, hmin=0.25, hmax=0.5)
+    p.rect(-0.01, 0.6, 1.01, 0.68, '#d8cdb8', ol=False); p.line([(0, 0.6), (1, 0.6)], w=7)
+    for i in range(14): p.line([(i * 0.075, 0.6), (i * 0.075 - 0.01, 0.68)], (190, 180, 160, 255), 4)
+    lamp_post(p, 0.15, 0.66, 0.9); lamp_post(p, 0.62, 0.66, 0.9); tree(p, 0.38, 0.66, 0.9)
+    # traffic signal
+    p.rect(0.87, 0.3, 0.878, 0.66, '#3b3b48'); p.rect(0.855, 0.24, 0.893, 0.36, '#2b2b3a', r=0.01); [p.circ(0.874, 0.265 + i * 0.035, 0.012, c, ow=4) for i, c in enumerate(['#d9534f', '#f6c445', '#3f9b5a'])]
+    p.rect(-0.01, 0.68, 1.01, 0.7, '#f4f1e6'); p.rect(-0.01, 0.7, 1.01, 1.01, '#6b6f7a', ol=False); p.line([(0, 0.7), (1, 0.7)], w=8)
+    for i in range(10): p.rect(i * 0.11 + 0.02, 0.84, i * 0.11 + 0.08, 0.855, '#f4f1e6', ol=False)
+    p.save('bg_flat_road', {'name': 'Flat: city road', 'place': 'city_street', 'time': 'day', 'indoor': False, 'tags': ['flat', 'road', 'street', 'city', 'highway', 'lane'], 'groundNear': 0.95, 'groundFar': 0.74, 'heightNear': 0.6, 'seats': []})
+
+def police():
+    p = Pic('#dfe6d8'); p.rect(-0.01, 0.62, 1.01, 0.64, '#7d8a70', ol=False)
+    window(p, 0.06, 0.12, 0.24, 0.38)
+    p.rect(0.3, 0.1, 0.52, 0.34, '#c9a15a'); p.rect(0.315, 0.115, 0.505, 0.325, '#e6d2b5', ol=False)
+    for i, (x, y, c) in enumerate([(0.33, 0.14, '#ffffff'), (0.41, 0.13, '#f6e7d3'), (0.45, 0.21, '#ffffff'), (0.34, 0.23, '#cfe9f2')]): p.rect(x, y, x + 0.05, y + 0.07, c); p.circ(x + 0.025, y + 0.008, 0.006, '#d9534f', ol=False)
+    p.line([(0.355, 0.17), (0.435, 0.16), (0.475, 0.24), (0.365, 0.26)], '#d9534f', 4)
+    p.rect(0.56, 0.18, 0.62, 0.62, '#6b7a5a'); [p.rect(0.565, 0.2 + i * 0.1, 0.615, 0.28 + i * 0.1, '#7d8c6a', ol=False) for i in range(4)]
+    # lock-up on the right
+    p.rect(0.7, 0.1, 0.99, 0.78, '#9aa0a8'); p.rect(0.72, 0.13, 0.97, 0.78, '#b8bec6', ol=False)
+    # inspector desk
+    p.rect(0.3, 0.46, 0.4, 0.62, '#3b3b48', r=0.02)
+    p.rect(0.16, 0.585, 0.56, 0.61, '#7a4b33'); p.rect(0.17, 0.61, 0.55, 0.8, '#8a5a3c'); p.rect(0.2, 0.55, 0.27, 0.585, '#f4ead8'); p.rect(0.42, 0.56, 0.47, 0.585, '#d9a441')
+    p.rect(0.48, 0.545, 0.5, 0.585, '#2b2b3a'); p.circ(0.49, 0.54, 0.008, '#d9534f')
+    floor_tiles(p, 0.8, '#c8c3b8', (176, 170, 160, 255))
+    p.save('bg_flat_police', {'name': 'Flat: police station', 'place': 'police', 'time': 'day', 'indoor': True, 'tags': ['flat', 'police', 'thana', 'station', 'lockup', 'crime'], 'groundNear': 0.96, 'groundFar': 0.82, 'heightNear': 0.6,
+        'seats': [{'type': 'desk', 'x': 0.36, 'y': 0.72, 'cover': 0.585, 'w': 0.4}, {'type': 'cell', 'x': 0.845, 'y': 0.82, 'cover': 0.13, 'w': 0.25}]})
+
+def haunted():
+    p = Pic('#2a2450')
+    for i in range(40): r = random.Random(i); p.circ(r.uniform(0, 1), r.uniform(0, 0.45), 0.003, '#fff8d0', ol=False)
+    p.glow(0.8, 0.15, 0.12, '#fff3b0', 60); p.circ(0.8, 0.15, 0.06, '#fff3b0', ol=False); p.circ(0.78, 0.13, 0.012, '#e8dca0', ol=False)
+    p.rect(-0.01, 0.55, 1.01, 0.72, '#3a3466', ol=False)
+    # old house
+    p.rect(0.3, 0.28, 0.68, 0.72, '#4a4070'); p.poly([(0.27, 0.29), (0.49, 0.12), (0.71, 0.29)], '#2f2850'); p.rect(0.6, 0.14, 0.64, 0.24, '#2f2850')
+    for wx, wy in [(0.34, 0.36), (0.56, 0.36), (0.34, 0.52)]: p.rect(wx, wy, wx + 0.08, wy + 0.1, '#f6c445'); p.line([(wx, wy), (wx + 0.08, wy + 0.1)], w=6); p.line([(wx + 0.04, wy), (wx + 0.04, wy + 0.1)], w=6)
+    p.rect(0.46, 0.5, 0.53, 0.72, '#1f1a38'); p.poly([(0.46, 0.5), (0.5, 0.46), (0.53, 0.5)], '#1f1a38')
+    # dead tree + bats + graves
+    p.line([(0.12, 0.74), (0.12, 0.4), (0.06, 0.3)], '#1f1a38', 22); p.line([(0.12, 0.48), (0.2, 0.36), (0.24, 0.33)], '#1f1a38', 14); p.line([(0.12, 0.42), (0.08, 0.32)], '#1f1a38', 10)
+    for bx, by in [(0.25, 0.12), (0.33, 0.08), (0.6, 0.06)]: p.poly([(bx - 0.02, by), (bx - 0.008, by + 0.008), (bx, by + 0.003), (bx + 0.008, by + 0.008), (bx + 0.02, by), (bx, by + 0.015)], '#151228', ol=False)
+    p.rect(-0.01, 0.72, 1.01, 1.01, '#2f3b2a', ol=False); p.line([(0, 0.72), (1, 0.72)], w=8)
+    for gx in [0.78, 0.88]: p.rect(gx, 0.64, gx + 0.05, 0.74, '#7d8590', r=0.02); p.line([(gx + 0.025, 0.66), (gx + 0.025, 0.7)], w=5); p.line([(gx + 0.012, 0.675), (gx + 0.038, 0.675)], w=5)
+    lay = Image.new('RGBA', (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(lay)
+    for i in range(6): d.ellipse([i * 700 - 300, 1480 + (i % 2) * 60, i * 700 + 700, 1780], fill=(200, 200, 230, 50))
+    lay = lay.filter(ImageFilter.GaussianBlur(60)); p.im.alpha_composite(lay); p.d = ImageDraw.Draw(p.im)
+    p.save('bg_flat_haunted', {'name': 'Flat: haunted house at night', 'place': 'haunted', 'time': 'night', 'indoor': False, 'tags': ['flat', 'haunted', 'horror', 'bhoot', 'night', 'graveyard'], 'groundNear': 0.95, 'groundFar': 0.76, 'heightNear': 0.6, 'seats': [{'type': 'door', 'x': 0.495, 'y': 0.76}]})
+
+def school():
+    p = Pic('#f6ecd0'); p.rect(-0.01, 0.62, 1.01, 0.64, '#a9cf6a', ol=False)
+    p.rect(0.22, 0.12, 0.68, 0.42, '#2f5d50'); p.rect(0.22, 0.12, 0.68, 0.42, None, ow=16); p.rect(0.22, 0.42, 0.68, 0.44, '#8a5a3c')
+    p.line([(0.27, 0.2), (0.4, 0.2)], '#ffffff', 6); p.line([(0.27, 0.26), (0.45, 0.26)], '#ffffff', 6); p.text(0.55, 0.27, 'A B C', 0.05, '#ffffff'); p.text(0.33, 0.35, '1+2=3', 0.035, '#f6c445')
+    window(p, 0.76, 0.14, 0.94, 0.4); p.circ(0.12, 0.18, 0.04, '#ffffff'); p.line([(0.12, 0.18), (0.12, 0.155)], w=5); p.line([(0.12, 0.18), (0.14, 0.18)], w=5)
+    # teacher table
+    p.rect(0.04, 0.58, 0.2, 0.6, '#8a5a3c'); p.rect(0.05, 0.6, 0.19, 0.76, '#9b6b4b'); p.rect(0.07, 0.555, 0.12, 0.58, '#d9534f'); p.rect(0.13, 0.56, 0.17, 0.58, '#3f7fbf')
+    floor_tiles(p, 0.78, '#d4c4a0', (190, 175, 145, 255))
+    # student benches (front row, low)
+    for bx in [0.42, 0.72]:
+        p.rect(bx - 0.1, 0.8, bx + 0.1, 0.82, '#8a5a3c'); p.rect(bx - 0.095, 0.82, bx - 0.085, 0.9, '#6b4426'); p.rect(bx + 0.085, 0.82, bx + 0.095, 0.9, '#6b4426')
+    p.save('bg_flat_school', {'name': 'Flat: school classroom', 'place': 'school', 'time': 'day', 'indoor': True, 'tags': ['flat', 'school', 'classroom', 'kids', 'teacher', 'college'], 'groundNear': 0.96, 'groundFar': 0.8, 'heightNear': 0.6,
+        'seats': [{'type': 'board', 'x': 0.3, 'y': 0.8}, {'type': 'seat', 'x': 0.4, 'y': 0.93}, {'type': 'seat', 'x': 0.7, 'y': 0.93}]})
+
+def office():
+    p = Pic('#e8ecf0'); window(p, 0.05, 0.1, 0.45, 0.48, frame='#cfd6dd'); buildings(p, 0.48, ['#c9d8e8', '#d7c4e8'], seed=5, hmin=0.1, hmax=0.2); p.rect(0.05, 0.1, 0.45, 0.48, None, ow=9)
+    p.rect(0.52, 0.12, 0.74, 0.34, '#ffffff'); p.line([(0.55, 0.3), (0.6, 0.24), (0.65, 0.27), (0.71, 0.17)], '#3f9b5a', 8); p.rect(0.8, 0.3, 0.86, 0.62, '#cfe9f2'); p.rect(0.79, 0.62, 0.87, 0.7, '#9aa3ad')
+    plant(p, 0.94, 0.7, 1.2)
+    # boss desk with computer
+    p.rect(0.4, 0.47, 0.5, 0.6, '#2b2b3a', r=0.02)
+    p.rect(0.3, 0.6, 0.66, 0.625, '#8a5a3c'); p.rect(0.31, 0.625, 0.65, 0.8, '#9b6b4b'); p.rect(0.5, 0.5, 0.6, 0.58, '#2b2b3a'); p.rect(0.505, 0.505, 0.595, 0.575, '#5aa5c9', ol=False); p.rect(0.54, 0.58, 0.56, 0.6, '#2b2b3a'); p.rect(0.34, 0.585, 0.4, 0.6, '#f4ead8')
+    floor_tiles(p, 0.8, '#b8c0c8', (160, 168, 176, 255))
+    p.save('bg_flat_office', {'name': 'Flat: office', 'place': 'office', 'time': 'day', 'indoor': True, 'tags': ['flat', 'office', 'company', 'boss', 'work', 'bank'], 'groundNear': 0.96, 'groundFar': 0.82, 'heightNear': 0.6,
+        'seats': [{'type': 'desk', 'x': 0.45, 'y': 0.73, 'cover': 0.6, 'w': 0.36}]})
+
+def park():
+    p = Pic('#bfe6f5'); p.cloud(0.2, 0.1, 1.1); p.cloud(0.7, 0.13, 0.9); p.circ(0.9, 0.1, 0.05, '#fff3b0', ol=False)
+    buildings(p, 0.5, ['#c9d8e8', '#e8b4a0'], seed=17, hmin=0.1, hmax=0.2)
+    p.rect(-0.01, 0.5, 1.01, 1.01, '#8fcf6a', ol=False); p.line([(0, 0.5), (1, 0.5)], w=6)
+    p.poly([(0.42, 0.5), (0.58, 0.5), (0.9, 1.0), (0.1, 1.0)], '#e9dcc8', ol=False)
+    tree(p, 0.12, 0.62, 1.2); tree(p, 0.88, 0.64, 1.3); tree(p, 0.32, 0.56, 0.8)
+    for i in range(18): r = random.Random(i); fx, fy = r.uniform(0, 1), r.uniform(0.6, 0.95)
+    for i in range(18):
+        r = random.Random(i + 3); fx, fy = r.uniform(0, 1), r.uniform(0.62, 0.97)
+        if abs(fx - 0.5) < 0.12 + (fy - 0.5) * 0.8: continue
+        p.circ(fx, fy, 0.008, ['#d9534f', '#f6c445', '#e67ab4', '#ffffff'][i % 4], ow=3)
+    # bench
+    p.rect(0.62, 0.66, 0.8, 0.68, '#b98a4c'); p.rect(0.62, 0.62, 0.8, 0.64, '#b98a4c'); p.rect(0.63, 0.68, 0.64, 0.73, '#3b4a5a'); p.rect(0.78, 0.68, 0.79, 0.73, '#3b4a5a')
+    lamp_post(p, 0.55, 0.62, 0.8)
+    p.save('bg_flat_park', {'name': 'Flat: park', 'place': 'other', 'time': 'day', 'indoor': False, 'tags': ['flat', 'park', 'garden', 'romance', 'kids', 'field'], 'groundNear': 0.95, 'groundFar': 0.72, 'heightNear': 0.6,
+        'seats': [{'type': 'seat', 'x': 0.665, 'y': 0.73}, {'type': 'seat', 'x': 0.755, 'y': 0.73}]})
+
+def hospital():
+    p = Pic('#e4f1f0'); window(p, 0.06, 0.12, 0.26, 0.4)
+    p.rect(0.62, 0.08, 0.66, 0.6, '#cfe0f0', ol=False); [p.line([(0.62 + i * 0.01, 0.08), (0.62 + i * 0.01, 0.6)], '#b0c8e0', 4) for i in range(4)]
+    p.rect(0.72, 0.26, 0.82, 0.38, '#2b2b3a', r=0.01); p.line([(0.73, 0.33), (0.75, 0.33), (0.76, 0.29), (0.775, 0.36), (0.79, 0.32), (0.81, 0.32)], '#3fd16a', 5); p.rect(0.765, 0.38, 0.775, 0.62, '#9aa3ad')
+    p.rect(0.88, 0.25, 0.89, 0.62, '#9aa3ad'); p.rect(0.87, 0.24, 0.9, 0.25, '#9aa3ad'); p.rect(0.875, 0.26, 0.895, 0.32, '#cfe9f2', r=0.008)
+    p.circ(0.4, 0.16, 0.04, '#d9534f'); p.rect(0.39, 0.13, 0.41, 0.19, '#ffffff', ol=False); p.rect(0.37, 0.15, 0.43, 0.17, '#ffffff', ol=False)
+    # bed
+    p.rect(0.28, 0.48, 0.3, 0.66, '#9aa3ad'); p.rect(0.28, 0.54, 0.62, 0.58, '#ffffff'); p.rect(0.28, 0.58, 0.62, 0.6, '#9aa3ad'); p.rect(0.3, 0.6, 0.31, 0.7, '#6b7380'); p.rect(0.59, 0.6, 0.6, 0.7, '#6b7380'); p.rect(0.3, 0.525, 0.36, 0.55, '#cfe9f2', r=0.01)
+    floor_tiles(p, 0.72, '#d6dde0', (184, 194, 198, 255))
+    p.save('bg_flat_hospital', {'name': 'Flat: hospital room', 'place': 'hospital', 'time': 'day', 'indoor': True, 'tags': ['flat', 'hospital', 'doctor', 'patient', 'clinic'], 'groundNear': 0.95, 'groundFar': 0.76, 'heightNear': 0.6,
+        'seats': [{'type': 'bed', 'x': 0.45, 'y': 0.545, 'w': 0.32}]})
+
+ALL = [cafe_out, cafe_in, market, court, train_in, platform, home_in, village, road, police, haunted, school, office, park, hospital]
+only = sys.argv[2:]
+for f in ALL:
+    if not only or f.__name__ in only: f(); print('ok', f.__name__)
+

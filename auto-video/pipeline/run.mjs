@@ -28,6 +28,7 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   loadEnv();
   const category = CATEGORIES[opts.category] ? opts.category : 'drama';
   const style = STYLES[opts.style] ? opts.style : 'toon'; const isStage = style === 'cartoon2d' || style === 'flat2d';
+  const isFlatBg = (x) => (x.tags || []).includes('flat'); const styleBgs = () => { const all = listBackgrounds(); const mine = all.filter((x) => (style === 'flat2d') === isFlatBg(x)); return mine.length ? mine : all; };
   const look = opts.look && opts.look !== 'auto' && LOOKS[opts.look] ? opts.look : isStage ? (category === 'horror' ? 'horror' : 'vivid') : CATEGORIES[category].look; // cartoon channels are colourful
   const subs = opts.subs && opts.subs !== 'auto' && SUBTITLE_STYLES[opts.subs] ? opts.subs : CATEGORIES[category].subs;
   const renderer = opts.renderer === 'remotion' || !opts.renderFn ? 'remotion' : 'chrome';
@@ -46,9 +47,9 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   else {
     let chain = opts.chain;
     if (!chain) { const key = opts.key || process.env.GEMINI_API_KEY; chain = key ? [{ provider: 'gemini', key, model: opts.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite' }] : []; }
-    const bgList = isStage ? listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [];
+    const bgList = isStage ? styleBgs().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [];
     if (opts.myStory) story = await adaptStory({ text: opts.myStory, category, minutes, chain, backgrounds: bgList, actors: actorsFor(isStage ? 'toon' : style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
-    else story = await writeStory({ category, minutes, idea: opts.idea || '', chain, chars: opts.chars || 'auto', backgrounds: isStage ? listBackgrounds().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [],
+    else story = await writeStory({ category, minutes, idea: opts.idea || '', chain, chars: opts.chars || 'auto', backgrounds: isStage ? styleBgs().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [],
       actors: actorsFor(style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
   }
   check();
@@ -56,7 +57,7 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   const actorStyle = isStage ? 'toon' : style;
   const cast = assignActors(story.characters, actorStyle);
   let stageBgs = null;
-  if (isStage) { const all0 = listBackgrounds(); const isFlat = (x) => (x.tags || []).includes('flat'); const all = style === 'flat2d' && all0.some(isFlat) ? all0.filter(isFlat) : all0.filter((x) => !isFlat(x)).length ? all0.filter((x) => !isFlat(x)) : all0; if (!all.length) throw new Error('2D Cartoon Stage needs backgrounds. Add some in the Backgrounds tab.');
+  if (isStage) { const all = styleBgs(); if (!all.length) throw new Error('2D Cartoon Stage needs backgrounds. Add some in the Backgrounds tab.');
     const used = new Map(); stageBgs = {};
     for (const sc of story.scenes) { const want = /^new\s*:/i.test(sc.background || '') ? sc.background.replace(/^new\s*:\s*/i, '') : ''; const b = all.find((x) => x.id === sc.background) || pickBackground(all, { place: sc.location, time: sc.time_of_day, weather: sc.weather, text: `${want} ${sc.summary}`, used });
       if (sc.weather === 'snow' && !/snow|hill|mountain|pahad|barf|himal/i.test([b.name, ...(b.tags || [])].join(' '))) (story.newBackgrounds ||= []).push('snowy mountain / hill scene with snow on the ground and roofs (for the snow scenes)');
@@ -65,7 +66,7 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   // what the app could not show yet → a to-do list next to the video
   const notes = [];
   if (story.unsupported?.length) { notes.push('Actions the story needs that the app cannot animate yet (the narrator tells them instead):', ...story.unsupported.map((a) => '  - ' + a), ''); step('story', `⚠ Not animated yet (narrator tells them): ${story.unsupported.join(', ')}`); }
-  if (story.newBackgrounds?.length) { notes.push('Backgrounds to make (a similar one was used this time). Prompts:', ...[...new Set(story.newBackgrounds)].map((d) => `  - ${d}. Indian 2D cartoon animation background, hand-painted digital art, soft cel shading, clean outlines, warm vivid colours, wide shot at eye level, flat open ground in the lower third, completely empty scene, no people, no animals, no text, 16:9`), ''); step('story', `⚠ Missing backgrounds (used the closest): ${story.newBackgrounds.join('; ')}`); }
+  if (story.newBackgrounds?.length) { notes.push('Backgrounds to make (a similar one was used this time). Prompts:', ...[...new Set(story.newBackgrounds)].map((d) => `  - ${d}. ${style === 'flat2d' ? 'flat 2D vector explainer-video background, simple flat shapes, pastel colours, thin dark outlines, no gradients,' : 'Indian 2D cartoon animation background, hand-painted digital art, soft cel shading, clean outlines, warm vivid colours,'} wide shot at eye level, flat open ground in the lower third, completely empty scene, no people, no animals, no text, 16:9`), ''); step('story', `⚠ Missing backgrounds (used the closest): ${story.newBackgrounds.join('; ')}`); }
   if (notes.length) fs.writeFileSync(path.join(work, 'TO-DO.txt'), notes.join('\r\n'));
   step('story', `Story ready: "${story.title}" (${story.scenes.length} scenes, ${story.characters.length} characters)`, { title: story.title });
 

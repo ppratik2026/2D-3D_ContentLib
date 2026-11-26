@@ -1,0 +1,35 @@
+{
+  "id": "bg_flat_police",
+  "file": "backgrounds/bg_flat_police/image.jpg",
+  "name": "Flat: police station",
+  "place": "police",
+  "time": "day",
+  "indoor": true,
+  "tags": [
+    "flat",
+    "police",
+    "thana",
+    "station",
+    "lockup",
+    "crime"
+  ],
+  "groundNear": 0.96,
+  "groundFar": 0.82,
+  "heightNear": 0.6,
+  "seats": [
+    {
+      "type": "desk",
+      "x": 0.36,
+      "y": 0.72,
+      "cover": 0.585,
+      "w": 0.4
+    },
+    {
+      "type": "cell",
+      "x": 0.845,
+      "y": 0.82,
+      "cover": 0.13,
+      "w": 0.25
+    }
+  ]
+}

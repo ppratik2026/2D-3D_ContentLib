@@ -297,7 +297,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
         case 'foot_chase': { const active = t < until; const tt = Math.min(t, until); const ch = [e.char, ...(e.chasers || [])].filter((id) => C[id]);
           ch.forEach((id, i) => { const cc = C[id]; free(cc); cc.inV = null; cc.visible = true; cc.face = 1; cc.run = active ? 1 : 0; cc.walk = 0; cc.row = i === 0 ? 0 : (i % 2) * 0.45; cc.x = i === 0 ? 0.68 + 0.04 * Math.sin((tt - e.t0) * 1.1) : 0.36 - 0.1 * (i - 1) + 0.05 * Math.sin((tt - e.t0) * 0.8 + i); });
           for (const id of Object.keys(C)) if (!ch.includes(id) && !C[id].inV) C[id].visible = false;
-          if (active) chasing = { kind: 'foot', runner: e.char }; scroll += (tt - e.t0) * 0.22; for (const v of Object.values(V)) { v.x -= (tt - e.t0) * 0.22; v.siren = false; v.bob = 0; if (v.x < -0.8) v.visible = false; } break; }
+          if (active) chasing = { kind: 'foot', runner: e.char }; const fs = tl.flat ? 0.42 : 0.22; scroll += (tt - e.t0) * fs; for (const v of Object.values(V)) { v.x -= (tt - e.t0) * fs; v.siren = false; v.bob = 0; if (v.x < -0.8) v.visible = false; } break; }
         case 'catch': { const tc = C[e.target]; if (!tc) break; const x0 = c.x; free(c); c.row = tc.row; const x1 = tc.x - (x0 < tc.x ? 0.1 : -0.1); const kw = sm(0, 0.55, k); c.x = lerp(x0, x1, kw); c.run = kw < 1 ? 1 : 0; c.walk = 0; c.face = x1 >= x0 ? 1 : -1;
           tc.run = 0; tc.walk = 0; if (k > 0.5) { c.grab = e.target; tc.struggle = 1 - sm(0.9, 1, k) * 0.5; c.face = tc.x > c.x ? 1 : -1; tc.face = -c.face; } break; }
         case 'handcuff': { const tc = C[e.target]; if (!tc) break; const g = Object.values(C).find((o) => o !== c && o.grab === e.target);
@@ -408,6 +408,11 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       else { const hp = handPos(actors[who]); m.position.set(hp.x, hp.y + 0.03 * s, hp.z + 0.08 * s); } } }
   }
   let st_ = () => ({});
+  // odometer: how far each person really moved on the ground (body + scrolling ground), so the feet never slide
+  const odo = {};
+  function odometer(id, t, S) { const H = holders[id].h; const s = Math.max(1e-4, H.scale.x); const gx = H.position.x + (S.scroll || 0) * AR, gy = H.position.z * 0.05;
+    const o = odo[id]; if (!o || t <= o.t || t - o.t > 0.25) { odo[id] = { t, gx, gy, d: o ? o.d : 0 }; return odo[id].d; }
+    o.d += Math.hypot(gx - o.gx, (gy - o.gy) * 2.2) / s; o.t = t; o.gx = gx; o.gy = gy; return o.d; }
   function renderAt(t) {
     const sc = sceneAt(t); const p = planOf(sc); const b = p.b; const tex = bgTex[sc.background] || null; if (bgMat.map !== tex) { bgMat.map = tex; bgMat.needsUpdate = true; }
     const S = stateAt(sc, t);
@@ -459,7 +464,8 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       if (!c.walk && !c.run && !c.inV && lookId && !c.lie && !c.swim && !c.frontal && !c.keepFace) c.face = st[lookId].x > c.x ? 1 : -1;
       const frontal = c.frontal ? 0.15 : c.anchor && (c.anchor.type === 'judge' || c.anchor.type === 'desk' || c.anchor.type === 'board') ? 0.4 : 1;
       const yaw = c.swim ? c.face * Math.PI / 2 : c.lie ? Math.PI / 2 : (c.walk || c.run) && !c.inV ? c.face * 1.4 : c.inV ? (c.ride ? Math.PI / 2 - 0.35 : 1.3) : c.face * FACE * frontal;
-      const pp = { visible: true, back: !!c.back, pos: V3(0, 0, 0), yaw: c.back ? 0 : yaw, lie: c.lie > 0.5, walk: c.lie ? 0 : c.walk, run: c.lie ? 0 : c.run, sit: c.lie ? 0 : c.sit, drop: Math.max(0.2, a.hipY - 0.5), cuffed: c.cuffed, struggle: c.struggle, swim: c.swim, walkDist: c.walkDist ?? (c.run || c.walk ? t * 1.3 : null), ride: c.ride || 0, pillion: c.pillion, rideType: c.rideType, moving: !!(c.inV && S.V[c.inV.key]?.bob) };
+      const odoD = a.flat ? odometer(id, t, S) : null;
+      const pp = { visible: true, back: !!c.back, pos: V3(0, 0, 0), yaw: c.back ? 0 : yaw, lie: c.lie > 0.5, walk: c.lie ? 0 : c.walk, run: c.lie ? 0 : c.run, sit: c.lie ? 0 : c.sit, drop: Math.max(0.2, a.hipY - 0.5), cuffed: c.cuffed, struggle: c.struggle, swim: c.swim, walkDist: a.flat ? odoD : c.walkDist ?? (c.run || c.walk ? t * 1.3 : null), ride: c.ride || 0, pillion: c.pillion, rideType: c.rideType, moving: !!(c.inV && S.V[c.inV.key]?.bob) };
       pp.look = lookId && !c.lie ? headPos(actors[lookId]).clone() : null;
       if (speaking) { const f = Math.floor((t - line.start) * 30); pp.mouth = line.mouth[f] || 0; pp.talk = c.walk || c.run || c.cuffed || c.inV || c.lie ? 0 : 0.5 * sm(line.start, line.start + 0.3, t) * (1 - sm(line.end - 0.3, line.end, t)); pp.emotion = line.emotion; }
       else if (lastLine && lastLine.char === id && t - lastLine.end < 2) pp.emotion = lastLine.emotion;

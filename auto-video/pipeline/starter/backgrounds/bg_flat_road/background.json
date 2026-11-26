@@ -1,0 +1,20 @@
+{
+  "id": "bg_flat_road",
+  "file": "backgrounds/bg_flat_road/image.jpg",
+  "name": "Flat: city road",
+  "place": "city_street",
+  "time": "day",
+  "indoor": false,
+  "tags": [
+    "flat",
+    "road",
+    "street",
+    "city",
+    "highway",
+    "lane"
+  ],
+  "groundNear": 0.95,
+  "groundFar": 0.74,
+  "heightNear": 0.6,
+  "seats": []
+}

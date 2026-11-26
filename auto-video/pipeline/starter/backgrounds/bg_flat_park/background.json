@@ -1,0 +1,31 @@
+{
+  "id": "bg_flat_park",
+  "file": "backgrounds/bg_flat_park/image.jpg",
+  "name": "Flat: park",
+  "place": "other",
+  "time": "day",
+  "indoor": false,
+  "tags": [
+    "flat",
+    "park",
+    "garden",
+    "romance",
+    "kids",
+    "field"
+  ],
+  "groundNear": 0.95,
+  "groundFar": 0.72,
+  "heightNear": 0.6,
+  "seats": [
+    {
+      "type": "seat",
+      "x": 0.665,
+      "y": 0.73
+    },
+    {
+      "type": "seat",
+      "x": 0.755,
+      "y": 0.73
+    }
+  ]
+}

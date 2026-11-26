@@ -166,20 +166,31 @@ export function poseFlat(a, t, st) {
   const dist = st.walkDist != null ? st.walkDist : t * 1.2; const ph = (dist / (r ? 1.4 : 0.85)) * Math.PI * 2 + a.id.length;
   // legs
   const sit = st.sit || 0, ride = st.ride || 0; let hipF = 0, hipB = 0, kneeF = 0, kneeB = 0;
-  if (moving) { const amp = r ? 0.75 : 0.45; hipF = Math.sin(ph) * amp; hipB = -Math.sin(ph) * amp; kneeF = -Math.max(0, Math.sin(ph + 1.2)) * (r ? 1.1 : 0.7); kneeB = -Math.max(0, Math.sin(ph + 1.2 + Math.PI)) * (r ? 1.1 : 0.7); }
-  const seat = Math.max(sit, ride); hipF = lerp(hipF, ride ? 1.1 : 1.55, seat); hipB = lerp(hipB, ride ? 1.0 : 1.5, seat); kneeF = lerp(kneeF, -1.55, seat); kneeB = lerp(kneeB, -1.55, seat);
+  const seat = Math.max(sit, ride);
+  // gait with planted feet: each foot stays on the ground while the body passes over it (no sliding), then swings forward with a lift
+  let drop = 0, gaitP = 0, gait = false;
+  if (moving && seat < 0.5 && !st.lie) { gait = true; const run = r > 0; const L = (run ? 1.75 : 1.05) * k, sF = run ? 0.36 : 0.62, S = sF * L, lift = (run ? 0.17 : 0.075) * k; const legL = P.thigh + P.shin;
+    gaitP = (((dist / L) + (a.id.length % 7) * 0.13) % 1 + 1) % 1;
+    const foot = (u) => { u = ((u % 1) + 1) % 1; if (u < sF) return { x: S / 2 - (u / sF) * S, y: 0, st: true }; const v = (u - sF) / (1 - sF); const e = v * v * (3 - 2 * v); return { x: -S / 2 + e * S, y: lift * Math.sin(Math.PI * v), st: false }; };
+    const fF = foot(gaitP), fB = foot(gaitP + 0.5); const reach = legL * 0.985; let hh = Infinity;
+    for (const f of [fF, fB]) if (f.st) hh = Math.min(hh, Math.sqrt(Math.max(0.01, reach * reach - f.x * f.x)));
+    if (hh === Infinity) hh = reach + lift * 0.35; // both feet in the air (running)
+    hh = Math.min(hh, legL); drop = legL - hh; const ank = 0.03 * k;
+    const legIK = (f) => { const sol = ik(-f.x, f.y + ank - hh, P.thigh, P.shin); return [-sol.sh, -sol.el]; };
+    [hipF, kneeF] = legIK(fF); [hipB, kneeB] = legIK(fB); } hipF = lerp(hipF, ride ? 1.1 : 1.55, seat); hipB = lerp(hipB, ride ? 1.0 : 1.5, seat); kneeF = lerp(kneeF, -1.55, seat); kneeB = lerp(kneeB, -1.55, seat);
   const g = gesture(st.gesture?.name || (st.talk ? 'talk' : ''), st.gesture?.k ?? 1, t, st.gesture?.ph ?? ((t * 0.5) % 1), P);
   if (g.crouch && !seat) { hipF += 0.55; hipB += 0.45; kneeF -= 1.0; kneeB -= 0.9; }
   if (g.kick) { hipF = -0.5 + 1.8 * g.kick; kneeF = -0.9 * (1 - g.kick); }
   if (st.lie) { hipF = hipB = kneeF = kneeB = 0; }
   P.legF.top.rotation.z = hipF; P.legF.knee.rotation.z = kneeF; P.legB.top.rotation.z = hipB; P.legB.knee.rotation.z = kneeB;
+  P.legF.end.rotation.z = seat > 0.5 ? 0 : -(hipF + kneeF); P.legB.end.rotation.z = seat > 0.5 ? 0 : -(hipB + kneeB); // soles stay flat
   // body bob / lean / sit drop
-  P.body.position.y = moving ? Math.abs(Math.sin(ph)) * 0.025 * k : 0; P.body.position.y -= seat * (P.thigh * 0.95) + (g.crouch || 0) * k; P.body.rotation.z = -(g.lean + (moving ? 0.05 * (r ? 2 : 1) : 0) + (st.struggle ? Math.sin(t * 13) * 0.08 * st.struggle : 0));
+  P.body.position.y = gait ? -drop : 0; P.body.position.y -= seat * (P.thigh * 0.95) + (g.crouch || 0) * k; P.body.rotation.z = -(g.lean + (moving ? (r ? 0.14 : 0.04) : 0) + (st.struggle ? Math.sin(t * 13) * 0.08 * st.struggle : 0));
   // arms: IK to targets, or swing / hang
   const gk = st.gesture?.k ?? 1;
   const arm = (side, target) => { const A = side === 'F' ? P.armF : P.armB; const S = side === 'F' ? P.shoulderF : P.shoulderB;
     let sh, el; if (target) { const sol = ik(target.x + (side === 'B' ? (P.shoulderF.x - S.x) : 0), target.y, P.armU, P.armL); sh = sol.sh * gk; el = sol.el * gk; }
-    else { const sw = moving ? Math.sin(ph + (side === 'F' ? Math.PI : 0)) * (r ? 0.9 : 0.5) : 0; sh = sw + (side === 'F' ? 0.08 : -0.08); el = moving ? 0.35 + (r ? 0.6 : 0) : 0.12; if (seat > 0.5 && !moving) { sh = 0.55; el = 0.9; } }
+    else { const sw = gait ? Math.cos(gaitP * Math.PI * 2) * (side === 'F' ? -1 : 1) * (r ? 0.95 : 0.45) : 0; sh = sw + (side === 'F' ? 0.08 : -0.08); el = gait ? (r ? 1.5 : 0.3 + 0.15 * Math.max(0, sw)) : 0.12; if (seat > 0.5 && !moving) { sh = 0.55; el = 0.9; } }
     A.top.rotation.z = sh; A.knee.rotation.z = el; };
   let F = g.F, B = g.B;
   if (st.talk && !F) { const c = Math.sin(t * 3.1), d = Math.sin(t * 5.3); F = { x: (0.22 + 0.06 * c) * k, y: (-0.12 + 0.08 * d) * k }; }

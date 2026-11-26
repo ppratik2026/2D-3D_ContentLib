@@ -1,0 +1,28 @@
+{
+  "id": "bg_flat_office",
+  "file": "backgrounds/bg_flat_office/image.jpg",
+  "name": "Flat: office",
+  "place": "office",
+  "time": "day",
+  "indoor": true,
+  "tags": [
+    "flat",
+    "office",
+    "company",
+    "boss",
+    "work",
+    "bank"
+  ],
+  "groundNear": 0.96,
+  "groundFar": 0.82,
+  "heightNear": 0.6,
+  "seats": [
+    {
+      "type": "desk",
+      "x": 0.45,
+      "y": 0.73,
+      "cover": 0.6,
+      "w": 0.36
+    }
+  ]
+}

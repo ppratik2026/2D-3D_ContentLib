@@ -1,0 +1,26 @@
+{
+  "id": "bg_flat_hospital",
+  "file": "backgrounds/bg_flat_hospital/image.jpg",
+  "name": "Flat: hospital room",
+  "place": "hospital",
+  "time": "day",
+  "indoor": true,
+  "tags": [
+    "flat",
+    "hospital",
+    "doctor",
+    "patient",
+    "clinic"
+  ],
+  "groundNear": 0.95,
+  "groundFar": 0.76,
+  "heightNear": 0.6,
+  "seats": [
+    {
+      "type": "bed",
+      "x": 0.45,
+      "y": 0.545,
+      "w": 0.32
+    }
+  ]
+}

@@ -79,13 +79,20 @@ Pick **Style → Flat 2D Explainer** for YouTube-explainer cartoons: big round h
 
   Women get long hair and a bindi, and old people get grey hair.
 - **Hands really reach things.** The arms bend at the elbow, so a hand can hold a cup at the mouth, another person's hand, somebody's arm or a pocket.
-- **Backgrounds:** put the tag `flat` on your flat backgrounds and this style uses only them. Six come ready made:
-  - cafe outside (with a door);
-  - cafe inside (counter and a table with two chairs);
-  - market street;
-  - court;
-  - train coach, with see-through windows that show the moving view;
-  - railway platform.
+- **Works with every category** (romance, drama, comedy, crime, horror, thriller, kids, motivational, mystery). Style and category are chosen separately in New Video.
+- **Walking and running:** each foot stays planted on the ground while the body passes over it, then lifts and swings forward. The knees bend, the body bobs, and runners lean forward and pump their arms. The steps always match how far the person really moves, so nobody slides.
+- **Backgrounds:** put the tag `flat` on your flat backgrounds and this style uses only them. Fifteen come ready made:
+
+| Category | Ready-made backgrounds |
+|---|---|
+| Cafe / romance | cafe outside (with a door), cafe inside (counter and a table with two chairs), park (bench) |
+| Family / drama | home living room (sofa and door) |
+| Kids | village (huts, well, charpai), school classroom (blackboard and benches) |
+| Crime / mystery | market street, city road, police station (desk and lock-up), court |
+| Horror | haunted house at night |
+| Work | office (desk) |
+| Hospital | hospital room (bed) |
+| Travel | train coach (see-through windows that show the moving view), railway platform |
 
 | New action | What you see |
 |---|---|

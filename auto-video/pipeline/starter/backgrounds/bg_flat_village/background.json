@@ -1,0 +1,31 @@
+{
+  "id": "bg_flat_village",
+  "file": "backgrounds/bg_flat_village/image.jpg",
+  "name": "Flat: village",
+  "place": "village_street",
+  "time": "day",
+  "indoor": false,
+  "tags": [
+    "flat",
+    "village",
+    "gaon",
+    "hut",
+    "farm",
+    "kids"
+  ],
+  "groundNear": 0.95,
+  "groundFar": 0.76,
+  "heightNear": 0.6,
+  "seats": [
+    {
+      "type": "seat",
+      "x": 0.35,
+      "y": 0.84
+    },
+    {
+      "type": "seat",
+      "x": 0.43,
+      "y": 0.84
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "id": "bg_flat_haunted",
+  "file": "backgrounds/bg_flat_haunted/image.jpg",
+  "name": "Flat: haunted house at night",
+  "place": "haunted",
+  "time": "night",
+  "indoor": false,
+  "tags": [
+    "flat",
+    "haunted",
+    "horror",
+    "bhoot",
+    "night",
+    "graveyard"
+  ],
+  "groundNear": 0.95,
+  "groundFar": 0.76,
+  "heightNear": 0.6,
+  "seats": [
+    {
+      "type": "door",
+      "x": 0.495,
+      "y": 0.76
+    }
+  ]
+}
