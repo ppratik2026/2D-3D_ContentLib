@@ -58,6 +58,38 @@ function aiConf() { const s = readSettings(); const a = s.ai || { primary: 'gemi
   if (!a.providers.gemini && (s.keyEnc || s.keyPlain)) a.providers.gemini = { keyEnc: s.keyEnc, keyPlain: s.keyPlain, model: s.model }; // migrate old Gemini key
   return a; }
 function saveAi(a) { const s = readSettings(); s.ai = a; writeSettings(s); }
+
+// ---------- team licence (Supabase): 1 key = 1 PC, admin can block / log out; shared data packs ----------
+const team = await import('./team.mjs');
+const NO_LICENSE = !app.isPackaged && process.env.AVS_NO_LICENSE === '1'; // developer runs only
+let LIC = { ok: NO_LICENSE, name: NO_LICENSE ? 'Developer' : '', msg: '', offline: false, pack: 0 };
+const sendAll = (ch, v) => { for (const w of BrowserWindow.getAllWindows()) if (w.__ui) w.webContents.send(ch, v); };
+const teamSrv = () => { const s = readSettings(); try { return s.team?.code ? team.decodeServer(s.team.code) : null; } catch { return null; } };
+const teamView = () => { const s = readSettings(); return { ok: LIC.ok, name: LIC.name, msg: LIC.msg, offline: LIC.offline, serverPack: LIC.pack, localPack: team.localPackVersion(STATE), hasServer: !!teamSrv(), code: s.team?.code || '', device: team.deviceInfo().name, admin: !!dec(s.team?.adm), adminUrl: s.team?.adminUrl || '', dev: NO_LICENSE }; };
+function logout(msg) {
+  const s = readSettings(); delete s.lic; writeSettings(s); LIC = { ...LIC, ok: false, name: '', msg: msg || '' };
+  autoRun = false; if (running) { abort?.abort(); } broadcast(true); sendAll('team', teamView());
+}
+async function licCheck() {
+  if (NO_LICENSE) return true; const s = readSettings(); const key = dec(s.lic); const srv = teamSrv();
+  if (!key || !srv) { LIC = { ...LIC, ok: false }; sendAll('team', teamView()); return false; }
+  try { const r = await team.checkLicense(srv, key, app.getVersion());
+    if (r.logout_at && s.lic.loginAt && new Date(r.logout_at).getTime() > s.lic.loginAt) { logout('The admin logged this PC out. Sign in again with your key.'); return false; }
+    const n = readSettings(); n.lic = { ...n.lic, lastOk: Date.now(), name: r.name }; writeSettings(n);
+    LIC = { ok: true, name: r.name, msg: '', offline: false, pack: r.pack }; sendAll('team', teamView()); return true; }
+  catch (e) { if (e.offline && s.lic.lastOk && Date.now() - s.lic.lastOk < team.GRACE_H * 3600e3) { LIC = { ...LIC, ok: true, name: s.lic.name || '', offline: true, msg: '' }; sendAll('team', teamView()); return true; }
+    if (e.offline) { LIC = { ...LIC, ok: false, msg: `No internet for more than ${team.GRACE_H} hours. Connect to the internet to continue.` }; autoRun = false; sendAll('team', teamView()); return false; }
+    logout(e.message); return false; }
+}
+setInterval(() => { licCheck().catch(() => {}); }, 10 * 60 * 1000);
+async function teamSync(e) {
+  const s = readSettings(); const srv = teamSrv(); if (!srv) throw new Error('No team server set.');
+  const r = await team.syncPack({ srv, licenseKey: dec(s.lic), PUBLIC, STATE, onProgress: (i, n, label) => (e ? e.sender.send('team:progress', { i, n, label }) : null) });
+  sendAll('team', teamView()); return r;
+}
+const admKey = () => { const k = dec(readSettings().team?.adm); if (!k) throw new Error('Admin key not set (Settings → Team → Admin).'); return k; };
+const ADM_KEYS = path.join(STATE, 'admin-keys.json'); // full keys the admin created on this PC (encrypted), so they can be copied again
+const admKeysRead = () => { try { return JSON.parse(fs.readFileSync(ADM_KEYS, 'utf8')); } catch { return {}; } };
 const provKey = (name) => dec(aiConf().providers[name]);
 function aiView() { const a = aiConf(); return { primary: a.primary, fallback: a.fallback !== false, providers: Object.fromEntries(ORDER.map((n) => { const c = a.providers[n] || {}; const k = dec(c);
   return [n, { ...ai.PROVIDERS[n], hasKey: !!k, keyHint: k ? k.slice(0, 4) + '…' + k.slice(-4) : '', model: c.model || '', baseUrl: c.baseUrl || '' }]; })) }; }
@@ -90,10 +122,11 @@ function queueView() {
 const STAGES = ['story', 'voice', 'sound', 'render', 'save'];
 let wakeTimer = null;
 async function pump() {
-  if (running || !autoRun) return;
+  if (running || !autoRun) return; if (!LIC.ok) { autoRun = false; broadcast(true); return; }
   const now = Date.now(); const ready = queue.find((j) => j.status === 'queued' && !(j.retryAt > now));
   if (!ready) { const waiting = queue.filter((j) => j.status === 'queued'); if (!waiting.length) { autoRun = false; broadcast(true); return; }
     clearTimeout(wakeTimer); wakeTimer = setTimeout(pump, Math.max(1000, Math.min(...waiting.map((j) => j.retryAt || now)) - now)); broadcast(true); return; }
+  if (!NO_LICENSE && !(await licCheck())) return;
   const job = ready; running = job; job.status = 'running'; job.started = Date.now(); job.error = null; job.retryAt = null; job.progress = 0; job.eta = null;
   job.stages = Object.fromEntries(STAGES.map((k) => [k, { state: 'todo', done: 0, total: 0, label: '' }])); abort = new AbortController(); broadcast(true);
   const s = readSettings();
@@ -204,6 +237,25 @@ const H = {
   'queue:remove': (id) => { queue = queue.filter((x) => x.id !== id || x === running); broadcast(true); return queueView(); },
   'queue:move': ({ id, dir }) => { const i = queue.findIndex((x) => x.id === id), k = i + dir; if (i >= 0 && k >= 0 && k < queue.length) [queue[i], queue[k]] = [queue[k], queue[i]]; broadcast(true); return queueView(); },
   'queue:clearDone': () => { queue = queue.filter((x) => !['done', 'cancelled'].includes(x.status)); broadcast(true); return queueView(); },
+  'team:status': () => teamView(),
+  'team:login': async (o) => { let srv; try { srv = team.decodeServer(o.code || readSettings().team?.code); } catch (e) { return { ok: false, msg: e.message }; }
+    const key = String(o.key || '').trim().toUpperCase(); if (!key) return { ok: false, msg: 'Enter your licence key.' };
+    try { const r = await team.checkLicense(srv, key, app.getVersion()); const s = readSettings(); s.team = { ...(s.team || {}), code: o.code || s.team?.code };
+      s.lic = { ...enc(key), loginAt: new Date(r.now).getTime() + 1000, lastOk: Date.now(), name: r.name }; writeSettings(s); LIC = { ok: true, name: r.name, msg: '', offline: false, pack: r.pack };
+      sendAll('team', teamView()); return { ok: true, view: teamView() }; } catch (e) { return { ok: false, msg: e.message }; } },
+  'team:logout': () => { logout(''); return teamView(); },
+  'team:check': async () => { await licCheck(); return teamView(); },
+  'team:sync': async (_o, e) => { if (!LIC.ok) throw new Error('Sign in first.'); return teamSync(e); },
+  'team:admin:set': (o) => { const s = readSettings(); const url = String(o.url || '').trim().replace(/\/+$/, ''); const pub = String(o.pub || '').trim();
+    if (!(/^https:\/\/.+/.test(url) || /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) || !pub) throw new Error('Enter the project URL (https://….supabase.co) and the publishable / anon key.');
+    s.team = { ...(s.team || {}), code: team.encodeServer(url, pub), adminUrl: url }; if (o.adm) s.team.adm = enc(String(o.adm).trim()); writeSettings(s); return teamView(); },
+  'team:admin:clear': () => { const s = readSettings(); if (s.team) { delete s.team.adm; writeSettings(s); } return teamView(); },
+  'team:admin:list': async () => { const known = admKeysRead(); return (await team.adminList(teamSrv(), admKey())).map((r) => ({ ...r, key: known[r.key_hash] ? dec(known[r.key_hash]) : null })); },
+  'team:admin:create': async (o) => { const k = await team.adminCreate(teamSrv(), admKey(), o.name); const known = admKeysRead(); known[team.hashKey(k)] = enc(k); fs.writeFileSync(ADM_KEYS, JSON.stringify(known)); return k; },
+  'team:admin:patch': async (o) => { const patch = o.action === 'block' ? { status: 'blocked' } : o.action === 'unblock' ? { status: 'active' } : o.action === 'reset' ? { device_id: null, device_name: null } : o.action === 'logout' ? { logout_at: new Date().toISOString() } : o.action === 'rename' ? { name: String(o.name || '').slice(0, 60) } : null;
+    if (!patch) throw new Error('Unknown action'); await team.adminPatch(teamSrv(), admKey(), o.id, patch); return true; },
+  'team:admin:delete': async (id) => { await team.adminDelete(teamSrv(), admKey(), id); return true; },
+  'team:admin:publish': async (o, e) => team.publish({ srv: teamSrv(), admKey: admKey(), PUBLIC, note: o?.note || '', onProgress: (i, n, label) => e.sender.send('team:progress', { i, n, label }) }),
   'library:list': () => libraryList(),
   'subs:load': async (dir) => { const S = await import('../pipeline/subs.mjs'); const f = path.join(OUTPUT, path.basename(dir)); let data = null;
     try { data = JSON.parse(fs.readFileSync(path.join(f, 'subtitles.json'), 'utf8')); } catch {}
@@ -239,7 +291,8 @@ const H = {
   'update:install': () => { setImmediate(() => autoUpdater.quitAndInstall(false, true)); return true; },
   'queue:retryNow': (id) => { const j = queue.find((x) => x.id === id); if (j && j.status === 'queued') { j.retryAt = null; j.msg = 'Queued'; } autoRun = true; clearTimeout(wakeTimer); pump(); broadcast(true); return queueView(); },
 };
-for (const [ch, fn] of Object.entries(H)) ipcMain.handle(ch, (e, arg) => fn(arg, e));
+const OPEN = new Set(['options', 'settings:get', 'update:get', 'update:check', 'update:download', 'update:install', 'setup:status']);
+for (const [ch, fn] of Object.entries(H)) ipcMain.handle(ch, (e, arg) => { if (!LIC.ok && !ch.startsWith('team:') && !OPEN.has(ch)) throw new Error('Sign in with your licence key first.'); return fn(arg, e); });
 
 function createWindow() {
   const shots = process.argv.indexOf('--screens');
@@ -250,6 +303,13 @@ function createWindow() {
     const dir = process.argv[shots + 1]; const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); await wait(2500);
     if (process.argv.includes('--mystory-ui')) { await win.webContents.executeJavaScript(`document.querySelector('#storyMode [data-m=mine]').click(); const t=document.querySelector('#myStory'); t.value='Inspector Arjun: "Raka, gaadi roko!"\\n\\n'+'Raka laal car me highway par bhaag raha tha. '.repeat(120); t.dispatchEvent(new Event('input'));`); await wait(2000); fs.writeFileSync(path.join(dir, 'mystory_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
     if (process.argv.includes('--subed-ui')) { await win.webContents.executeJavaScript(`document.querySelector('[data-tab=library]').click()`); await wait(2000); await win.webContents.executeJavaScript(`document.querySelector('[data-subs]').click()`); await wait(2500); await win.webContents.executeJavaScript(`(()=>{const v=document.querySelector('#seVideo'); v.currentTime=13.4; document.querySelector('#sePreset').value='youtube'; document.querySelector('#sePreset').onchange();})()`); await wait(2500); fs.writeFileSync(path.join(dir, 'subed_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
+    if (process.argv.includes('--team-ui')) { const js = (c) => win.webContents.executeJavaScript(c); const shot = async (n) => fs.writeFileSync(path.join(dir, n), (await win.webContents.capturePage()).toPNG());
+      await shot('team_login.png');
+      await js(`document.querySelector('#lgAdmin').click(); document.querySelector('#lgUrl').value='http://127.0.0.1:18090'; document.querySelector('#lgPub').value='anon-test'; document.querySelector('#lgAdm').value='service-test'; document.querySelector('#lgAdminSave').click();`); await wait(2500);
+      await js(`document.querySelector('#adName').value='Ramesh (PC 3)'; document.querySelector('#adNew').click();`); await wait(2500); await js(`document.querySelector('#adName').value='Admin (my PC)'; document.querySelector('#adNew').click();`); await wait(2500);
+      await shot('team_admin.png'); const key = await js(`[...document.querySelectorAll('.keycode')].map((x) => x.textContent).filter((x) => x.startsWith('AVS-')).pop()`);
+      await js(`document.querySelector('#adClose').click(); document.querySelector('#lgKey').value=${JSON.stringify(key)}; document.querySelector('#lgGo').click();`); await wait(5000);
+      await js(`document.querySelector('[data-tab=settings]').click()`); await wait(1500); await shot('team_settings.png'); return app.quit(); }
     if (process.argv.includes('--paste-ui')) { const demo = fs.readFileSync(path.join(APP_DIR, 'pipeline', 'demo-story.json'), 'utf8');
       await win.webContents.executeJavaScript(`const ss=document.querySelector('#storySrc'); ss.value='paste'; ss.onchange(); const t=document.querySelector('#pasted'); t.value = ${JSON.stringify('Sure! Here is the story:\n' + demo)}; t.dispatchEvent(new Event('input'));`);
       await wait(2500); fs.writeFileSync(path.join(dir, 'paste_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
@@ -274,7 +334,7 @@ app.whenReady().then(() => {
     const i = process.argv.indexOf('--frames'); const tl = JSON.parse(fs.readFileSync(process.argv[i + 1], 'utf8')); const only = process.argv[i + 2].split(',').map(Number); const dir = process.argv[i + 3];
     return chromeRender({ tl, mixFile: null, out: path.join(dir, 'x.mp4'), onProgress: () => {}, only }).then((r) => { r.shots.forEach((d, k) => fs.writeFileSync(path.join(dir, `f_${only[k]}.jpg`), Buffer.from(d.split(',')[1], 'base64'))); app.quit(); }).catch((e) => { console.error(e); app.quit(); }); }
   if (process.argv.includes('--demo-test')) return demoTest();
-  createWindow();
+  createWindow(); licCheck().then((ok) => { if (ok && LIC.pack > team.localPackVersion(STATE) && !running) teamSync().catch(() => {}); }).catch(() => {});
   if (app.isPackaged && !isZip()) setTimeout(checkUpdates, 8000);
 });
 app.on('window-all-closed', () => { if (!process.argv.includes('--demo-test') && !process.argv.includes('--frames')) app.quit(); });

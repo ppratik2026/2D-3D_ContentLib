@@ -16,6 +16,12 @@ Everything except the story step (Gemini, Groq, OpenRouter, Mistral, Cerebras, a
 
 Files: `Documents\AutoVideo\Videos\<date>_<category>_<title>\` → `final.mp4`, `subtitles.srt`, `story.json`, `timeline.json`.
 
+## Team licence and shared data (v1.0)
+
+- The app needs a **licence key** (1 key = 1 PC). The admin creates keys and can block, log out or reset any PC from the **Admin panel**.
+- The admin's backgrounds, characters and shared files are published with **Publish my data**. Every PC gets them with **Update data** (and automatically at start).
+- Free Supabase project as the server. Setup: [docs/TEAM_SETUP.md](docs/TEAM_SETUP.md) + [docs/supabase_setup.sql](docs/supabase_setup.sql).
+
 ## Screens
 
 | Screen | What it does |

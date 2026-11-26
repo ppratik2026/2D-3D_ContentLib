@@ -14,7 +14,7 @@
     <button data-tab="bgs">Backgrounds</button>
     <button data-tab="settings">Settings</button>
   </nav>
-  <div class="hdr-right"><span id="ver" class="muted small"></span><button id="updBtn" class="primary small-btn" hidden>Update available</button></div>
+  <div class="hdr-right"><button id="teamData" class="primary small-btn" hidden>New team data → Update</button><span id="teamName" class="small"></span><button id="teamLogout" class="ghost small-btn" hidden>Log out</button><span id="ver" class="muted small"></span><button id="updBtn" class="primary small-btn" hidden>Update available</button></div>
 </header>
 <main>
   <!-- NEW VIDEO -->
@@ -155,6 +155,18 @@
         <div id="updStatus" class="small">–</div>
         <div class="bar" id="updBarWrap" hidden><div id="updBar"></div></div>
         <div class="btns"><button id="updCheck" class="ghost">Check for updates</button><button id="updDownload" class="primary" hidden>Download update</button><button id="updInstall" class="primary" hidden>Restart &amp; install</button></div>
+        <h3>Team data (backgrounds, characters, shared files)</h3>
+        <div id="tmStatus" class="small">–</div>
+        <div class="bar" id="tmBarWrap" hidden><div id="tmBar"></div></div><div id="tmMsg" class="small muted"></div>
+        <div class="btns"><button id="tmSync" class="ghost">Update data now</button><button id="tmAdminOpen" class="ghost" hidden>Admin panel</button></div>
+        <details id="tmAdminBox"><summary class="small muted">Admin setup (only on the admin's PC)</summary>
+          <label>Supabase project URL<input id="tmUrl" placeholder="https://xxxx.supabase.co"></label>
+          <label>Publishable / anon key <small>(public, shared with the team inside the server code)</small><input id="tmPub" placeholder="sb_publishable_… or eyJ…"></label>
+          <label>Secret / service_role key <small>(admin only — never share it)</small><input id="tmAdm" type="password" placeholder="sb_secret_… or eyJ…"></label>
+          <div class="btns"><button id="tmAdminSave" class="primary">Save admin</button><button id="tmAdminClear" class="ghost">Remove secret key from this PC</button></div>
+          <div id="tmAdminMsg" class="small"></div>
+          <label>Team server code <small>(give this to every worker together with their licence key)</small><div class="row"><input id="tmCode" readonly><button id="tmCodeCopy" class="ghost" type="button">Copy</button></div></label>
+        </details>
         <h3>Data</h3><div class="muted small" id="dataDir"></div>
         <div class="btns"><button id="openData" class="ghost">Open folder</button><button id="reSetup" class="ghost">Re-check models / voices</button></div>
       </div>
@@ -193,6 +205,30 @@
     <div class="selines"><div class="muted small">Click a line to jump to it. Edit the text, or the start / end time (seconds).</div><div id="seLines"></div></div>
   </div>
   <div class="btns"><button id="seSave" class="primary" type="button">Save &amp; burn subtitles</button><span id="seMsg" class="small"></span></div>
+</div></div>
+<div id="login" class="modal" hidden><div class="card login">
+  <h2>🎬 Auto Video Studio</h2><p class="muted">Sign in with your licence key. Each key works on one PC.</p>
+  <label>Licence key<input id="lgKey" placeholder="AVS-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false"></label>
+  <label id="lgCodeWrap">Team server code <small>(from your admin, only the first time)</small><textarea id="lgCode" rows="2" placeholder="AVS1:…" spellcheck="false"></textarea></label>
+  <div class="btns"><button id="lgGo" class="primary">Sign in</button><button id="lgAdmin" class="ghost" type="button">I am the admin (first setup)</button></div>
+  <div id="lgMsg" class="small"></div><div class="muted small" id="lgDevice"></div>
+  <div id="lgAdminBox" hidden>
+    <p class="small muted">First time: create the Supabase project and run <b>supabase_setup.sql</b> (see TEAM_SETUP guide), then enter the 3 values. After saving, create your own key in the Admin panel and sign in with it.</p>
+    <label>Supabase project URL<input id="lgUrl" placeholder="https://xxxx.supabase.co"></label>
+    <label>Publishable / anon key<input id="lgPub"></label>
+    <label>Secret / service_role key<input id="lgAdm" type="password"></label>
+    <div class="btns"><button id="lgAdminSave" class="primary" type="button">Save &amp; open Admin panel</button></div>
+  </div>
+</div></div>
+<div id="admin" class="modal" hidden><div class="card wide">
+  <div class="qhead"><b>Admin panel — licence keys</b><div class="btns"><button id="adRefresh" class="ghost small-btn" type="button">Refresh</button><button id="adClose" class="ghost small-btn" type="button">Close</button></div></div>
+  <div class="row"><input id="adName" placeholder="Worker name (e.g. Ramesh – PC 3)"><button id="adNew" class="primary" type="button">+ New key</button></div>
+  <div id="adNewKey" class="small"></div>
+  <div class="adtable"><table><thead><tr><th>Name</th><th>Key</th><th>Status</th><th>PC</th><th>Last seen</th><th>Version</th><th></th></tr></thead><tbody id="adRows"></tbody></table></div>
+  <h3>Publish data to the team</h3>
+  <div class="muted small">Uploads your Backgrounds, your own Characters (with voices and tags) and the <b>data\shared</b> folder. Every PC gets them with "Update data" (and automatically when the app starts). Only changed files are uploaded.</div>
+  <div class="row"><input id="adNote" placeholder="What changed? (optional)"><button id="adPublish" class="primary" type="button">Publish my data</button></div>
+  <div class="bar" id="adBarWrap" hidden><div id="adBar"></div></div><div id="adMsg" class="small"></div>
 </div></div>
 <div id="player" class="modal" hidden><div class="card wide"><video id="playerVideo" controls></video><div class="btns"><button id="playerClose" class="ghost">Close</button></div></div></div>
 

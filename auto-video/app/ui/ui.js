@@ -304,3 +304,52 @@ seF('seSave').onclick = async () => { seRead(); seF('seSave').disabled = true; s
   try { const r = await api.call('subs:save', { dir: SE.dir, lines: SE.lines, style: SE.style }); seF('seMsg').textContent = r.burned ? 'Done ✓ final.mp4 has the new subtitles.' : 'Saved ✓ subtitles.srt updated.'; loadLibrary(); }
   catch (e) { seF('seMsg').className = 'small warn'; seF('seMsg').textContent = String(e.message || e); } finally { seF('seSave').disabled = false; } };
 api.on('subs:progress', (p) => { if (SE) seF('seMsg').textContent = `Burning subtitles… ${Math.round(p * 100)}%`; });
+
+// ---------- team: licence login, data updates, admin ----------
+let TM = null;
+function renderTeam(v) { TM = v; if (!v) return;
+  $('#login').hidden = v.ok; if (!v.ok) { $('#lgMsg').className = 'small warn'; $('#lgMsg').textContent = v.msg || ''; $('#lgDevice').textContent = 'This PC: ' + v.device; $('#lgCodeWrap').hidden = v.hasServer && !!v.code; }
+  $('#teamName').textContent = v.ok ? `👤 ${v.name || ''}${v.offline ? ' (offline)' : ''}` : ''; $('#teamLogout').hidden = !v.ok || v.dev;
+  $('#teamData').hidden = !(v.ok && v.serverPack > v.localPack);
+  $('#tmStatus').textContent = !v.hasServer ? 'No team server set.' : `Team data on this PC: v${v.localPack}` + (v.serverPack ? ` · on the server: v${v.serverPack}` : '') + (v.serverPack > v.localPack ? ' → update available' : ' ✓');
+  $('#tmAdminOpen').hidden = !v.admin; $('#tmCode').value = v.code || ''; if (v.adminUrl) $('#tmUrl').value = v.adminUrl; }
+api.on('team', renderTeam); api.call('team:status').then(renderTeam);
+$('#lgGo').onclick = async () => { $('#lgGo').disabled = true; $('#lgMsg').className = 'small'; $('#lgMsg').textContent = 'Checking…';
+  const r = await api.call('team:login', { key: $('#lgKey').value, code: $('#lgCode').value.trim() || undefined }); $('#lgGo').disabled = false;
+  if (!r.ok) { $('#lgMsg').className = 'small warn'; $('#lgMsg').textContent = r.msg; return; } renderTeam(r.view); $('#lgKey').value = ''; location.reload(); };
+$('#lgKey').onkeydown = (e) => { if (e.key === 'Enter') $('#lgGo').click(); };
+$('#lgAdmin').onclick = () => { $('#lgAdminBox').hidden = !$('#lgAdminBox').hidden; };
+$('#lgAdminSave').onclick = async () => { try { renderTeam(await api.call('team:admin:set', { url: $('#lgUrl').value, pub: $('#lgPub').value, adm: $('#lgAdm').value })); $('#lgAdm').value = ''; openAdmin(); } catch (e) { $('#lgMsg').className = 'small warn'; $('#lgMsg').textContent = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); } };
+$('#teamLogout').onclick = async () => { if (confirm('Log out from this PC? You need your licence key to sign in again.')) renderTeam(await api.call('team:logout')); };
+const tmProgress = (bar, wrap, msg) => (p) => { $(wrap).hidden = false; $(bar).style.width = ((p.i / Math.max(1, p.n)) * 100).toFixed(0) + '%'; $(msg).textContent = `${p.label} (${p.i}/${p.n})`; };
+let tmProg = null; api.on('team:progress', (p) => tmProg && tmProg(p));
+async function tmSync() { tmProg = tmProgress('#tmBar', '#tmBarWrap', '#tmMsg'); $('#tmSync').disabled = true; $('#teamData').disabled = true;
+  try { const r = await api.call('team:sync'); $('#tmMsg').textContent = `Team data v${r.version} ✓ (${r.changed} new / changed, ${r.removed || 0} removed)${r.note ? ' — ' + r.note : ''}`; renderTeam(await api.call('team:status')); }
+  catch (e) { $('#tmMsg').textContent = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); } finally { $('#tmSync').disabled = false; $('#teamData').disabled = false; $('#tmBarWrap').hidden = true; } }
+$('#tmSync').onclick = tmSync; $('#teamData').onclick = () => { $('[data-tab=settings]').click(); tmSync(); };
+$('#tmAdminSave').onclick = async () => { try { renderTeam(await api.call('team:admin:set', { url: $('#tmUrl').value, pub: $('#tmPub').value, adm: $('#tmAdm').value })); $('#tmAdm').value = ''; $('#tmAdminMsg').className = 'small'; $('#tmAdminMsg').textContent = 'Saved ✓'; }
+  catch (e) { $('#tmAdminMsg').className = 'small warn'; $('#tmAdminMsg').textContent = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); } };
+$('#tmAdminClear').onclick = async () => renderTeam(await api.call('team:admin:clear'));
+$('#tmCodeCopy').onclick = () => navigator.clipboard.writeText($('#tmCode').value).catch(() => {});
+$('#tmAdminOpen').onclick = openAdmin;
+// admin panel
+const ago = (t) => { if (!t) return '–'; const m = (Date.now() - new Date(t)) / 60000; return m < 2 ? 'now' : m < 60 ? Math.round(m) + ' min ago' : m < 2880 ? Math.round(m / 60) + ' h ago' : new Date(t).toLocaleDateString('en-IN'); };
+async function openAdmin() { $('#admin').hidden = false; await loadAdmin(); }
+async function loadAdmin() { $('#adRows').innerHTML = '<tr><td colspan="7" class="muted">Loading…</td></tr>';
+  try { const rows = await api.call('team:admin:list');
+    $('#adRows').innerHTML = rows.length ? rows.map((r) => `<tr><td>${esc(r.name || '–')}</td><td>${r.key ? `<span class="keycode">${esc(r.key)}</span> <button class="ghost" data-copy="${esc(r.key)}">Copy</button>` : `<span class="muted">…${esc(r.key_hint)}</span>`}</td>
+      <td class="st-${r.status}">${r.status}</td><td>${esc(r.device_name || '— not used yet')}</td><td>${ago(r.last_seen)}</td><td>${esc(r.app_version || '')}</td>
+      <td><div class="btns">${r.status === 'active' ? `<button class="ghost" data-act="block" data-id="${r.id}">Block</button>` : `<button class="ghost" data-act="unblock" data-id="${r.id}">Unblock</button>`}
+      <button class="ghost" data-act="logout" data-id="${r.id}">Log out now</button><button class="ghost" data-act="reset" data-id="${r.id}">Reset PC</button><button class="danger" data-del="${r.id}">Delete</button></div></td></tr>`).join('') : '<tr><td colspan="7" class="muted">No keys yet. Add one above.</td></tr>'; }
+  catch (e) { $('#adRows').innerHTML = `<tr><td colspan="7" class="warn">${esc(String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))}</td></tr>`; } }
+$('#adRows').onclick = async (e) => { const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.copy) { navigator.clipboard.writeText(b.dataset.copy).catch(() => {}); b.textContent = 'Copied'; return; }
+  if (b.dataset.del) { if (!confirm('Delete this key? The PC using it is logged out at its next check.')) return; await api.call('team:admin:delete', +b.dataset.del); return loadAdmin(); }
+  if (b.dataset.act) { const msg = { block: 'Block this key? The PC stops working within 10 minutes.', logout: 'Log this PC out now (within 10 minutes)?', reset: 'Free this key so it can be used on another PC?' }[b.dataset.act];
+    if (msg && !confirm(msg)) return; await api.call('team:admin:patch', { id: +b.dataset.id, action: b.dataset.act }); loadAdmin(); } };
+$('#adNew').onclick = async () => { try { const k = await api.call('team:admin:create', { name: $('#adName').value }); $('#adNewKey').innerHTML = `New key: <span class="keycode">${esc(k)}</span> — give it to the worker together with the team server code (Settings → Team).`; $('#adName').value = ''; loadAdmin(); }
+  catch (e) { $('#adNewKey').textContent = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); } };
+$('#adRefresh').onclick = loadAdmin; $('#adClose').onclick = () => { $('#admin').hidden = true; };
+$('#adPublish').onclick = async () => { tmProg = tmProgress('#adBar', '#adBarWrap', '#adMsg'); $('#adPublish').disabled = true;
+  try { const r = await api.call('team:admin:publish', { note: $('#adNote').value }); $('#adMsg').textContent = `Published team data v${r.version} ✓ — ${r.files} files, ${r.uploaded} uploaded (${(r.bytes / 1e6).toFixed(1)} MB).`; $('#adNote').value = ''; renderTeam(await api.call('team:status')); }
+  catch (e) { $('#adMsg').textContent = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); } finally { $('#adPublish').disabled = false; $('#adBarWrap').hidden = true; } };

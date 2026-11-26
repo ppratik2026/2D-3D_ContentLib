@@ -1,6 +1,6 @@
 {
   "name": "auto-video",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Category -> Gemini story -> Hindi TTS -> Three.js + Remotion render -> final MP4. Free, CPU only.",

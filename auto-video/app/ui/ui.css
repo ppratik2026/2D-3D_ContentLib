@@ -49,3 +49,8 @@ button.primary{background:var(--acc);color:#1b1300;border-color:var(--acc)}butto
 .selines{max-height:70vh;overflow:auto}.seline{border:1px solid var(--line);border-radius:10px;padding:8px;margin:6px 0;cursor:pointer}.seline.on{border-color:var(--acc)}
 .seline .h{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--mut)}.seline .h b{color:var(--txt)}.seline .h input{width:70px;padding:3px 6px}.seline textarea{margin-top:4px;padding:6px 8px}
 @media (max-width:900px){.segrid{grid-template-columns:1fr}}
+
+.modal .card.login{width:min(520px,94vw)}#login{z-index:40;background:#0b0d12}#admin{z-index:50}
+.adtable{max-height:46vh;overflow:auto;margin:10px 0}.adtable table{width:100%;border-collapse:collapse;font-size:13px}.adtable th,.adtable td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.adtable td .btns{margin:0;flex-wrap:nowrap}.adtable td button{padding:3px 8px;font-size:12px}.st-active{color:var(--ok)}.st-blocked{color:var(--err)}.keycode{font-family:Consolas,monospace;background:var(--card2);padding:2px 6px;border-radius:6px}
+details summary{cursor:pointer;margin:10px 0}
