@@ -138,7 +138,7 @@ dz.ondrop = async (e) => { e.preventDefault(); dz.classList.remove('drop'); cons
 
 // ---------- backgrounds ----------
 let BG = { list: [], places: {} }, bsel = null, seatMode = false, pend = null, msel = -1;
-const MK = { seat: ['Seat', '#ff6b6b'], desk: ['Behind desk (sits)', '#ffb547'], judge: ['Judge bench', '#c792ea'], witness: ['Witness box', '#6ab0ff'], counter: ['Behind counter (stands)', '#4cd486'], bed: ['Bed (lies down)', '#ff9ad5'], cell: ['Jail cell (bars)', '#a0a8b8'], board: ['Blackboard spot', '#ffe66b'] };
+const MK = { seat: ['Seat', '#ff6b6b'], desk: ['Behind desk (sits)', '#ffb547'], judge: ['Judge bench', '#c792ea'], witness: ['Witness box', '#6ab0ff'], counter: ['Behind counter (stands)', '#4cd486'], bed: ['Bed (lies down)', '#ff9ad5'], cell: ['Jail cell (bars)', '#a0a8b8'], board: ['Blackboard spot', '#ffe66b'], climb: ['Climb to (tree / wall top)', '#9be15d'] };
 const COVER = new Set(['desk', 'judge', 'witness', 'counter', 'cell']); const WDEF = { judge: 0.26, desk: 0.22, bed: 0.3, witness: 0.12, counter: 0.22, cell: 0.24 };
 async function loadBgs() {
   BG = await api.call('bg:list');

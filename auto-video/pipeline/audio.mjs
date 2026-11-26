@@ -144,6 +144,17 @@ function shehnai(dur) { const o = new Float32Array(Math.ceil(dur * SR)); const s
     for (let i = 0; i < n; i++) { const x = i / SR; ph += 2 * Math.PI * f * (1 + 0.012 * Math.sin(x * 34)) / SR; s[i] = (Math.sin(ph) + 0.5 * Math.sin(2 * ph) + 0.35 * Math.sin(3 * ph) + 0.25 * Math.sin(4 * ph)) * Math.min(1, x / 0.03, (d - x) / 0.04); }
     add(o, s, t, 0.18); t += d; k++; }
   return lowpass(o, 0.45); }
+function crackle(dur) { const n = Math.ceil(dur * SR), o = new Float32Array(n); let a = 0; for (let i = 0; i < n; i++) { const w = noise(); a += 0.03 * (w - a); o[i] = a * 2.5 * (0.7 + 0.3 * Math.sin(i / SR * 2)); if (rnd() < 0.0009) for (let j = 0; j < 200 && i + j < n; j++) o[i + j] += noise() * Math.exp(-j / 40) * 0.8; } for (let i = 0; i < n; i++) o[i] *= Math.min(1, i / SR / 1.0, (n - i) / SR / 1.0); return o; }
+function boom() { const n = Math.floor(3.5 * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) { const t = i / SR; o[i] = Math.sin(2 * Math.PI * (40 + 60 * Math.exp(-t * 6)) * t) * Math.exp(-t * 1.6) * 1.2 + noise() * Math.exp(-t * 2.2) * (t < 0.05 ? 1.5 : 0.8); } return lowpass(lowpass(o, 0.15), 0.3); }
+function trainSnd(dur, horn) { const n = Math.ceil(dur * SR), o = new Float32Array(n); for (let t = 0; t < dur; t += 0.42) { add(o, step(1.4), t, 0.7); add(o, step(1.2), t + 0.12, 0.6); } let a = 0; for (let i = 0; i < n; i++) { a += 0.02 * (noise() - a); o[i] += a * 3; }
+  if (horn) { const h = new Float32Array(Math.floor(1.8 * SR)); for (let i = 0; i < h.length; i++) { const t = i / SR; h[i] = (Math.sin(2 * Math.PI * 311 * t) + Math.sin(2 * Math.PI * 370 * t) + 0.5 * Math.sin(2 * Math.PI * 466 * t)) * Math.min(1, t / 0.08, (1.8 - t) / 0.3) * 0.3; } add(o, h, 0.2, 1); }
+  for (let i = 0; i < n; i++) o[i] *= Math.min(1, i / SR / 0.8, (n - i) / SR / 0.8); return o; }
+function paddle(dur) { const o = new Float32Array(Math.ceil(dur * SR)); for (let t = 0.3; t < dur; t += 1.05) { const k = new Float32Array(Math.floor(0.4 * SR)); let a = 0; for (let i = 0; i < k.length; i++) { a += 0.15 * (noise() - a); k[i] = a * Math.sin(Math.PI * i / k.length) * 2; } add(o, k, t, 0.7); } return o; }
+function swimSnd(dur) { const o = new Float32Array(Math.ceil(dur * SR)); for (let t = 0; t < dur; t += 0.42) { const k = new Float32Array(Math.floor(0.25 * SR)); let a = 0; for (let i = 0; i < k.length; i++) { a += 0.3 * (noise() - a); k[i] = (noise() - a) * Math.exp(-i / SR * 14); } add(o, k, t, 0.6); } return o; }
+function batHit() { const o = new Float32Array(Math.floor(0.3 * SR)); for (let i = 0; i < o.length; i++) { const t = i / SR; o[i] = (Math.sin(2 * Math.PI * 900 * t) * 0.6 + Math.sin(2 * Math.PI * 1500 * t) * 0.3 + noise() * 0.3) * Math.exp(-t * 35); } return o; }
+function bleat() { const n = Math.floor(0.9 * SR), o = new Float32Array(n); let ph = 0; for (let i = 0; i < n; i++) { const t = i / SR; ph += 2 * Math.PI * (430 + 30 * Math.sin(t * 50)) / SR; o[i] = (Math.sin(ph) + 0.5 * Math.sin(2 * ph) + 0.3 * Math.sin(3 * ph)) * Math.sin(Math.PI * t / 0.9) * 0.5; } return lowpass(o, 0.4); }
+function meow() { const n = Math.floor(0.7 * SR), o = new Float32Array(n); let ph = 0; for (let i = 0; i < n; i++) { const t = i / SR; ph += 2 * Math.PI * (600 + 300 * Math.sin(Math.PI * t / 0.7)) / SR; o[i] = (Math.sin(ph) + 0.4 * Math.sin(2 * ph)) * Math.sin(Math.PI * t / 0.7) * 0.5; } return o; }
+function trumpet() { const n = Math.floor(1.6 * SR), o = new Float32Array(n); let ph = 0; for (let i = 0; i < n; i++) { const t = i / SR; ph += 2 * Math.PI * (520 + 80 * Math.sin(t * 7)) / SR; const saw = (ph / (2 * Math.PI)) % 1 * 2 - 1; o[i] = (saw * 0.6 + noise() * 0.2) * Math.min(1, t / 0.1, (1.6 - t) / 0.4); } return lowpass(o, 0.35); }
 function sting() { const o = new Float32Array(Math.floor(3 * SR)); for (const m of [50, 57, 62, 66]) add(o, tone(mtof(m), 3, { type: 'bell', decay: 1.1 }), 0, 0.15); return o; }
 
 export function mixAll(tl, mood, outFile) {
@@ -193,6 +204,10 @@ export function mixAll(tl, mood, outFile) {
     if (c.kind === 'clank') add(mix, clank(), c.t, 0.5);
     if (c.kind === 'grab' || c.kind === 'fall') add(mix, thud(), c.t, 0.6);
     if (c.kind === 'hit') add(mix, hitSnd(), c.t, 0.55);
+    if (c.kind === 'fire') add(mix, crackle((c.t1 || c.t + 5) - c.t), c.t, 0.3); if (c.kind === 'boom') add(mix, boom(), c.t, 1.0);
+    if (c.kind === 'train') add(mix, trainSnd(c.t1 - c.t, c.horn), c.t, 0.45); if (c.kind === 'paddle') add(mix, paddle(c.t1 - c.t), c.t, 0.35); if (c.kind === 'swim') add(mix, swimSnd(c.t1 - c.t), c.t, 0.35);
+    if (c.kind === 'bat') add(mix, batHit(), c.t, 0.7); if (c.kind === 'kids') add(mix, cheer(c.t1 - c.t), c.t, 0.08); if (c.kind === 'chirps') add(mix, birds(c.t1 - c.t), c.t, 1.4);
+    if (c.kind === 'bleat') add(mix, bleat(), c.t, 0.5); if (c.kind === 'meow') add(mix, meow(), c.t, 0.4); if (c.kind === 'trumpet') add(mix, trumpet(), c.t, 0.5);
     if (c.kind === 'moo') add(mix, moo(), c.t, 0.6); if (c.kind === 'neigh') add(mix, neigh(), c.t, 0.5); if (c.kind === 'bark') add(mix, bark(), c.t, 0.55);
     if (c.kind === 'hooves') add(mix, hooves(c.t1 - c.t, c.run), c.t, 0.3); if (c.kind === 'bell') add(mix, cycleBell(), c.t + 0.2, 0.6); if (c.kind === 'engine_small') add(mix, smallEngine(c.t1 - c.t), c.t, 0.3);
     if (c.kind === 'baraat') { const d = c.t1 - c.t; add(mix, dhol(d), c.t, 0.55); add(mix, shehnai(d), c.t, 0.5); add(mix, cheer(d), c.t, 0.12); }

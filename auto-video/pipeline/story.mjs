@@ -100,8 +100,9 @@ export function normalizeBeats(beats, chars, sc) {
     if (b.type === 'narration' || /^narrat|^sutradhar|^सूत्रधार/i.test(String(b.char || ''))) {
       const hindi = String(b.hindi || b.hinglish || '').trim(), hinglish = String(b.hinglish || b.hindi || '').trim(); if (hindi) out.push({ type: 'line', char: 'narrator', emotion: 'neutral', hindi, hinglish, english: String(b.english || hinglish) });
       continue; }
+    if (['fire', 'fire_out', 'explosion'].includes(b.action) && !matchId(b.char, chars)) { out.push({ type: 'action', char: null, action: b.action, target: matchId(b.target, chars) || null, where: b.where, size: b.size, small: b.small }); continue; }
     if (b.action === 'animal' || b.action === 'crowd') { // no character needed
-      out.push({ type: 'action', char: null, action: b.action, animal: ['dog', 'cow', 'horse'].includes(b.animal) ? b.animal : 'dog', act: String(b.act || 'enter'), target: matchId(b.target, chars) || null, mood: ['dance', 'cheer', 'clap', 'watch', 'walk', 'none'].includes(b.mood) ? b.mood : 'watch', count: Number(b.count) || 8 }); continue; }
+      out.push({ type: 'action', char: null, action: b.action, animal: ['dog', 'cow', 'horse', 'goat', 'cat', 'elephant', 'birds'].includes(b.animal) ? b.animal : 'dog', act: String(b.act || 'enter'), target: matchId(b.target, chars) || null, mood: ['dance', 'cheer', 'clap', 'watch', 'walk', 'none'].includes(b.mood) ? b.mood : 'watch', count: Number(b.count) || 8 }); continue; }
     const char = matchId(b.char, chars);
     if (b.type !== 'line' && !b.hindi && !b.hinglish && b.action && !ACTIONS.includes(b.action)) { unsupported.push(String(b.action).toLowerCase().slice(0, 30)); continue; }
     if (!char) continue;
@@ -116,6 +117,7 @@ export function normalizeBeats(beats, chars, sc) {
       if (HEX.test(String(b.color || ''))) a.color = '#' + String(b.color).replace('#', '');
       if (b.place && MARKS[b.place]) a.place = b.place;
       if (b.item) a.item = String(b.item).toLowerCase() === 'money' ? 'money' : 'give';
+      if (b.game) a.game = String(b.game); if (b.where) a.where = String(b.where); if (b.size) a.size = Number(b.size); if (b.small) a.small = true;
       if (Number(b.seconds)) a.seconds = Math.max(4, Math.min(20, Number(b.seconds)));
       for (const f of ['with', 'chasers']) if (Array.isArray(b[f])) a[f] = b[f].map((x) => matchId(x, chars)).filter((x) => x && x !== char);
       if (['get_in', 'get_out', 'drive_in', 'drive_away', 'car_chase'].includes(a.action) && !a.vehicle) a.vehicle = a.action === 'car_chase' ? 'car' : 'police_jeep';
@@ -142,6 +144,13 @@ function actionHelp(stage) { return `Between dialogue lines add actions (only th
 - Two-wheelers and horse riding use the vehicle actions with "vehicle":"bike|scooter|cycle|horse" (drive_in / get_in / get_out / drive_away; a thief can run away on a bike in a car_chase).
 - Animals: {"type":"action","action":"animal","animal":"dog|cow|horse","act":"enter|exit|run|bark|moo|neigh|graze|sit|follow","target":"char id for follow"}.
 - Crowd in the background: {"type":"action","action":"crowd","mood":"dance|cheer|clap|watch|walk|none","count":8}.
+- Fire and blasts: {"type":"action","action":"fire","where":"left|center|right","size":1} (keeps burning, crackling) / {"type":"action","action":"fire_out"} / {"type":"action","char":"id","action":"explosion","where":"right"} (flash, fireball, smoke, debris, everybody near is shocked).
+- Rain: use "weather":"rain" or "storm" for the scene and the gesture {"action":"umbrella","seconds":8} for people holding umbrellas.
+- Games: {"type":"action","char":"batsman / kid id","action":"game","game":"cricket|ball|skip|kite|tag","with":["bowler / other kids"],"seconds":10} (cricket = bowling, shot, ball flying, fielders clap; ball = throw and catch; skip = skipping rope; kite = kite flying; tag = pakdam-pakdai, running around). Lines can be spoken during the game.
+- Water: vehicle "boat" (rowing, on a river / lake background), {"action":"swim","char":"id","seconds":6} (needs water in the background).
+- Train: vehicle "train" with drive_in (arrives at the platform and stops), get_in / get_out, drive_away.
+- Climb: {"action":"climb","char":"id"} goes up a ladder, or to the "climb" place (tree / wall top) marked in the background; {"action":"climb_down"}.
+- More animals: goat (bleat), cat (meow), elephant (trumpet), birds ({"action":"animal","animal":"birds","act":"fly"} — a flock crosses the sky).
 - Wedding procession: {"type":"action","action":"baraat","char":"groom id","with":["dancing relatives"],"seconds":12} — the groom rides a decorated horse with a safa, dhol and shehnai play, the crowd dances.
 ${stage ? `- Places in the background (if the background has them): {"action":"go_to","char":"id","place":"${Object.keys(MARKS).join('|')}"}. People whose role fits (judge, inspector at desk, patient in bed, prisoner in cell, accused in witness box, teacher at board, scientist at lab counter) start there automatically.
 - "faint" = falls down (or a dead body lying), "lie" = lies down; "stand" gets up again.

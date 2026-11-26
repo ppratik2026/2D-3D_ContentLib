@@ -3,16 +3,16 @@
 import { FPS } from './config.mjs';
 
 const DUR = { enter: 3.0, exit: 2.6, run_exit: 1.6, walk_to: 2.2, sit: 1.1, stand: 1.0,
-  go_to: 2.4, faint: 1.2, lie: 1.4, drive_in: 3.4, drive_away: 3.0, get_in: 2.6, get_out: 2.0, car_chase: 8, foot_chase: 6, catch: 2.4, handcuff: 2.8, baraat: 12, hug: 2.8, fight: 4.0, push: 1.9, slap: 1.7, give: 2.6, sleep: 1.4 };
+  go_to: 2.4, faint: 1.2, lie: 1.4, drive_in: 3.4, drive_away: 3.0, get_in: 2.6, get_out: 2.0, car_chase: 8, foot_chase: 6, catch: 2.4, handcuff: 2.8, baraat: 12, explosion: 2.4, game: 10, swim: 6, climb: 3.4, climb_down: 2.6, hug: 2.8, fight: 4.0, push: 1.9, slap: 1.7, give: 2.6, sleep: 1.4 };
 const GESTURE = ['wave', 'nod', 'laugh', 'point', 'think', 'shock', 'drink', 'phone', 'look_around',
   'hands_up', 'salute', 'namaste', 'cry', 'examine', 'test_tube', 'torch', 'read', 'file', 'write', 'gavel', 'clap', 'angry',
-  'cook', 'chop', 'eat', 'serve', 'sweep', 'aarti', 'pray', 'dance', 'knock', 'shiver', 'type'];
-const LONG = { cook: 5, chop: 4, eat: 4, sweep: 4, aarti: 4, dance: 5, type: 4, pray: 3 };
-const VEH = ['car', 'taxi', 'police_jeep', 'ambulance', 'auto', 'van', 'bike', 'scooter', 'cycle', 'horse'];
-const ANIMALS = ['dog', 'cow', 'horse'];
-const ANIM_DUR = { enter: 3.2, exit: 3.0, run: 2.2, bark: 1.6, moo: 2.0, neigh: 1.8, graze: 4, sit: 1.2, follow: 3.0 };
+  'cook', 'chop', 'eat', 'serve', 'sweep', 'aarti', 'pray', 'dance', 'knock', 'shiver', 'type', 'umbrella'];
+const LONG = { cook: 5, chop: 4, eat: 4, sweep: 4, aarti: 4, dance: 5, type: 4, pray: 3, umbrella: 8 };
+const VEH = ['car', 'taxi', 'police_jeep', 'ambulance', 'auto', 'van', 'bike', 'scooter', 'cycle', 'horse', 'boat', 'train'];
+const ANIMALS = ['dog', 'cow', 'horse', 'goat', 'cat', 'elephant', 'birds'];
+const ANIM_DUR = { enter: 3.2, exit: 3.0, run: 2.2, bark: 1.6, moo: 2.0, neigh: 1.8, graze: 4, sit: 1.2, follow: 3.0, fly: 6, bleat: 1.6, meow: 1.2, trumpet: 2.2 };
 // the 3D sets have no vehicles / markers: map the new actions to the nearest simple one
-const SIMPLE = { go_to: 'walk_to', faint: 'sit', lie: 'sit', drive_in: 'enter', drive_away: null, get_in: 'exit', get_out: 'enter', car_chase: 'run_exit', foot_chase: 'run_exit', catch: 'walk_to', handcuff: null, baraat: null, hug: 'walk_to', fight: 'walk_to', push: 'walk_to', slap: 'walk_to', give: 'walk_to', sleep: 'sit' };
+const SIMPLE = { go_to: 'walk_to', faint: 'sit', lie: 'sit', drive_in: 'enter', drive_away: null, get_in: 'exit', get_out: 'enter', car_chase: 'run_exit', foot_chase: 'run_exit', catch: 'walk_to', handcuff: null, baraat: null, explosion: null, game: null, swim: null, climb: null, climb_down: null, hug: 'walk_to', fight: 'walk_to', push: 'walk_to', slap: 'walk_to', give: 'walk_to', sleep: 'sit' };
 const TITLE = 3.2, END = 3.0;
 
 export function buildTimeline(story, opts) {
@@ -44,6 +44,8 @@ export function buildTimeline(story, opts) {
       } else if (b.type === 'action' && b.action === 'animal') {
         if (!stage) continue; const type = ANIMALS.includes(b.animal) ? b.animal : 'dog'; if (!animals.some((a) => a.key === type)) animals.push({ key: type, type, seed: animals.length + 3 });
         const act = ANIM_DUR[b.act] ? b.act : 'enter'; events.push({ kind: 'animal', animal: type, act, target: b.target || null, d: ANIM_DUR[act] });
+      } else if (b.type === 'action' && (b.action === 'fire' || b.action === 'fire_out')) {
+        if (!stage) continue; events.push({ kind: b.action, target: b.target || null, x: { left: 0.25, center: 0.5, right: 0.75 }[b.where] ?? (b.target ? undefined : 0.72), size: Math.max(0.5, Math.min(2.5, Number(b.size) || 1)), d: b.action === 'fire_out' ? 2 : 0 });
       } else if (b.type === 'action' && b.action === 'crowd') {
         if (!stage) continue; const count = Math.max(3, Math.min(14, Number(b.count) || 8)); crowdMax = Math.max(crowdMax, count); events.push({ kind: 'crowd', mood: b.mood || 'watch', count, d: 0 });
       } else if (b.type === 'card') {
@@ -51,13 +53,16 @@ export function buildTimeline(story, opts) {
       } else if (b.action in DUR) {
         let act = b.action;
         if (!stage && act in SIMPLE) { act = SIMPLE[act]; if (!act) continue; }
-        const d = act === 'car_chase' || act === 'foot_chase' ? Math.max(4, Math.min(20, Number(b.seconds) || DUR[act])) : DUR[act];
+        const trainV = /^train/.test(b.vehicle || '') && (act === 'drive_in' || act === 'drive_away');
+        const d = ['car_chase', 'foot_chase', 'game', 'swim'].includes(act) ? Math.max(4, Math.min(30, Number(b.seconds) || DUR[act])) : trainV ? (act === 'drive_in' ? 6.5 : 7) : DUR[act];
         const e = { kind: act, char: b.char, target: act === 'walk_to' && !b.target ? null : b.target, rel: true, d };
         if (stage) {
           if (b.place) e.place = b.place; if (b.item) e.item = b.item;
           if (['drive_in', 'drive_away', 'get_in', 'get_out', 'car_chase'].includes(act)) e.vehicle = vkey(b.vehicle, b.color);
           if (act === 'car_chase') e.chaser = vkey(b.chaser_vehicle || 'police_jeep');
           if (act === 'drive_in' && Array.isArray(b.with)) e.with = b.with;
+          if (act === 'game') { e.game = ['cricket', 'ball', 'skip', 'kite', 'tag'].includes(b.game) ? b.game : 'ball'; e.with = Array.isArray(b.with) ? b.with : []; }
+          if (act === 'explosion') { e.x = { left: 0.25, center: 0.5, right: 0.75 }[b.where]; e.small = !!b.small; }
           if (act === 'baraat') { e.vehicle = vkey('horse', b.color); e.with = Array.isArray(b.with) ? b.with : []; crowdMax = Math.max(crowdMax, 10); }
           if (act === 'car_chase' || act === 'foot_chase') e.chasers = Array.isArray(b.chasers) ? b.chasers : b.target ? [b.target] : [];
         }
@@ -75,6 +80,10 @@ export function buildTimeline(story, opts) {
 function actionCues(e, t, sc, cues, shots) {
   const T = t + e.d;
   const two = /^(bike|scooter)/.test(e.vehicle || ''), cyc = /^cycle/.test(e.vehicle || ''), hor = /^horse/.test(e.vehicle || '');
+  if (e.kind === 'explosion') { cues.push({ t, kind: 'boom' }); shots.push({ t0: t, t1: T, type: 'wide' }); }
+  if (e.kind === 'game') { const kids = [e.char, ...(e.with || [])]; let i = 0; for (let x = t; x < T - 0.3; x += 2.4, i++) shots.push({ t0: x, t1: Math.min(T, x + 2.4), ...(i % 2 === 0 ? { type: 'wide' } : { type: 'speaker', char: kids[(i >> 1) % kids.length] }) }); }
+  if ((e.kind === 'drive_in' || e.kind === 'drive_away') && /^train/.test(e.vehicle || '')) { cues.push({ t, t1: T + 1, kind: 'train', horn: true }); return; }
+  if ((e.kind === 'drive_in' || e.kind === 'drive_away') && /^boat/.test(e.vehicle || '')) { cues.push({ t, t1: T, kind: 'paddle' }); return; }
   if (e.kind === 'baraat') { let i = 0; for (let x = t; x < T - 0.3; x += 2.2, i++) shots.push({ t0: x, t1: Math.min(T, x + 2.2), ...[{ type: 'wide' }, { type: 'speaker', char: e.char }, { type: 'wide' }, ...(e.with || []).slice(0, 2).map((c) => ({ type: 'speaker', char: c }))][i % (3 + Math.min(2, (e.with || []).length))] }); }
   if ((e.kind === 'drive_in' || e.kind === 'drive_away') && (cyc || hor)) { cues.push({ t, t1: T, kind: hor ? 'hooves' : 'bell' }); return; }
   if ((e.kind === 'drive_in' || e.kind === 'drive_away') && two) { cues.push({ t, t1: T + (e.kind === 'drive_away' ? 1 : 0), kind: 'engine_small' }); return; }
@@ -111,10 +120,12 @@ export function finalize(tl) {
       if (e.kind === 'line') {
         const l = e.ref; l.start = t; l.end = t + l.duration; t = l.end + 0.32;
         shots.push({ t0: l.start - 0.15, t1: t, type: l._shot.type, char: l.char });
+      } else if (e.kind === 'fire' || e.kind === 'fire_out') {
+        const { d, ...rest } = e; sc.events.push({ ...rest, t0: t, t1: t + (e.d || 0.1) }); if (e.kind === 'fire') cues.push({ t, t1: null, kind: 'fire', scene: sc.index }); else cues.push({ t, kind: 'fire_out', scene: sc.index });
       } else if (e.kind === 'animal' || e.kind === 'crowd') {
         const bk = 'animal:' + (e.animal || 'crowd'); const g0 = Math.max(t, busy[bk] || 0); const { d, ...rest } = e; sc.events.push({ ...rest, t0: g0, t1: g0 + e.d }); busy[bk] = g0 + e.d;
         if (e.kind === 'animal') { if (e.act === 'bark') { cues.push({ t: g0 + 0.15, kind: 'bark' }); cues.push({ t: g0 + 0.85, kind: 'bark' }); } if (e.act === 'moo') cues.push({ t: g0 + 0.2, kind: 'moo' }); if (e.act === 'neigh') cues.push({ t: g0 + 0.2, kind: 'neigh' });
-          if (e.animal === 'horse' && ['enter', 'exit', 'run', 'follow'].includes(e.act)) cues.push({ t: g0, t1: g0 + e.d, kind: 'hooves', run: e.act === 'run' }); if (e.animal === 'dog' && e.act === 'run') cues.push({ t: g0 + 0.3, kind: 'bark' }); }
+          if (e.animal === 'horse' && ['enter', 'exit', 'run', 'follow'].includes(e.act)) cues.push({ t: g0, t1: g0 + e.d, kind: 'hooves', run: e.act === 'run' }); if (e.animal === 'dog' && e.act === 'run') cues.push({ t: g0 + 0.3, kind: 'bark' }); if (['bleat', 'meow', 'trumpet'].includes(e.act)) cues.push({ t: g0 + 0.2, kind: e.act }); if (e.act === 'fly') cues.push({ t: g0, t1: g0 + e.d, kind: 'chirps' }); }
         t = Math.max(t, g0) + (e.kind === 'crowd' ? 0 : 0.25);
       } else if (e.kind === 'card') {
         (tl.cards ||= []).push({ text: e.text, t0: t, t1: t + e.d }); shots.push({ t0: t, t1: t + e.d, type: 'wide' }); t += e.d;
@@ -126,10 +137,15 @@ export function finalize(tl) {
         actionCues(e, t, sc, cues, shots);
         if (e.kind === 'enter' || e.kind === 'exit' || e.kind === 'run_exit') cues.push({ t: e.kind === 'enter' ? t : t + e.d - 0.4, kind: 'door', location: sc.location });
         if (['enter', 'exit', 'run_exit', 'walk_to', 'sit', 'stand', 'go_to'].includes(e.kind)) cues.push({ t, t1: t + e.d, kind: e.kind === 'run_exit' ? 'run' : e.kind === 'sit' ? 'sit' : e.kind === 'stand' ? 'stand' : 'walk' });
-        if (!['car_chase', 'foot_chase', 'handcuff', 'catch', 'baraat'].includes(e.kind)) shots.push({ t0: t, t1: t + e.d, type: 'wide' }); t += e.d;
+        if (!['car_chase', 'foot_chase', 'handcuff', 'catch', 'baraat', 'explosion', 'game'].includes(e.kind)) shots.push({ t0: t, t1: t + e.d, type: 'wide' }); t += e.d;
       }
     }
     t = Math.max(t, ...Object.values(busy)); t += 0.9; sc.end = t; shots.push({ t0: t - 0.9, t1: t, type: 'wide' });
+    for (const c of cues) if (c.kind === 'fire' && c.scene === sc.index && c.t1 == null) { const out = cues.find((x) => x.kind === 'fire_out' && x.scene === sc.index && x.t > c.t); c.t1 = out ? out.t + 2 : sc.end; }
+    for (const e of sc.events) if (e.kind === 'game' || e.kind === 'swim') { const nx = sc.events.find((x) => x.t0 >= e.t1 - 0.01 && x !== e && !['gesture', 'animal', 'crowd', 'fire', 'fire_out'].includes(x.kind)); const until = Math.max(e.t1, nx ? nx.t0 : sc.end - 0.4);
+      if (e.kind === 'swim') cues.push({ t: e.t0, t1: until, kind: 'swim' });
+      else { if (e.game === 'cricket') for (let x = e.t0 + 3.2 * 0.6; x < until; x += 3.2) cues.push({ t: x, kind: 'bat' }); cues.push({ t: e.t0, t1: until, kind: 'kids', game: e.game });
+      } }
     for (const e of sc.events) if (e.kind === 'baraat') { const nx = sc.events.find((x) => x.t0 >= e.t1 - 0.01 && x !== e && !['gesture', 'animal', 'crowd'].includes(x.kind)); const until = Math.max(e.t1, nx ? nx.t0 : sc.end - 0.4); cues.push({ t: e.t0, t1: until + 0.5, kind: 'baraat' }); cues.push({ t: e.t0, t1: until, kind: 'hooves' }); }
     for (const e of sc.events) if (e.kind === 'car_chase' || e.kind === 'foot_chase') { const nx = sc.events.find((x) => x.t0 >= e.t1 - 0.01 && x !== e && x.kind !== 'gesture'); const until = Math.max(e.t1, nx ? nx.t0 : sc.end - 0.4);
       cues.push({ t: e.t0, t1: until, kind: e.kind === 'car_chase' ? 'chase_car' : 'chase_foot', police: e.kind === 'car_chase' && /police/.test(e.chaser || '') });

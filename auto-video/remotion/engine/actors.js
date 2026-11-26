@@ -264,6 +264,17 @@ export function poseActor(a, t, st) {
     if (n === 'push') { arm('Right', 1.35 * k, 0.15 * k, 0.15 * k); arm('Left', 1.35 * k, 0.15 * k, 0.15 * k); rotW(a, 'Spine1', R, 0.15 * k); face = 'angry'; }
     if (n === 'slap') { const c = Math.min(1, Math.max(0, (Math.sin(t * 5) + 0.2))); arm('Right', 1.3 * k, 0.3 * k, (-0.6 + 1.6 * c) * k); face = 'angry'; }
     if (n === 'give' || n === 'receive') arm('Right', 1.1 * k, 0.35 * k, 0.3 * k);
+    const ph = g.ph ?? ((t * 0.7) % 1);
+    if (n === 'umbrella') { arm('Right', 0.85 * k, 1.75 * k, 0.55 * k); rotW(a, 'RightArm', F, -0.35 * k); }
+    if (n === 'bat') { const sw = Math.sin(Math.min(1, Math.max(0, (ph - 0.55) / 0.25)) * Math.PI); arm('Right', (0.6 + 0.9 * sw) * k, (0.5 - 0.3 * sw) * k, (0.7 - 1.2 * sw) * k); arm('Left', (0.6 + 0.9 * sw) * k, (0.5 - 0.3 * sw) * k, (0.7 - 1.2 * sw) * k); rotW(a, 'Spine', UP, (0.5 - 1.0 * sw) * k); rotW(a, 'Spine1', R, 0.2 * k); }
+    if (n === 'bowl') { const w = Math.min(1, Math.max(0, (ph - 0.3) / 0.25)); rotW(a, 'RightArm', R, (-0.4 - 3.4 * w) * k); arm('Left', 0.9 * k, 0.3 * k, 0); rotW(a, 'Spine1', R, 0.25 * w * k); }
+    if (n === 'throw') { const w = Math.sin(Math.min(1, ph / 0.35) * Math.PI); rotW(a, 'RightArm', R, (-0.6 - 1.6 * w) * k); rotW(a, 'RightForeArm', R, 0.6 * k); }
+    if (n === 'catch') { arm('Right', 1.35 * k, 0.5 * k, 0.45 * k); arm('Left', 1.35 * k, 0.5 * k, 0.45 * k); face = 'happy'; }
+    if (n === 'swim') { const c = t * 4; rotW(a, 'RightArm', R, (Math.sin(c) * 1.6 + 1.2) * k); rotW(a, 'LeftArm', R, (Math.sin(c + Math.PI) * 1.6 + 1.2) * k); rotW(a, 'RightUpLeg', R, Math.sin(t * 9) * 0.25 * k); rotW(a, 'LeftUpLeg', R, -Math.sin(t * 9) * 0.25 * k); rotW(a, 'Head', R, -0.6 * k); }
+    if (n === 'climb') { const c = Math.sin(t * 5); rotW(a, 'RightArm', F, (-2.4 - 0.4 * c) * k); rotW(a, 'LeftArm', F, (2.4 - 0.4 * c) * k); rotW(a, 'RightUpLeg', R, (0.5 + 0.4 * c) * k); rotW(a, 'LeftUpLeg', R, (0.5 - 0.4 * c) * k); rotW(a, 'RightLeg', R, -0.8 * k); rotW(a, 'LeftLeg', R, -0.8 * k); }
+    if (n === 'row') { const c = Math.sin(t * 3); arm('Right', (0.9 + 0.35 * c) * k, (0.6 - 0.4 * c) * k, 0.3 * k); arm('Left', (0.9 + 0.35 * c) * k, (0.6 - 0.4 * c) * k, 0.3 * k); rotW(a, 'Spine1', R, 0.15 * c * k); }
+    if (n === 'kite') { arm('Right', 1.6 * k, 0.4 * k, 0.1 * k); rotW(a, 'RightArm', F, -0.6 * k); arm('Left', 1.0 * k, 0.8 * k, 0.4 * k); rotW(a, 'Head', R, -0.35 * k); face = 'happy'; }
+    if (n === 'skip') { const c = Math.sin(t * 9); rotW(a, 'RightArm', F, (-0.45 + 0.15 * c) * k); rotW(a, 'LeftArm', F, (0.45 - 0.15 * c) * k); face = 'happy'; }
     if (n === 'hit_back') { rotW(a, 'Spine1', R, -0.22 * k); rotW(a, 'Head', UP, 0.35 * k); face = 'surprised'; }
     if (n === 'angry') { arm('Right', 0.5 * k, 1.7 * k, -0.1 * k); arm('Left', 0.5 * k, 1.7 * k, -0.1 * k); face = 'angry'; }
   }

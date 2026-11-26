@@ -1,0 +1,51 @@
+{
+  "title": "Chhuttiyon Ka Din",
+  "title_hindi": "छुट्टियों का दिन",
+  "logline": "Bachchon ki chhuttiyon ka ek din: khel, nadi, train, aur ek dhamaka.",
+  "moral": "Mil-jul kar khelo, savdhaan raho.",
+  "category": "kids",
+  "characters": [
+    { "id": "golu", "name": "Golu", "gender": "male", "age": "child", "role": "boy", "top_color": "#2f6fb5", "bottom_color": "#2b2b30", "hair_color": "#1c1612", "personality": "naughty" },
+    { "id": "pinky", "name": "Pinky", "gender": "female", "age": "young", "role": "girl", "top_color": "#e67ab4", "bottom_color": "#f2c418", "hair_color": "#1c1612", "personality": "smart" },
+    { "id": "raju", "name": "Raju", "gender": "male", "age": "young", "role": "elder brother", "top_color": "#c0392b", "bottom_color": "#2b2b30", "hair_color": "#1c1612", "personality": "kind" },
+    { "id": "kaka", "name": "Kaka", "gender": "male", "age": "old", "role": "boatman", "top_color": "#f4f1e8", "bottom_color": "#f4f1e8", "hair_color": "#cccccc", "personality": "calm" }
+  ],
+  "scenes": [
+    { "background": "bg_ground", "time_of_day": "day", "present": ["golu", "raju", "pinky"], "summary": "Cricket, kite, climbing a tree.", "seconds": 40,
+      "beats": [
+        { "type": "action", "char": "golu", "action": "game", "game": "cricket", "with": ["raju", "pinky"], "seconds": 8 },
+        { "type": "line", "char": "golu", "emotion": "happy", "hindi": "छक्का! गेंद तो आसमान में गई!", "hinglish": "Chhakka! Gend toh aasmaan mein gayi!", "english": "A six! The ball went to the sky!" },
+        { "type": "action", "action": "animal", "animal": "birds", "act": "fly" },
+        { "type": "action", "char": "pinky", "action": "game", "game": "kite", "with": ["golu"], "seconds": 6 },
+        { "type": "line", "char": "pinky", "emotion": "happy", "hindi": "देखो, मेरी पतंग सबसे ऊँची!", "hinglish": "Dekho, meri patang sabse oonchi!", "english": "Look, my kite is the highest!" },
+        { "type": "action", "char": "golu", "action": "climb" },
+        { "type": "line", "char": "golu", "emotion": "happy", "hindi": "मैं पेड़ पर चढ़ गया!", "hinglish": "Main ped par chadh gaya!", "english": "I climbed the tree!" },
+        { "type": "action", "action": "animal", "animal": "goat", "act": "enter" },
+        { "type": "action", "action": "animal", "animal": "goat", "act": "bleat" },
+        { "type": "action", "char": "golu", "action": "climb_down" },
+        { "type": "action", "char": "pinky", "action": "game", "game": "skip", "with": ["golu"], "seconds": 5 }
+      ] },
+    { "background": "bg_river", "time_of_day": "day", "weather": "rain", "present": ["raju", "pinky"], "summary": "Rain, umbrella, boat and swimming.", "seconds": 30,
+      "beats": [
+        { "type": "action", "char": "pinky", "action": "umbrella", "seconds": 8 },
+        { "type": "line", "char": "pinky", "emotion": "happy", "hindi": "बारिश आ गई! अच्छा हुआ छाता ले आई।", "hinglish": "Baarish aa gayi! Achha hua chhaata le aayi.", "english": "It's raining! Good thing I brought an umbrella." },
+        { "type": "action", "char": "kaka", "action": "drive_in", "vehicle": "boat" },
+        { "type": "line", "char": "kaka", "emotion": "neutral", "hindi": "आओ बच्चो, नाव में घूम लो।", "hinglish": "Aao bachcho, naav mein ghoom lo.", "english": "Come kids, take a boat ride." },
+        { "type": "action", "char": "raju", "action": "swim", "seconds": 6 },
+        { "type": "line", "char": "raju", "emotion": "happy", "hindi": "पानी तो बहुत ठंडा है!", "hinglish": "Paani toh bahut thanda hai!", "english": "The water is so cold!" },
+        { "type": "action", "action": "animal", "animal": "elephant", "act": "enter" },
+        { "type": "action", "action": "animal", "animal": "elephant", "act": "trumpet" }
+      ] },
+    { "background": "bg_platform", "time_of_day": "evening", "present": ["raju", "pinky"], "summary": "The train arrives; a blast at the end.", "seconds": 30,
+      "beats": [
+        { "type": "action", "char": "raju", "action": "drive_in", "vehicle": "train" },
+        { "type": "action", "char": "pinky", "action": "get_in", "vehicle": "train" },
+        { "type": "line", "char": "raju", "emotion": "happy", "hindi": "ट्रेन आ गई, जल्दी चढ़ो!", "hinglish": "Train aa gayi, jaldi chadho!", "english": "The train is here, get on quickly!" },
+        { "type": "action", "action": "animal", "animal": "cat", "act": "enter" },
+        { "type": "action", "action": "animal", "animal": "cat", "act": "meow" },
+        { "type": "action", "char": "raju", "action": "drive_away", "vehicle": "train" },
+        { "type": "action", "action": "explosion", "where": "right" },
+        { "type": "action", "action": "fire", "where": "right" }
+      ] }
+  ]
+}

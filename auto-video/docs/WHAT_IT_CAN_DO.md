@@ -1,4 +1,4 @@
-# What Auto Video Studio can animate (v1.1)
+# What Auto Video Studio can animate (v1.2)
 
 The story AI uses these automatically. You can also write them yourself in a pasted story.
 
@@ -15,7 +15,7 @@ The story AI uses these automatically. You can also write them yourself in a pas
 
 ## Vehicles
 
-Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren), auto rickshaw, van, **bike, scooter, cycle** (rider + pillion, pedalling, bell / engine sounds) and a **riding horse**.
+Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren), auto rickshaw, van, **bike, scooter, cycle** (rider + pillion, pedalling, bell / engine sounds), a **riding horse**, a **boat** (rowing) and a **passenger train** (arrives at the platform, people get in / out at the doors and sit at the windows, horn + chugging).
 
 - drive_in, get_out, get_in, drive_away
 - car_chase: scrolling road, speed lines and dialogue during the chase
@@ -31,9 +31,25 @@ Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren)
 | Crowd in the background (up to 14 people) | dance, cheer, clap, watch, walk |
 | Baraat | the groom rides a decorated mare with a safa; relatives dance in front; the crowd dances behind; confetti falls; dhol + shehnai + cheering |
 
+## Fire, rain, games, water, climbing (v1.2)
+
+| What | How it looks |
+|---|---|
+| fire / fire_out | flames, smoke and a warm glow with crackling; keeps burning until fire_out |
+| explosion | flash, fireball, smoke ring, flying debris, camera shake, boom; people nearby get a shock; a fire keeps burning after |
+| umbrella | a person holds an umbrella (use it with "weather": "rain" / "storm") |
+| game: cricket | bowler runs up and bowls, the ball bounces, the batsman hits it into the sky, fielders clap; bat-hit sound |
+| game: ball | two kids throw and catch a ball |
+| game: skip | skipping rope, friends clap |
+| game: kite | kite in the sky with its string, friends point |
+| game: tag | pakdam-pakdai, kids run around laughing |
+| swim | swimming strokes in water, the body half under water, splashes |
+| climb / climb_down | up a ladder, or up to the tree / wall / roof top you mark as a "Climb to" place |
+| More animals | goat (bleat), cat (meow), elephant (trunk, trumpet), birds (a flock flies across the sky with chirping) |
+
 ## Places you mark on a background
 
-Seat, behind desk (sits), judge bench, witness box, behind counter (stands: kitchen, lab, shop, bank), bed (lies), jail cell (bars), blackboard.
+Seat, behind desk (sits), judge bench, witness box, behind counter (stands: kitchen, lab, shop, bank), bed (lies), jail cell (bars), blackboard, climb to (tree / wall / roof top).
 
 The person is hidden behind the desk, bench, box or counter. People go to the right place by their role:
 
@@ -80,4 +96,4 @@ The video is rendered clean, then the subtitles are added on top. That means you
 
 ## Not yet (send your TO-DO lists)
 
-Boat, a moving train, swimming, climbing, fire / explosion, cricket / sports, umbrellas in the rain, children playing games, more animals (goat, cat, birds, elephant).
+Football / kabaddi, a moving train seen from inside, underwater scenes, flying (plane / helicopter), monkeys and tigers, festivals (Holi colours, Diwali diyas / crackers). Send your TO-DO lists for more.

@@ -4,8 +4,8 @@
 import * as THREE from 'three';
 
 import { makeAnimal } from './creatures.js';
-export const VEHICLE_TYPES = ['car', 'taxi', 'police_jeep', 'ambulance', 'auto', 'van', 'bike', 'scooter', 'cycle', 'horse'];
-const OPEN = new Set(['bike', 'scooter', 'cycle', 'horse']);
+export const VEHICLE_TYPES = ['car', 'taxi', 'police_jeep', 'ambulance', 'auto', 'van', 'bike', 'scooter', 'cycle', 'horse', 'boat', 'train'];
+const OPEN = new Set(['bike', 'scooter', 'cycle', 'horse', 'boat']);
 
 function shapeOf(pts, holes = []) {
   const s = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
@@ -82,15 +82,43 @@ function makeOpen(type, color, grad) {
     const sd = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.09, 0.26), seatM); sd.position.set(-0.32, 0.86, 0); g.add(sd); const guard = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.24), body); guard.position.set(-0.72, 0.72, 0); guard.rotation.z = -0.25; g.add(guard);
     tube(dark, 0.03, -0.68, r, -0.1, 0.62); tube(steel, 0.03, 0.68, r, 0.45, 1.0); tube(dark, 0.022, 0.36, 1.05, 0.56, 1.08); const hl = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 14), new THREE.MeshBasicMaterial({ color: 0xfff3c4, toneMapped: false })); hl.rotation.z = Math.PI / 2; hl.position.set(0.55, 0.95, 0); g.add(hl);
     seats = [[-0.2, 0.9], [-0.58, 0.92]]; len = 2.05; top = 1.1; }
+  else if (type === 'boat') { const hull = new THREE.Shape([[-1.6, 0.55], [-1.3, 0.05], [1.2, 0.05], [1.75, 0.6], [1.5, 0.62], [-1.4, 0.6]].map(([x, y]) => new THREE.Vector2(x, y)));
+    const geo = new THREE.ExtrudeGeometry(hull, { depth: 0.9, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.03, bevelSegments: 2 }); geo.translate(0, 0, -0.45); g.add(new THREE.Mesh(geo, toon(color || '#8b5a32')));
+    const band = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.08, 0.95), toon('#f2c418')); band.position.set(0.05, 0.5, 0); band.userData.outlineParameters = { visible: false }; g.add(band);
+    seats = [[0.35, 0.42], [-0.55, 0.42]]; len = 3.3; top = 0.62; r = 0.3; }
   else { horse = makeAnimal('horse', 7, { grad, color: color || '#f3f1ec' }); g.add(horse.group);
     const cloth = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.74), toon('#c0283a')); cloth.position.set(-0.05, horse.back - 0.12, 0); g.add(cloth);
     const trim = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.06, 0.76), toon('#e8b923')); trim.position.set(-0.05, horse.back - 0.36, 0); trim.userData.outlineParameters = { visible: false }; g.add(trim);
     seats = [[-0.05, horse.back + 0.05]]; len = horse.len; top = horse.height; }
   return { type, group: g, wheels, lights: [], door: null, len, top, seats, wheelR: r, doorX: seats[0][0], open: true,
-    set(t, { spin = 0, moving = 0 } = {}) { for (const w of wheels) w.rotation.z = -spin / r; if (horse) horse.set(t, { phase: spin * 2.6, moving, run: 0 }); } };
+    set(t, { spin = 0, moving = 0 } = {}) { for (const w of wheels) w.rotation.z = -spin / r; if (horse) horse.set(t, { phase: spin * 2.6, moving, run: 0 }); if (type === 'boat') g.rotation.z = Math.sin(t * 1.4) * 0.025; } , sitPose: type === 'boat', floatY: type === 'boat' ? -0.22 : 0 };
+}
+
+// passenger train: engine + 3 coaches, windows with people visible, seats inside; drives in, stops, leaves
+function makeTrain(color, grad) {
+  const g = new THREE.Group(); const toon = (c) => new THREE.MeshToonMaterial({ color: new THREE.Color(c), gradientMap: grad });
+  const body = color || '#1d5fa8', roof = '#c9ccd4'; const D = 2.8; const wheels = []; const seats = []; const doors = [];
+  const ext = (shape, depth, mat, x = 0) => { const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 1 }); geo.translate(x, 0, -depth / 2); const m = new THREE.Mesh(geo, mat); g.add(m); return m; };
+  const P = (pts) => pts.map(([x, y]) => new THREE.Vector2(x, y));
+  const coach = (x0, len) => { const s = new THREE.Shape(P([[x0, 0.9], [x0 + len, 0.9], [x0 + len, 3.6], [x0, 3.6]]));
+    for (let i = 0; i < 4; i++) { const wx = x0 + 1.1 + i * ((len - 2.2) / 4); s.holes.push(new THREE.Path(P([[wx, 2.0], [wx + 1.1, 2.0], [wx + 1.1, 2.9], [wx, 2.9]]))); seats.push([wx + 0.55, 1.55]); }
+    ext(s, D, toon(body)); const r = new THREE.Mesh(new THREE.BoxGeometry(len + 0.1, 0.25, D + 0.1), toon(roof)); r.position.set(x0 + len / 2, 3.7, 0); g.add(r);
+    const st = new THREE.Mesh(new THREE.BoxGeometry(len, 0.18, 0.03), toon('#f2c418')); st.position.set(x0 + len / 2, 1.45, D / 2 + 0.06); st.userData.outlineParameters = { visible: false }; g.add(st);
+    const fl = new THREE.Mesh(new THREE.BoxGeometry(len * 0.95, 0.1, D * 0.8), toon('#2a2a30')); fl.position.set(x0 + len / 2, 1.2, 0); g.add(fl);
+    const dr = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.3, 0.05), toon('#14467e')); dr.position.set(x0 + 0.55, 2.05, D / 2 + 0.06); g.add(dr); doors.push(x0 + 0.55);
+    for (const wx of [x0 + 1.2, x0 + 2.2, x0 + len - 2.2, x0 + len - 1.2]) { const w = new THREE.Group(); w.position.set(wx, 0.42, D / 2 - 0.2); const ty = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.2, 16), toon('#2a2a2e')); ty.rotation.x = Math.PI / 2; w.add(ty); const sp = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.06, 0.22), toon('#8a8d96')); sp.userData.outlineParameters = { visible: false }; w.add(sp); g.add(w); wheels.push(w); } };
+  // engine
+  const eng = new THREE.Shape(P([[0, 0.9], [7.2, 0.9], [8.0, 1.6], [8.0, 3.0], [7.2, 3.6], [0, 3.6]])); eng.holes.push(new THREE.Path(P([[5.6, 2.2], [6.9, 2.2], [6.9, 3.0], [5.6, 3.0]]))); ext(eng, D, toon('#c0283a'));
+  const er = new THREE.Mesh(new THREE.BoxGeometry(7.3, 0.25, D + 0.1), toon(roof)); er.position.set(3.6, 3.7, 0); g.add(er); const hl = new THREE.Mesh(new THREE.CircleGeometry(0.22, 16), new THREE.MeshBasicMaterial({ color: 0xfff3c4, toneMapped: false })); hl.position.set(8.02, 2.4, 0); hl.rotation.y = Math.PI / 2; g.add(hl);
+  for (const wx of [1.2, 2.4, 5.2, 6.4]) { const w = new THREE.Group(); w.position.set(wx, 0.42, D / 2 - 0.2); const ty = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.2, 16), toon('#2a2a2e')); ty.rotation.x = Math.PI / 2; w.add(ty); g.add(w); wheels.push(w); }
+  for (let i = 0; i < 3; i++) coach(-8.7 * (i + 1), 8.4);
+  g.children.forEach((m) => { m.position.x -= 0; });
+  return { type: 'train', group: g, wheels, lights: [], door: null, len: 34.8, top: 3.8, seats, wheelR: 0.42, doorX: doors[0], floor: 1.25, doors,
+    set(t, { spin = 0 } = {}) { for (const w of wheels) w.rotation.z = -spin / 0.42; } };
 }
 
 export function makeVehicle(type, color, grad) {
+  if (type === 'train') return makeTrain(color, grad);
   if (OPEN.has(type)) return makeOpen(type, color, grad);
   const sp = (SPEC[type] || SPEC.car)(); const look = LOOK[type] || LOOK.car;
   const g = new THREE.Group(); const toon = (c, extra = {}) => new THREE.MeshToonMaterial({ color: new THREE.Color(c), gradientMap: grad, ...extra });
