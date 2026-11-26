@@ -90,11 +90,18 @@
    "present": [
     "sunita",
     "kallu",
-    "vikram"
+    "vikram",
+    "pandey"
    ],
    "summary": "Pickpocket in the market, chase and catch.",
    "seconds": 40,
    "beats": [
+    {
+     "type": "action",
+     "action": "crowd",
+     "mood": "walk",
+     "count": 4
+    },
     {
      "type": "line",
      "char": "sunita",
@@ -133,6 +140,12 @@
      "action": "shock"
     },
     {
+     "type": "action",
+     "action": "crowd",
+     "mood": "watch",
+     "count": 4
+    },
+    {
      "type": "line",
      "char": "sunita",
      "emotion": "scared",
@@ -143,7 +156,23 @@
     {
      "type": "action",
      "char": "vikram",
-     "action": "enter"
+     "action": "drive_in",
+     "vehicle": "police_jeep",
+     "with": [
+      "pandey"
+     ]
+    },
+    {
+     "type": "action",
+     "char": "vikram",
+     "action": "get_out",
+     "vehicle": "police_jeep"
+    },
+    {
+     "type": "action",
+     "char": "pandey",
+     "action": "get_out",
+     "vehicle": "police_jeep"
     },
     {
      "type": "line",
@@ -152,6 +181,12 @@
      "hindi": "रुक जा! पांडे, पकड़ो उसे!",
      "hinglish": "Ruk ja! Pandey, pakdo use!",
      "english": "Stop! Pandey, catch him!"
+    },
+    {
+     "type": "action",
+     "action": "animal",
+     "animal": "dog",
+     "act": "bark"
     },
     {
      "type": "action",
@@ -224,8 +259,27 @@
     },
     {
      "type": "action",
+     "char": "kallu",
+     "action": "get_in",
+     "vehicle": "police_jeep"
+    },
+    {
+     "type": "action",
      "char": "pandey",
-     "action": "exit"
+     "action": "get_in",
+     "vehicle": "police_jeep"
+    },
+    {
+     "type": "action",
+     "char": "vikram",
+     "action": "get_in",
+     "vehicle": "police_jeep"
+    },
+    {
+     "type": "action",
+     "char": "vikram",
+     "action": "drive_away",
+     "vehicle": "police_jeep"
     }
    ]
   },

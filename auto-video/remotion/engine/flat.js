@@ -8,6 +8,7 @@ const SKINS = ['#f1c79a', '#e5b07e', '#d79d6c', '#f6d2b0', '#c98d5e', '#eab98c']
 const hash = (s) => { let h = 2166136261; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return (h >>> 0) / 4294967295; };
 const mat = (c) => { const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(c), side: THREE.DoubleSide }); m.userData.outlineParameters = { visible: false }; return m; };
 const INK = '#16161c';
+const shade = (c, k = 0.72) => { const x = new THREE.Color(c); x.multiplyScalar(k); return '#' + x.getHexString(); }; // far-side limbs are a little darker
 
 function rrect(w, h, r) { const s = new THREE.Shape(); const x = -w / 2, y = -h / 2; r = Math.min(r, w / 2, h / 2);
   s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s; }
@@ -45,13 +46,13 @@ export function createFlatActor(scene, ch) {
     if (foot) { const f = pill(0.13 * k, 0.07 * k, INK, 0.0, 0.001, 0.03 * k); f.position.set(0.035 * k, -0.015, 0); end.add(f); } else { const hnd = circle(0.045 * k, handColor, 0.014, 0.002); end.add(hnd); }
     return { top, knee, end }; };
   const legColor = O.robe ? INK : O.legs !== INK ? O.legs : fem ? '#3b3b48' : ch.bottom_color || '#2f3a4f'; const lw = 0.068 * k;
-  const legB = mkLimb(thigh, shin, lw, legColor, -0.03, null, true), legF = mkLimb(thigh, shin, lw, legColor, 0.03, null, true);
+  const legB = mkLimb(thigh, shin, lw, shade(legColor, 0.68), -0.03, null, true), legF = mkLimb(thigh, shin, lw, legColor, 0.03, null, true);
   legB.top.position.set(-0.05 * k, hipY, -0.03); legF.top.position.set(0.05 * k, hipY, 0.03); body.add(legB.top, legF.top);
   const armW = 0.056 * k; const sleeve = O.coat || O.top;
   const armB = mkLimb(armU, armL, armW, O.robe ? INK : INK, -0.05, skin, false), armF = mkLimb(armU, armL, armW, INK, 0.06, skin, false);
   const shX = torsoW * 0.42; armB.top.position.set(-shX, chestY - 0.06 * k, -0.05); armF.top.position.set(shX, chestY - 0.06 * k, 0.06); body.add(armB.top, armF.top);
   // sleeves (short coloured part at the shoulder)
-  for (const arm of [armB, armF]) { const sl = bar(armW * 2.1, armU * 0.55, sleeve, 0.003); sl.position.y = -armU * 0.25; arm.top.add(sl); }
+  for (const arm of [armB, armF]) { const sl = bar(armW * 2.1, armU * 0.55, arm === armB ? shade(sleeve, 0.8) : sleeve, 0.003); sl.position.y = -armU * 0.25; arm.top.add(sl); }
   // torso
   const torso = new THREE.Group(); torso.position.set(0, hipY + torsoH / 2 - 0.01, 0); body.add(torso);
   const tH = O.robe ? torsoH + legLen * 0.55 : torsoH; const tY = O.robe ? -legLen * 0.27 : 0;
@@ -74,6 +75,7 @@ export function createFlatActor(scene, ch) {
   if (fem && (kid || old)) { const bun = circle(headR * 0.42, hairC, 0.015, -0.025); bun.position.set(-headR * 0.75, headR * 0.6, 0); back.add(bun); }
   const skull = circle(headR, skin, 0.022, 0); head.add(skull);
   const face = new THREE.Group(); face.position.z = 0.01; head.add(face);
+  const nose = circle(headR * 0.16, skin, 0.014, -0.004); nose.position.set(headR * 0.97, -headR * 0.05, 0); nose.visible = false; head.add(nose); a._nose = nose; // shows only in side view
   const eyes = [], lids = []; for (const dx of [-0.38, 0.38]) { const e = new THREE.Mesh(new THREE.CircleGeometry(0.03 * k, 18), mat(INK)); e.position.set(dx * headR, 0.04 * k, 0.004); face.add(e); eyes.push(e);
     const lid = new THREE.Mesh(new THREE.PlaneGeometry(0.075 * k, 0.07 * k), mat(skin)); lid.position.set(dx * headR, 0.075 * k, 0.006); lid.scale.y = 0.01; face.add(lid); lids.push(lid); }
   const brows = [-0.38, 0.38].map((dx) => { const b = bar(0.07 * k, 0.016 * k, INK, 0.007); b.position.set(dx * headR, 0.115 * k, 0); face.add(b); return b; });
@@ -168,11 +170,11 @@ export function poseFlat(a, t, st) {
   const sit = st.sit || 0, ride = st.ride || 0; let hipF = 0, hipB = 0, kneeF = 0, kneeB = 0;
   const seat = Math.max(sit, ride);
   // gait with planted feet: each foot stays on the ground while the body passes over it (no sliding), then swings forward with a lift
-  let drop = 0, gaitP = 0, gait = false;
+  let drop = 0, gaitP = 0, gait = false, rollF = 0, rollB = 0;
   if (moving && seat < 0.5 && !st.lie) { gait = true; const run = r > 0; const L = (run ? 1.75 : 1.05) * k, sF = run ? 0.36 : 0.62, S = sF * L, lift = (run ? 0.17 : 0.075) * k; const legL = P.thigh + P.shin;
     gaitP = (((dist / L) + (a.id.length % 7) * 0.13) % 1 + 1) % 1;
     const foot = (u) => { u = ((u % 1) + 1) % 1; if (u < sF) return { x: S / 2 - (u / sF) * S, y: 0, st: true }; const v = (u - sF) / (1 - sF); const e = v * v * (3 - 2 * v); return { x: -S / 2 + e * S, y: lift * Math.sin(Math.PI * v), st: false }; };
-    const fF = foot(gaitP), fB = foot(gaitP + 0.5); const reach = legL * 0.985; let hh = Infinity;
+    const fF = foot(gaitP), fB = foot(gaitP + 0.5); const roll = (u) => { u = ((u % 1) + 1) % 1; if (u < 0.14) return 0.32 * (1 - u / 0.14); if (u < sF && u > sF - 0.16) return -0.55 * ((u - (sF - 0.16)) / 0.16); if (u >= sF) { const v = (u - sF) / (1 - sF); return -0.55 * (1 - Math.min(1, v * 3)) + 0.18 * Math.sin(Math.PI * v); } return 0; }; rollF = roll(gaitP); rollB = roll(gaitP + 0.5); const reach = legL * 0.985; let hh = Infinity;
     for (const f of [fF, fB]) if (f.st) hh = Math.min(hh, Math.sqrt(Math.max(0.01, reach * reach - f.x * f.x)));
     if (hh === Infinity) hh = reach + lift * 0.35; // both feet in the air (running)
     hh = Math.min(hh, legL); drop = legL - hh; const ank = 0.03 * k;
@@ -183,7 +185,7 @@ export function poseFlat(a, t, st) {
   if (g.kick) { hipF = -0.5 + 1.8 * g.kick; kneeF = -0.9 * (1 - g.kick); }
   if (st.lie) { hipF = hipB = kneeF = kneeB = 0; }
   P.legF.top.rotation.z = hipF; P.legF.knee.rotation.z = kneeF; P.legB.top.rotation.z = hipB; P.legB.knee.rotation.z = kneeB;
-  P.legF.end.rotation.z = seat > 0.5 ? 0 : -(hipF + kneeF); P.legB.end.rotation.z = seat > 0.5 ? 0 : -(hipB + kneeB); // soles stay flat
+  P.legF.end.rotation.z = seat > 0.5 ? 0 : -(hipF + kneeF) + rollF; P.legB.end.rotation.z = seat > 0.5 ? 0 : -(hipB + kneeB) + rollB; // soles stay flat
   // body bob / lean / sit drop
   P.body.position.y = gait ? -drop : 0; P.body.position.y -= seat * (P.thigh * 0.95) + (g.crouch || 0) * k; P.body.rotation.z = -(g.lean + (moving ? (r ? 0.14 : 0.04) : 0) + (st.struggle ? Math.sin(t * 13) * 0.08 * st.struggle : 0));
   // arms: IK to targets, or swing / hang
@@ -199,7 +201,9 @@ export function poseFlat(a, t, st) {
   if (st.holdF) F = toSh(st.holdF); if (st.holdB) B = toSh(st.holdB);
   arm('F', F); arm('B', B);
   // head: tilt, nod, look; face
-  P.head.rotation.z = -(g.tilt || 0) + (st.talk ? Math.sin(t * 4.1) * 0.04 * st.talk : 0);
+  P.head.rotation.z = -(g.tilt || 0) + (st.talk ? Math.sin(t * 4.1) * 0.04 * st.talk : 0) + (gait ? Math.sin(gaitP * Math.PI * 4) * (r ? 0.05 : 0.03) : 0);
+  P.head.position.y = P.headY + (gait ? -Math.cos(gaitP * Math.PI * 4) * 0.008 * k : 0); P.torso.rotation.z = gait ? Math.sin(gaitP * Math.PI * 2) * 0.035 : 0;
+  const side = face !== 0 && !back; if (a._nose) a._nose.visible = side; P.face.position.x = side ? P.headR * 0.16 : 0;
   const emo = g.face || st.emotion || 'neutral';
   const per = 3.3 + a.id.length * 0.31, q = (t + a.id.length * 1.7) % per; const blink = emo === 'sleep' || g.sipping ? 1 : q < 0.14 ? 1 - Math.abs(q - 0.07) / 0.07 : 0;
   const look = g.look != null ? g.look : face === 0 ? 0 : 0.45; for (const e of P.eyes) e.position.x = (e.position.x > 0 ? 0.38 : -0.38) * P.headR + look * 0.07 * k;

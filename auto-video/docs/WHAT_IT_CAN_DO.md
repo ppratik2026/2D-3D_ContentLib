@@ -105,7 +105,16 @@ Pick **Style → Flat 2D Explainer** for YouTube-explainer cartoons: big round h
 | put_down | the person puts the cup away |
 | door place + exit | the person walks into the door, seen from behind |
 
-In the over-the-shoulder shots of this style, the listener is drawn from behind (back of the head and shoulders).
+In the over-the-shoulder shots of this style, the listener is drawn from behind (back of the head and shoulders). The real background stays sharp behind them, cropped around the people talking (no blur).
+
+- **Walking in detail:**
+  - the heel touches first and the toes push off;
+  - the far-side arm and leg are a little darker, so you can see which leg is in front;
+  - the head bobs and the shoulders swing;
+  - in side view the face shows a small nose and turns towards the walking direction.
+- **At a table:** people sitting at a table face each other and look at whoever speaks.
+- **Crowd:** the crowd is drawn as the same flat people. They dance, cheer, clap, point, watch or walk past.
+- **Vehicles, animals and props** are drawn in flat colours with dark outlines.
 
 ## Cinematic camera (v1.5)
 

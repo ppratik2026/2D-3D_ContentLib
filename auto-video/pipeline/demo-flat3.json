@@ -240,6 +240,12 @@
     },
     {
      "type": "action",
+     "action": "crowd",
+     "mood": "walk",
+     "count": 5
+    },
+    {
+     "type": "action",
      "char": "gurpreet",
      "action": "escort",
      "target": "bunty"
