@@ -2,6 +2,7 @@
 // Each background knows where feet stand (near row / far row), how tall a character is, and optional seats.
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { PUBLIC } from './paths.mjs';
 
 export const BG_DIR = path.join(PUBLIC, 'backgrounds');
@@ -17,11 +18,13 @@ export const PLACES = {
 };
 const meta = (id) => path.join(BG_DIR, id, 'background.json');
 // starter backgrounds shipped with the app (flat explainer set): copied once; deleting one later keeps it deleted
-{ const src = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'starter', 'backgrounds'); const done = path.join(BG_DIR, '.starter.json');
+export function seedStarter() { const src = path.join(path.dirname(fileURLToPath(import.meta.url)), 'starter', 'backgrounds'); /* fileURLToPath: works with spaces in the install folder */ const done = path.join(BG_DIR, '.starter.json');
   try { const seen = fs.existsSync(done) ? JSON.parse(fs.readFileSync(done, 'utf8')) : []; let changed = false;
     for (const id of fs.existsSync(src) ? fs.readdirSync(src) : []) { if (seen.includes(id)) continue; if (!fs.existsSync(path.join(BG_DIR, id))) fs.cpSync(path.join(src, id), path.join(BG_DIR, id), { recursive: true }); seen.push(id); changed = true; }
     if (changed) fs.writeFileSync(done, JSON.stringify(seen)); } catch (e) { console.warn('starter backgrounds:', e.message); } }
+seedStarter();
 export function listBackgrounds() {
+  if (!fs.readdirSync(BG_DIR).some((d) => d.startsWith('bg_'))) seedStarter(); // nothing yet: copy the ready-made set
   const out = [];
   for (const id of fs.readdirSync(BG_DIR)) { try { out.push(JSON.parse(fs.readFileSync(meta(id), 'utf8'))); } catch {} }
   return out.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
