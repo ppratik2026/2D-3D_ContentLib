@@ -89,3 +89,7 @@ details summary{cursor:pointer;margin:10px 0}
 .castc select{width:100%}
 
 .row.top{align-items:flex-start}
+
+.cmrows{display:grid;gap:6px;margin:10px 0;max-height:60vh;overflow:auto}
+.cmrow{display:grid;grid-template-columns:34px 1.1fr 1.3fr .7fr 1.4fr 34px;gap:6px;align-items:center}
+.cmrow input,.cmrow select{margin:0}.cmrow .x{padding:4px 8px}

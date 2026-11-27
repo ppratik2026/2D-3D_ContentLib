@@ -51,9 +51,33 @@ async function add(start) {
   if (mode2 === 'mine') { o.myStory = $('#myStory').value.trim(); o.idea = ''; o.count = 1; if (!o.myStory && mode !== 'paste' && mode !== 'demo') { $('#storyInfo').className = 'small warn'; $('#storyInfo').textContent = 'Paste your story first.'; return; } }
   if (mode === 'paste') { if (!pasteOk) { $('#pasteMsg').className = 'small warn'; $('#pasteMsg').textContent = 'Paste Gemini\'s answer first.'; return; } o.pasted = $('#pasted').value; }
   if (mode === 'api' && !S?.hasKey) { $('#keyWarn').hidden = false; return; }
+  if ($('#reviewCast').checked && mode === 'api' && mode2 !== 'mine') { // AI plans the characters → the user checks them → then the script
+    const many = FMT === 'series' ? +o.count > 1 : (mode2 === 'find' ? o.topics.length : +o.count) > 1;
+    if (many) { if (!confirm('Checking characters works for one video at a time. Make just the first one now?')) return; o.count = 1; if (FMT !== 'series') o.topics = o.topics.slice(0, 1); }
+    const plan = await castReview(o); if (!plan) return; Object.assign(o, plan); }
   renderQueue(await api.call('queue:add', o)); if (mode === 'paste') { $('#pasted').value = ''; $('#pasteMsg').textContent = ''; pasteOk = false; } $('[data-tab=queue]').click();
 }
 $('#addQ').onclick = () => add(false); $('#addStart').onclick = () => add(true);
+// ---------- character check before the script ----------
+let cmRows = [], cmDone = null;
+function cmDraw() { const opt = (sel) => '<option value="">New character</option>' + CAST.map((c) => `<option value="${esc(c.id)}"${c.id === sel ? ' selected' : ''}>Saved: ${esc(c.name)}${c.role ? ' — ' + esc(c.role) : ''}</option>`).join('');
+  $('#cmRows').innerHTML = `<div class="cmrow small muted"><span>Main</span><span>Name</span><span>Role in the story</span><span>Gender · age</span><span>Played by</span><span></span></div>` + cmRows.map((c, i) => `<div class="cmrow" data-i="${i}"><input type="checkbox" data-k="main"${c.main ? ' checked' : ''} title="main character"><input data-k="name" value="${esc(c.name)}"><input data-k="role" value="${esc(c.role)}">
+    <select data-k="ga"><option value="male|young"${c.gender === 'male' && c.age === 'young' ? ' selected' : ''}>Man · young</option><option value="male|adult"${c.gender === 'male' && c.age === 'adult' ? ' selected' : ''}>Man · adult</option><option value="male|old"${c.gender === 'male' && c.age === 'old' ? ' selected' : ''}>Man · old</option><option value="male|child"${c.gender === 'male' && c.age === 'child' ? ' selected' : ''}>Boy</option><option value="female|young"${c.gender === 'female' && c.age === 'young' ? ' selected' : ''}>Woman · young</option><option value="female|adult"${c.gender === 'female' && c.age === 'adult' ? ' selected' : ''}>Woman · adult</option><option value="female|old"${c.gender === 'female' && c.age === 'old' ? ' selected' : ''}>Woman · old</option><option value="female|child"${c.gender === 'female' && c.age === 'child' ? ' selected' : ''}>Girl</option></select>
+    <select data-k="castId">${opt(c.castId)}</select><button class="ghost x" data-k="del" title="remove">✕</button></div>`).join(''); }
+$('#cmRows').oninput = (e) => { const r = e.target.closest('.cmrow'); if (!r?.dataset.i) return; const c = cmRows[+r.dataset.i]; const k = e.target.dataset.k;
+  if (k === 'main') c.main = e.target.checked; else if (k === 'ga') [c.gender, c.age] = e.target.value.split('|'); else if (k === 'castId') { c.castId = e.target.value || null; const sv = CAST.find((x) => x.id === c.castId); if (sv) { c.name = sv.name; c.gender = sv.gender || c.gender; c.age = sv.age || c.age; cmDraw(); } } else if (k) c[k] = e.target.value; };
+$('#cmRows').onclick = (e) => { if (e.target.dataset.k !== 'del') return; cmRows.splice(+e.target.closest('.cmrow').dataset.i, 1); cmDraw(); };
+$('#cmAdd').onclick = () => { cmRows.push({ id: 'new' + Date.now().toString(36).slice(-4), name: '', role: '', gender: 'male', age: 'adult', main: false }); cmDraw(); };
+$('#cmCancel').onclick = () => { $('#castModal').hidden = true; cmDone?.(null); };
+$('#cmOk').onclick = () => { const rows = cmRows.filter((c) => c.name.trim()); if (!rows.length) { $('#cmLog').className = 'small warn'; $('#cmLog').textContent = 'Keep at least one character.'; return; }
+  $('#castModal').hidden = true; cmDone?.({ castPlan: rows.map((c) => ({ ...c, name: c.name.trim(), role: c.role.trim() })) }); };
+window.AVCastPreview = async (rows, title) => { CAST = await api.call('cast:list'); cmRows = rows; $('#cmTitle').textContent = title; cmDraw(); $('#castModal').hidden = false; }; // dev screenshots
+async function castReview(o) {
+  $('#cmTitle').textContent = 'AI is planning the story and its characters…'; $('#cmLog').className = 'small muted'; $('#cmLog').textContent = ''; $('#cmRows').innerHTML = '<div class="spin"></div>'; $('#castModal').hidden = false; $('#cmOk').disabled = true;
+  CAST = await api.call('cast:list'); const r = await api.call('story:cast', o); $('#cmOk').disabled = false;
+  if (!r.ok) { $('#cmTitle').textContent = 'Could not plan the characters'; $('#cmLog').className = 'small warn'; $('#cmLog').textContent = r.msg; $('#cmRows').innerHTML = ''; $('#cmOk').disabled = true; return new Promise((ok) => (cmDone = ok)); }
+  $('#cmTitle').textContent = r.title || 'Characters of this story'; $('#cmLog').textContent = r.logline || ''; cmRows = r.characters.map((c) => ({ ...c, castId: c.castId || null })); cmDraw();
+  const res = await new Promise((ok) => (cmDone = ok)); return res && { ...res, planTitle: r.title, planLogline: r.logline }; }
 // ---------- format, series, topics, language, backgrounds, characters, subtitles ----------
 let FMT = 'single', LANG = 'hinglish', BGM = 'existing', SUBSON = true, TOPICS = [], topicSel = new Set(), CAST = [], castSel = new Set(), SERIES = [];
 const chipGroup = (sel, key, set) => { $(sel).onclick = (e) => { const c = e.target.closest('.chip'); if (!c) return; $$(sel + ' .chip').forEach((x) => x.classList.toggle('on', x === c)); set(c.dataset[key]); }; };

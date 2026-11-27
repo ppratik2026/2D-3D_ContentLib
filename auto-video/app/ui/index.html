@@ -47,7 +47,7 @@
         <div class="row">
           <div><h3>3. Minutes</h3><div class="range"><input type="range" id="min" min="0.5" max="20" step="0.5" value="2"><b id="minv">2 min</b></div></div>
           <div><h3>Number of videos</h3><input type="number" id="count" min="1" max="20" value="1"></div>
-          <div><h3>Characters</h3><select id="chars"><option value="auto">Auto (by length)</option><option value="2 to 3">2–3</option><option value="3 to 5">3–5</option><option value="5 to 8">5–8</option><option value="8 to 12">8–12</option></select></div>
+          <div><h3>Characters in the story</h3><select id="chars"><option value="auto">Auto (by length)</option><option value="exactly 1">1</option><option value="exactly 2">2</option><option value="exactly 3">3</option><option value="exactly 4">4</option><option value="exactly 5">5</option><option value="exactly 6">6</option><option value="exactly 7">7</option><option value="exactly 8">8</option><option value="exactly 9">9</option><option value="exactly 10">10</option><option value="2 to 3">2–3</option><option value="3 to 5">3–5</option><option value="5 to 8">5–8</option><option value="8 to 12">8–12</option></select></div>
         </div>
         <div class="row top">
           <div><h3>Language</h3><div class="chips" id="lang"><span class="chip" data-l="hindi">हिंदी Hindi</span><span class="chip on" data-l="hinglish">Hinglish</span><span class="chip" data-l="english">English</span></div><div id="langNote" class="small muted"></div></div>
@@ -57,6 +57,7 @@
         <div class="row top"><label>Main character (hero)<select id="leadSel"><option value="">AI creates one for this genre</option></select></label><label>Main characters (big roles)<select id="mainsSel"><option value="0">Auto</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label></div>
         <div class="small muted">Also use these saved characters (click to pick). Everyone not picked is created by the AI to fit the genre and saved to your library after the video.</div>
         <div id="castPick" class="chips cast"></div>
+        <label class="check"><input type="checkbox" id="reviewCast" checked> Show me the characters first (AI plans the story and its characters → I check, swap or add them → then the script is written)</label>
         <div class="row">
           <div><h3>4. Style</h3><select id="style"></select></div>
           <div><h3>5. Look</h3><select id="look"></select></div>
@@ -271,6 +272,12 @@
   <div class="muted small">Uploads your Backgrounds, your own Characters (with voices and tags) and the <b>data\shared</b> folder. Every PC gets them with "Update data" (and automatically when the app starts). Only changed files are uploaded.</div>
   <div class="row"><input id="adNote" placeholder="What changed? (optional)"><button id="adPublish" class="primary" type="button">Publish my data</button></div>
   <div class="bar" id="adBarWrap" hidden><div id="adBar"></div></div><div id="adMsg" class="small"></div>
+</div></div>
+<div id="castModal" class="modal" hidden><div class="card wide">
+  <h3 id="cmTitle">Characters of this story</h3><div id="cmLog" class="small muted"></div>
+  <div class="small muted">Change a name or role, swap in a saved character (same look and voice as before), tick the main characters (the first ticked one is the hero), remove or add characters. The script is written with exactly these people.</div>
+  <div id="cmRows" class="cmrows"></div>
+  <div class="btns"><button id="cmAdd" class="ghost" type="button">+ Add character</button><span style="flex:1"></span><button id="cmCancel" class="ghost" type="button">Cancel</button><button id="cmOk" class="primary" type="button">Write the script &amp; add to queue</button></div>
 </div></div>
 <div id="player" class="modal" hidden><div class="card wide"><video id="playerVideo" controls></video><div class="btns"><button id="playerClose" class="ghost">Close</button></div></div></div>
 

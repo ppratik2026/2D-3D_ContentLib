@@ -47,7 +47,10 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   const language = ['hindi', 'hinglish', 'english'].includes(opts.language) ? opts.language : 'hinglish'; const vlang = language === 'english' ? 'en' : 'hi';
   const series = opts.seriesId ? seriesContext(opts.seriesId) : null; const bgMode = opts.bgMode === 'new' && isStage ? 'new' : 'existing';
   const plan = { lead: opts.leadId || null, mains: Math.max(0, Math.min(6, Number(opts.mains) || 0)) };
-  const fixed = [...(series?.characters || []), ...getCast([...(opts.leadId ? [opts.leadId] : []), ...(opts.castIds || [])]).map(toStoryChar)].filter((c, i, a) => a.findIndex((x) => x.id === c.id) === i);
+  const castPlan = Array.isArray(opts.castPlan) && opts.castPlan.length ? opts.castPlan : null; /* characters the user checked after the AI planned them */
+  const fixed = castPlan ? castPlan.map((c) => { const saved = c.castId && getCast([c.castId])[0]; const base = saved ? { ...toStoryChar(saved), role: c.role || saved.role } : { id: c.id, name: c.name, gender: c.gender, age: c.age, role: c.role, personality: c.personality, look: c.look, hat: c.hat, top_color: c.top_color, bottom_color: c.bottom_color, hair_color: c.hair_color };
+      if (!saved && c.name) base.name = c.name; return Object.fromEntries(Object.entries(base).filter(([, v]) => v != null && v !== '')); }) : [...(series?.characters || []), ...getCast([...(opts.leadId ? [opts.leadId] : []), ...(opts.castIds || [])]).map(toStoryChar)].filter((c, i, a) => a.findIndex((x) => x.id === c.id) === i);
+  if (castPlan) { const mains = castPlan.filter((c) => c.main); plan.only = true; plan.mains = mains.length || plan.mains; const lead = mains[0] || castPlan[0]; plan.lead = fixed[castPlan.indexOf(lead)]?.id || null; if (opts.planTitle && !opts.idea) opts.idea = `${opts.planTitle}. ${opts.planLogline || ''}`; }
   if (series) step('plan', `Series "${series.title}" · episode ${series.episode} · ${series.characters.length} saved characters`);
   if (vlang === 'en' && !englishReady()) { stage('story', 0, 1, 'Downloading English voices (one time, ~130 MB)'); await ensureEnglish((p) => stage('story', p.index, p.count, `English voices: ${p.label}${p.total > 1 ? ' ' + Math.round((p.got / p.total) * 100) + '%' : ''}`)); }
 

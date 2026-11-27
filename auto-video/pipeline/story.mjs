@@ -21,6 +21,7 @@ export const sys = (language = 'hinglish') => `${SYSTEM}\n${LANG_RULE[language] 
 function castRule(fixed = [], plan = {}) { const lead = plan.lead && fixed.find((c) => c.id === plan.lead || c.castId === plan.lead);
   const roles = `${lead ? `\nThe MAIN character (the hero the story follows from start to end) is ${lead.name} (id "${lead.id}").` : plan.mains ? '\nCreate the main character (the hero) yourself so that it fits the genre.' : ''}${plan.mains ? `\nThe story has exactly ${plan.mains} main character${plan.mains > 1 ? 's' : ''} with big roles (the hero included); every other character is a small side role that the genre needs (e.g. crime: inspector, constable, witness; family drama: parents, relatives).` : ''}`;
   if (!fixed.length) return roles;
+  if (plan.only) return roles + `\nUse EXACTLY these characters (no other named characters; unnamed crowd is fine). Keep their ids, names, gender, age and role:\n${fixed.map((c) => `- ${JSON.stringify(Object.fromEntries(Object.entries(c).filter(([k]) => !['castId', 'voice'].includes(k))))}`).join('\n')}`;
   return roles + `\nUse these EXISTING characters with exactly these ids, names, gender, age and role (their look is fixed, copy their colours):\n${fixed.map((c) => `- ${JSON.stringify(Object.fromEntries(Object.entries(c).filter(([k]) => !['castId', 'voice'].includes(k))))}`).join('\n')}\nAdd new characters only when the story needs them (with new ids).`; }
 function seriesRule(se) { if (!se) return '';
   return `\nThis is EPISODE ${se.episode} of the series "${se.title}"${se.logline ? ` (${se.logline})` : ''}.${se.previous.length ? `\nStory so far:\n${se.previous.join('\n')}${se.lastEnding ? `\nThe last episode ended with: ${se.lastEnding}` : ''}\nContinue from there with NEW events (do not repeat old episodes); keep every character's name, personality and relationships.` : '\nStart the series: introduce the main characters and the big question of the series.'}\nEnd with a hook for the next episode. Also add to the JSON: "episode_summary":"3 sentences of what happened in this episode","next_hook":"one line: the open question for the next episode".`; }
@@ -327,4 +328,22 @@ export async function adaptStory({ text, category, minutes = 10, chain = [], act
   void ids;
   const j = keepCast(storyFromObject({ ...cast, scenes }, minutes), fixed); onProgress(total, total, 'Story ready');
   return { ...j, category, minutes, fromUser: true };
+}
+
+// Step 0 (optional): only the story idea and its characters, so the user can check / swap them before the script is written
+export async function planCast({ category, minutes = 2, idea = '', chain = [], language = 'hinglish', fixed = [], plan = {}, series = null, chars = 'auto', onLog = () => {} }) {
+  const cat = CATEGORIES[category] || CATEGORIES.drama; const nChars = chars === 'auto' ? (minutes >= 10 ? '6 to 10' : minutes >= 4 ? '4 to 7' : '2 to 5') : chars;
+  const user = `${sys(language)}
+
+Plan ${cat.hint} (about ${Math.round(minutes * 60)} seconds). Category: ${cat.label}.
+${idea ? `Idea / title: ${idea}` : 'Invent an original title and idea.'}
+Use ${nChars} characters with clearly different ages and roles.${castRule(fixed, plan)}${seriesRule(series)}
+Do NOT write the scenes yet. Reply with ONLY this JSON:
+{"title":"title","logline":"2 sentences: the story","characters":[{"id":"short_id","name":"name","gender":"male|female","age":"child|young|adult|old","role":"role in this story","main":true,"personality":"few words","look":"skin tone and hair","hat":"none|beanie|cap","top_color":"#hex","bottom_color":"#hex","hair_color":"#hex"}]}
+"main": true only for the hero and the other big roles.`;
+  const { value } = await askJSON(chain, { user, temperature: 0.9, onLog, validate: (j) => { if (!Array.isArray(j.characters) || !j.characters.length) throw new Error('no characters'); return j; } });
+  const ids = new Set();
+  value.characters = value.characters.slice(0, 12).map((c, i) => { let id = String(c.id || c.name || 'c' + i).toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16) || 'c' + i; while (ids.has(id)) id += i; ids.add(id);
+    return { ...c, id, name: String(c.name || id), gender: c.gender === 'female' ? 'female' : 'male', age: ['child', 'young', 'adult', 'old'].includes(c.age) ? c.age : 'adult', role: String(c.role || ''), main: !!c.main }; });
+  return { title: String(value.title || ''), logline: String(value.logline || ''), characters: value.characters };
 }
