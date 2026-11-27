@@ -16,6 +16,10 @@ import { mixAll } from './audio.mjs';
 import { estimate, fmt } from './estimate.mjs';
 import { actorsFor, assignActors, listCharacters } from './library.mjs';
 import { listBackgrounds, pickBackground } from './backgrounds.mjs';
+import { getCast, toStoryChar, saveFromStory } from './cast.mjs';
+import { seriesContext, addEpisode } from './series.mjs';
+import { makeStoryBackground } from './bgmake.mjs';
+import { englishReady, ensureEnglish } from './setup.mjs';
 
 export function loadEnv() {
   const f = path.join(ROOT, '.env'); if (!fs.existsSync(f)) return;
@@ -24,6 +28,7 @@ export function loadEnv() {
 const slug = (s) => String(s || '').normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').slice(0, 40) || 'video';
 export const newJobId = (category) => new Date().toISOString().replace(/[:T]/g, '-').replace(/\..*/, '') + '_' + (category || 'video');
 
+const chainKey = (opts) => opts.key || process.env.GEMINI_API_KEY || '';
 export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   loadEnv();
   const category = CATEGORIES[opts.category] ? opts.category : 'drama';
@@ -39,6 +44,11 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   const stage = (name, done, total, label) => report({ id, step: name, stage: { name, done, total, label }, msg: label, elapsed: (Date.now() - T.start) / 1000 });
   const check = () => { if (signal?.aborted) throw new Error('Cancelled'); };
   const est = estimate({ style, minutes, renderer }); step('plan', `Estimated total ${fmt(est.total)}`, { estimate: est });
+  const language = ['hindi', 'hinglish', 'english'].includes(opts.language) ? opts.language : 'hinglish'; const vlang = language === 'english' ? 'en' : 'hi';
+  const series = opts.seriesId ? seriesContext(opts.seriesId) : null; const bgMode = opts.bgMode === 'new' && isStage ? 'new' : 'existing';
+  const fixed = [...(series?.characters || []), ...getCast(opts.castIds || []).map(toStoryChar)].filter((c, i, a) => a.findIndex((x) => x.id === c.id) === i);
+  if (series) step('plan', `Series "${series.title}" · episode ${series.episode} · ${series.characters.length} saved characters`);
+  if (vlang === 'en' && !englishReady()) { stage('story', 0, 1, 'Downloading English voices (one time, ~130 MB)'); await ensureEnglish((p) => stage('story', p.index, p.count, `English voices: ${p.label}${p.total > 1 ? ' ' + Math.round((p.got / p.total) * 100) + '%' : ''}`)); }
 
   // 1. story
   let story;
@@ -48,8 +58,9 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
     let chain = opts.chain;
     if (!chain) { const key = opts.key || process.env.GEMINI_API_KEY; chain = key ? [{ provider: 'gemini', key, model: opts.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite' }] : []; }
     const bgList = isStage ? styleBgs().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [];
-    if (opts.myStory) story = await adaptStory({ text: opts.myStory, category, minutes, chain, backgrounds: bgList, actors: actorsFor(isStage ? 'toon' : style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
-    else story = await writeStory({ category, minutes, idea: opts.idea || '', chain, chars: opts.chars || 'auto', backgrounds: isStage ? styleBgs().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [],
+    if (opts.myStory) story = await adaptStory({ text: opts.myStory, category, minutes, chain, backgrounds: bgList, language, fixed, actors: actorsFor(isStage ? 'toon' : style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
+    const seriesBgs = series ? series.backgrounds.map((id) => listBackgrounds().find((b) => b.id === id)).filter(Boolean) : [];
+    if (!opts.myStory) story = await writeStory({ category, minutes, idea: opts.idea || '', chain, chars: opts.chars || 'auto', language, fixed, series, bgMode, backgrounds: bgMode === 'new' ? seriesBgs.map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags })) : isStage ? [...seriesBgs, ...styleBgs().filter((b) => !seriesBgs.includes(b))].map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [],
       actors: actorsFor(style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
   }
   check();
@@ -57,7 +68,15 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   const actorStyle = isStage ? 'toon' : style;
   const cast = assignActors(story.characters, actorStyle);
   let stageBgs = null;
-  if (isStage) { const all = styleBgs(); if (!all.length) throw new Error('2D Cartoon Stage needs backgrounds. Add some in the Backgrounds tab.');
+  if (isStage && bgMode === 'new') { // new backgrounds painted by Gemini for this story (saved in the library, reused next time)
+    const gk = (opts.chain || []).find((p) => p.provider === 'gemini')?.key || chainKey(opts);
+    const descs = [...new Set(story.scenes.map((sc) => (/^new\s*:/i.test(sc.background || '') ? sc.background.replace(/^new\s*:\s*/i, '').trim() : '')).filter(Boolean))].slice(0, 5); const made = {};
+    for (const [i, d] of descs.entries()) { check(); const sc0 = story.scenes.find((sc) => sc.background.replace(/^new\s*:\s*/i, '').trim() === d); stage('story', i, descs.length, `Painting background ${i + 1}/${descs.length}: ${d.slice(0, 50)}`);
+      if (!gk) { step('story', '⚠ New backgrounds need a Gemini key — using the closest existing ones'); break; }
+      try { const r = await makeStoryBackground({ desc: d, style, time: sc0?.time_of_day === 'night' ? 'night' : sc0?.time_of_day || 'day', key: gk, chain: opts.chain || [], onLog: (m) => step('story', m) }); made[d] = r.bg.id; step('story', `${r.reused ? 'Reused' : 'New'} background: ${r.bg.name}`); }
+      catch (e) { step('story', `⚠ Could not paint "${d.slice(0, 50)}": ${e.message} — using the closest existing background`); if (/billing|quota|may not use/.test(e.message)) break; } }
+    for (const sc of story.scenes) { const d = (sc.background || '').replace(/^new\s*:\s*/i, '').trim(); if (made[d]) sc.background = made[d]; } story.newBackgrounds = (story.newBackgrounds || []).filter((d) => !made[d.trim()]); }
+  if (isStage) { const all = [...new Map([...styleBgs(), ...listBackgrounds().filter((b) => story.scenes.some((sc) => sc.background === b.id))].map((b) => [b.id, b])).values()]; if (!all.length) throw new Error('2D Cartoon Stage needs backgrounds. Add some in the Backgrounds tab.');
     const used = new Map(); stageBgs = {};
     for (const sc of story.scenes) { const want = /^new\s*:/i.test(sc.background || '') ? sc.background.replace(/^new\s*:\s*/i, '') : ''; const b = all.find((x) => x.id === sc.background) || pickBackground(all, { place: sc.location, time: sc.time_of_day, weather: sc.weather, text: `${want} ${sc.summary}`, used });
       if (sc.weather === 'snow' && !/snow|hill|mountain|pahad|barf|himal/i.test([b.name, ...(b.tags || [])].join(' '))) (story.newBackgrounds ||= []).push('snowy mountain / hill scene with snow on the ground and roofs (for the snow scenes)');
@@ -73,14 +92,16 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
 
   // 2. voices
   const tl = buildTimeline(story, { style, look, subs, stage: !!stageBgs });
-  tl.categoryLabel = CATEGORIES[category].label; tl.cast = cast; if (stageBgs) { tl.mode = 'stage'; tl.backgrounds = stageBgs; tl.flat = style === 'flat2d' || style === 'bean2d'; tl.bean = style === 'bean2d'; }
+  tl.categoryLabel = CATEGORIES[category].label; if (series) tl.episodeLabel = (language === 'hindi' ? 'एपिसोड ' : 'Episode ') + series.episode; tl.cast = cast; if (stageBgs) { tl.mode = 'stage'; tl.backgrounds = stageBgs; tl.flat = style === 'flat2d' || style === 'bean2d'; tl.bean = style === 'bean2d'; }
   const soft = opts.gl === 'swiftshader' || (renderer === 'remotion' && (process.env.REMOTION_GL || (process.platform === 'linux' && !process.env.DISPLAY ? 'swiftshader' : 'angle')) === 'swiftshader');
   tl.perf = { aa: !soft, simpleMat: style === 'toon', noLamps: style !== 'realistic' };
   // fixed voices: a library character can have its own voice (first story character played by it gets it)
   const libById = Object.fromEntries(listCharacters().map((c) => [c.id, c])); const pinned = {}; const pinUsed = new Set();
   for (const ch of story.characters) { const v = libById[cast[ch.id]?.actor]?.voice; if (v && !pinUsed.has(v)) { pinned[ch.id] = v; pinUsed.add(v); } }
   if (story.characters.some((c) => c.id === 'narrator') && !pinned.narrator) pinned.narrator = 'm_psi'; // calm storyteller voice
-  const voices = castVoices(story.characters, pinned);
+  for (const ch of story.characters) if (ch.voice && !pinned[ch.id] && !pinUsed.has(ch.voice) && /^en_/.test(ch.voice) === (vlang === 'en')) { pinned[ch.id] = ch.voice; pinUsed.add(ch.voice); } /* saved characters keep their voice */
+  if (vlang === 'en' && pinned.narrator === 'm_psi') pinned.narrator = 'en_m_michael';
+  const voices = castVoices(story.characters, pinned, vlang);
   stage('voice', 0, tl.lines.length, `Voices 0/${tl.lines.length} lines`);
   await speakAll(tl.lines, voices, path.join(work, 'voice'), (m) => step('voice', m), (d, n) => stage('voice', d, n, `Voices ${d}/${n} lines`));
   finalize(tl); check();
@@ -94,7 +115,8 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
 
   // 4. render
   const clean = JSON.parse(JSON.stringify(tl)); for (const l of clean.lines) delete l.file;
-  let subStyle = styleFrom(subs, opts.subStyle); if (style === 'bean2d') { clean.bubbleLang = subStyle.lang === 'hindi' ? 'hindi' : subStyle.lang === 'english' ? 'english' : 'hinglish'; subStyle = { ...subStyle, off: true }; } /* Bean Night: the words are in speech bubbles */ clean.subsPreset = subs; clean.subs = 'none'; // subtitles are burned afterwards (editable)
+  let subStyle = styleFrom(subs, opts.subStyle); subStyle = { ...subStyle, lang: subStyle.lang === 'dual' && language !== 'english' ? 'dual' : language, ...(language === 'hindi' && !/Mukta|Hind/.test(subStyle.font || '') ? { font: 'Mukta' } : {}) }; clean.bubbleLang = language; /* bubbles, subtitles and the voice use the chosen language */
+  const subsOn = opts.subsOn === true || opts.subsOn === false ? opts.subsOn : style !== 'bean2d' && subs !== 'none'; if (!subsOn) subStyle = { ...subStyle, off: true }; /* Bean Night: the words are in speech bubbles (subtitles only if turned on) */ clean.subsPreset = subs; clean.subs = 'none'; // subtitles are burned afterwards (editable)
   fs.writeFileSync(path.join(work, 'timeline.json'), JSON.stringify(clean));
   const out = path.join(work, 'video_clean.mp4');
   const onProgress = (p, frames, secs) => { step('render', `Rendering ${(p * 100).toFixed(0)}% (${frames}/${clean.durationInFrames} frames)`, { progress: p, eta: p > 0.02 ? secs / p - secs : null, stage: { name: 'render', done: frames, total: clean.durationInFrames, label: `Frames ${frames}/${clean.durationInFrames}` } }); };
@@ -112,6 +134,7 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   const final = path.join(OUTPUT, `${id}_${slug(story.title)}`); fs.renameSync(work, final);
   try { const bf = path.join(STATE, 'bench.json'); const b = fs.existsSync(bf) ? JSON.parse(fs.readFileSync(bf, 'utf8')) : {}; b[`${style}_${renderer}`] = +(r.seconds / r.frames).toFixed(3); fs.writeFileSync(bf, JSON.stringify(b, null, 2)); } catch {}
   const file = path.join(final, 'final.mp4');
+  try { const castMap = saveFromStory(story, { style, voices, seriesId: opts.seriesId || null }); if (opts.seriesId) { addEpisode(opts.seriesId, { story, castMap, folder: final }); step('done', `Saved as episode ${series.episode} of "${series.title}"`); } } catch (e) { step('done', '⚠ Could not save the characters / series: ' + e.message); }
   step('done', `Done in ${fmt((Date.now() - T.start) / 1000)}`, { file, folder: final, duration: tl.duration, title: story.title });
   return { id, file, folder: final, story, duration: tl.duration };
 }

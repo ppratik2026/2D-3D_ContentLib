@@ -11,12 +11,23 @@ Dialogue is spoken by Hindi text-to-speech, so every line has three versions:
 - "english": an English translation.
 Keep each line short (max ~14 words). Characters are Indian unless the user says otherwise.
 Return ONLY valid JSON, no markdown.`;
+const LANG_RULE = {
+  english: 'LANGUAGE: this is an ENGLISH video. Write every spoken line in natural, simple English in "english" and put the SAME English text in "hinglish" and "hindi" too (they are spoken by an English voice). Title (also "title_hindi"), narration, cards, big_text and thoughts items: English only. Characters can still be Indian.',
+  hindi: 'LANGUAGE: Hindi video (Hindi voices). On-screen words (cards, big_text, thoughts items, title) in Devanagari Hindi.',
+  hinglish: 'LANGUAGE: Hindi voices, Roman Hinglish on screen: cards, big_text and thoughts items in Roman Hinglish.',
+};
+export const sys = (language = 'hinglish') => `${SYSTEM}\n${LANG_RULE[language] || LANG_RULE.hinglish}`;
+// characters that must be used as they are (picked from the library, or the series cast)
+function castRule(fixed = []) { if (!fixed.length) return '';
+  return `\nUse these EXISTING characters with exactly these ids, names, gender, age and role (their look is fixed, copy their colours):\n${fixed.map((c) => `- ${JSON.stringify(Object.fromEntries(Object.entries(c).filter(([k]) => !['castId', 'voice'].includes(k))))}`).join('\n')}\nAdd new characters only when the story needs them (with new ids).`; }
+function seriesRule(se) { if (!se) return '';
+  return `\nThis is EPISODE ${se.episode} of the series "${se.title}"${se.logline ? ` (${se.logline})` : ''}.${se.previous.length ? `\nStory so far:\n${se.previous.join('\n')}${se.lastEnding ? `\nThe last episode ended with: ${se.lastEnding}` : ''}\nContinue from there with NEW events (do not repeat old episodes); keep every character's name, personality and relationships.` : '\nStart the series: introduce the main characters and the big question of the series.'}\nEnd with a hook for the next episode. Also add to the JSON: "episode_summary":"3 sentences of what happened in this episode","next_hook":"one line: the open question for the next episode".`; }
 
-export async function writeStory({ category, minutes, idea = '', chain = [], actors = [], backgrounds = [], chars = 'auto', onLog = () => {}, onProgress = () => {} }) {
+export async function writeStory({ category, minutes, idea = '', chain = [], actors = [], backgrounds = [], chars = 'auto', language = 'hinglish', fixed = [], series = null, bgMode = 'existing', onLog = () => {}, onProgress = () => {} }) {
   // 1) whole story in ONE request (saves free quota: 1 request per video)
   onProgress(0, 1, 'Writing the whole story (1 request)');
   try {
-    const { value, used } = await askJSON(chain, { user: buildPastePrompt({ category, minutes, idea, actors, backgrounds, chars }), onLog, validate: (j) => storyFromObject(j, minutes) });
+    const { value, used } = await askJSON(chain, { user: buildPastePrompt({ category, minutes, idea, actors, backgrounds, chars, language, fixed, series, bgMode }), onLog, validate: (j) => keepCast(storyFromObject(j, minutes), fixed) });
     onLog(`Story written by ${used.provider} · ${used.model}`); onProgress(1, 1, 'Story ready');
     return { ...value, category, minutes };
   } catch (e) { if (!e.cut) throw e; onLog('Story too long for one reply — writing it scene by scene…'); }
@@ -30,10 +41,10 @@ export async function writeStory({ category, minutes, idea = '', chain = [], act
   const actorList = actors.map((a) => `"${a.id}": ${a.gender}, ${a.age}${a.tags?.length ? ', ' + a.tags.join('/') : ''}`).join('\n');
   onLog(`Gemini: outline (${nScenes} scenes, ~${totalSec}s)`); onProgress(0, nScenes + 1, 'Writing outline');
   const outline = await gemini([
-    { role: 'system', content: SYSTEM },
+    { role: 'system', content: sys(language) },
     { role: 'user', content: `Write the outline of ${cat.hint}. Category: ${cat.label}. Total length about ${totalSec} seconds.
 ${idea ? `User idea / title: ${idea}` : 'Invent an original title and idea.'}
-Use 2 to 5 characters. Use about ${nScenes} scenes.
+Use 2 to 5 characters. Use about ${nScenes} scenes.${castRule(fixed)}${seriesRule(series)}
 ${actorList ? `Each character is played by one of these 3D actors (pick the best match by gender/age/role, use different actors where possible, write its id in "model"):\n${actorList}\n` : ''} Each scene happens in ONE of these locations (use the key):
 ${locs}
 JSON shape:
@@ -50,7 +61,7 @@ The scene seconds must add up to about ${totalSec}.` }], { key, models, onLog })
     const lines = Math.max(3, Math.round(sc.seconds / 4.2));
     const prev = outline.scenes.slice(0, i).map((s, k) => `${k + 1}. ${s.summary}`).join('\n');
     const res = await gemini([
-      { role: 'system', content: SYSTEM },
+        { role: 'system', content: sys(language) },
       { role: 'user', content: `Story "${outline.title}" (${cat.label}). ${outline.logline}
 Characters: ${charList}
 Previous scenes:\n${prev || '(this is the first scene)'}
@@ -65,7 +76,7 @@ JSON shape: {"beats":[{"type":"action","char":"id","action":"one allowed action"
     out.scenes[i] = scene; doneScenes++; onProgress(1 + doneScenes, outline.scenes.length + 1, `Scene ${doneScenes}/${outline.scenes.length} dialogue`);
   });
   await runPool(jobs, 1); // one at a time: free keys allow only a few requests per minute
-  return out;
+  return keepCast(out, fixed);
 }
 
 async function runPool(jobs, n) { let i = 0; await Promise.all(Array.from({ length: n }, async () => { while (i < jobs.length) { const j = i++; await jobs[j](); } })); }
@@ -79,7 +90,7 @@ function normalizeOutline(o, totalSec) {
     let id = String(c.id || c.name || 'c' + i).toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16) || 'c' + i; while (ids.has(id)) id += i; ids.add(id);
     const col = (v, d) => (HEX.test(String(v || '')) ? '#' + String(v).replace('#', '') : d);
     return { id, name: String(c.name || id), gender: c.gender === 'female' ? 'female' : 'male', age: ['child', 'young', 'adult', 'old'].includes(c.age) ? c.age : 'adult',
-      role: String(c.role || ''), model: String(c.model || ''), top_color: col(c.top_color, ['#2f5d8a', '#b23a48', '#3f7d4e', '#7a4fa0', '#c98a2b'][i % 5]), bottom_color: col(c.bottom_color, '#2b2b30'), hair_color: col(c.hair_color, '#1c1612'), personality: String(c.personality || '') };
+      role: String(c.role || ''), model: String(c.model || ''), ...Object.fromEntries(['look', 'skin_color', 'hat', 'hat_color', 'castId', 'voice'].filter((k) => c[k]).map((k) => [k, String(c[k])])), top_color: col(c.top_color, ['#2f5d8a', '#b23a48', '#3f7d4e', '#7a4fa0', '#c98a2b'][i % 5]), bottom_color: col(c.bottom_color, '#2b2b30'), hair_color: col(c.hair_color, '#1c1612'), personality: String(c.personality || '') };
   });
   const idList = o.characters.map((c) => c.id);
   o.scenes = (o.scenes || []).filter(Boolean).map((s) => ({
@@ -181,33 +192,35 @@ ${stage ? `- Places in the background (if the background has them): {"action":"g
 - Title card for a jump in time or place: {"type":"card","text":"Agle din — Court"}.
 - If something happens that is not in the action list (fight, climb, swim, dance, fire, explosion…), still write it as an action with your own short English word (e.g. {"type":"action","char":"id","action":"fight"}) AND add a narration line that tells it. The app lists these so they can be added later.${stage ? `
 - If no background fits a scene, write "background":"new: short English description of the place" (the app uses the closest one and tells the user which image to make).` : ''}`; }
-export function buildPastePrompt({ category, minutes, idea = '', actors = [], backgrounds = [], chars = 'auto' }) {
+export function buildPastePrompt({ category, minutes, idea = '', actors = [], backgrounds = [], chars = 'auto', language = 'hinglish', fixed = [], series = null, bgMode = 'existing' }) {
   const cat = CATEGORIES[category] || CATEGORIES.drama; const totalSec = Math.round(minutes * 60);
   const nScenes = Math.max(2, Math.min(30, Math.round(minutes * 1.6))); const lines = Math.max(6, Math.round(totalSec / 4.2));
-  const stage = backgrounds.length > 0;
-  const places = stage ? backgrounds.map((b) => `- ${b.id}: ${b.name}${b.place ? ' (' + b.place.replace(/_/g, ' ') + ')' : ''}, ${b.time}${b.tags?.length ? ', ' + b.tags.join('/') : ''}${b.marks?.length ? ' [has: ' + b.marks.join(', ') + ']' : ''}`).join('\n')
+  const stage = backgrounds.length > 0 || bgMode === 'new';
+  const places = bgMode === 'new' ? (backgrounds.length ? `(earlier episodes used these — reuse one for the same place)\n` + backgrounds.map((b) => `- ${b.id}: ${b.name}`).join('\n') : '(none yet)') : stage ? backgrounds.map((b) => `- ${b.id}: ${b.name}${b.place ? ' (' + b.place.replace(/_/g, ' ') + ')' : ''}, ${b.time}${b.tags?.length ? ', ' + b.tags.join('/') : ''}${b.marks?.length ? ' [has: ' + b.marks.join(', ') + ']' : ''}`).join('\n')
     : Object.entries(LOCATIONS).map(([k, v]) => `- ${k}: ${v}`).join('\n');
   const actorList = actors.map((a) => `- ${a.id}: ${a.gender}, ${a.age}${a.tags?.length ? ', ' + a.tags.join('/') : ''}`).join('\n');
   const nChars = chars === 'auto' ? (minutes >= 10 ? '6 to 12' : minutes >= 4 ? '4 to 8' : '2 to 5') : chars;
   const crimePlan = stage && /crime|thriller|mystery/.test(category) ? '\nCID / police episode structure: crime is found (faint/lie for a body, shock) → police arrive (drive_in) → investigation (examine, lab with test_tube, witnesses, read file) → suspect runs (car_chase and/or foot_chase) → catch + handcuff → get_in police_jeep, drive_away → jail scene (prisoner in cell) → next day court (judge, lawyers, accused in witness box, gavel) → verdict and moral.' : '';
   const genreFx = /horror|thriller|crime|mystery/.test(category) ? 'Use "weather" for mood: rain, storm (thunder and lightning), fog or wind where it fits; most scenes at night.' : 'Use "weather" only when the story needs it (rain, storm, fog, wind), otherwise "none".';
-  return `${SYSTEM}
+  return `${sys(language)}
 
 Write ${cat.hint}. Category: ${cat.label}. Total length about ${totalSec} seconds (${minutes} min): about ${nScenes} scenes and about ${lines} dialogue lines in total. Keep a strong story: hook in the first scene, rising conflict, twist, clear ending.
 ${idea ? `Idea / title: ${idea}` : 'Invent an original title and idea.'}
-Use ${nChars} characters with clearly different ages and roles (for example dada, dadi, father, mother, son, daughter, child, villager, inspector, constable, doctor, villain).${actorList ? ` Each character is played by one of these actors (write its id in "model"; different characters may share an actor):\n${actorList}` : ''}
-${stage ? 'Every scene happens in front of one of these painted backgrounds (write its id in "background"):' : 'Every scene uses one of these locations (write the key in "location"):'}
+Use ${nChars} characters with clearly different ages and roles (for example dada, dadi, father, mother, son, daughter, child, villager, inspector, constable, doctor, villain).${castRule(fixed)}${seriesRule(series)}${actorList ? ` Each character is played by one of these actors (write its id in "model"; different characters may share an actor):\n${actorList}` : ''}
+${bgMode === 'new' ? 'NEW BACKGROUNDS: the app paints a new background for every place. For each scene write "background":"new: short English description of the empty place (what is in it, style details), e.g. new: small night cafe with a counter on the right and one table with two stools". Use exactly the same description for scenes in the same place. Backgrounds already made:' : stage ? 'Every scene happens in front of one of these painted backgrounds (write its id in "background"):' : 'Every scene uses one of these locations (write the key in "location"):'}
 ${places}
 At most 6 characters in one scene. ${genreFx}${crimePlan}
 ${actionHelp(stage)}
 
 Reply with ONLY this JSON (no other text):
 {"title":"Hinglish title","title_hindi":"हिंदी शीर्षक","logline":"one line","moral":"last message or empty",
- "characters":[{"id":"short_id","name":"Indian name","gender":"male|female","age":"child|young|adult|old","role":"role","top_color":"#hex","bottom_color":"#hex","hair_color":"#hex","personality":"few words","model":"actor id"}],
- "scenes":[{${stage ? '"background":"background id"' : '"location":"key"'},"time_of_day":"${TIMES_OF_DAY.join('|')}","weather":"none|rain|storm|fog|wind|snow","present":["character ids at the start"],"summary":"what happens","seconds":30,
+ "characters":[{"id":"short_id","name":"Indian name","gender":"male|female","age":"child|young|adult|old","role":"role","top_color":"#hex","bottom_color":"#hex","hair_color":"#hex","look":"skin tone and hair in a few words","hat":"none|beanie|cap","personality":"few words","model":"actor id"}],${series ? '\n "episode_summary":"…","next_hook":"…",' : ''}
+ "scenes":[{${stage ? `"background":"${bgMode === 'new' ? 'new: description' : 'background id'}"` : '"location":"key"'},"time_of_day":"${TIMES_OF_DAY.join('|')}","weather":"none|rain|storm|fog|wind|snow","present":["character ids at the start"],"summary":"what happens","seconds":30,
    "beats":[{"type":"action","char":"id","action":"enter"},
             {"type":"line","char":"id","emotion":"neutral|happy|sad|angry|surprised|scared","hindi":"देवनागरी","hinglish":"Roman Hinglish","english":"English"}]}]}`;
 }
+// characters picked from the library keep their saved look / voice even if the AI changed a colour
+export function keepCast(st, fixed = []) { for (const f of fixed) { const c = st.characters.find((x) => x.id === f.id || (x.name || '').toLowerCase() === (f.name || '').toLowerCase()); if (!c) continue; for (const [k, v] of Object.entries(f)) if (k !== 'id' && v != null && v !== '') c[k] = v; } return st; }
 export function storyFromObject(j, minutes = 1) {
   const src = JSON.parse(JSON.stringify(j)); normalizeOutline(j, Math.round(minutes * 60));
   j.scenes = j.scenes.map((sc, i) => { const beats = normalizeBeats(src.scenes?.[i]?.beats || [], j.characters, sc); return { ...sc, beats }; });
@@ -244,9 +257,9 @@ export function splitStory(text, max = 2400) {
   }
   push(); return out;
 }
-function castPrompt({ text, category, actors }) {
+function castPrompt({ text, category, actors, language }) {
   const actorList = actors.map((a) => `- ${a.id}: ${a.gender}, ${a.age}${a.tags?.length ? ', ' + a.tags.join('/') : ''}`).join('\n');
-  return `${SYSTEM}
+  return `${sys(language)}
 
 Below is a story written by the user (it may be in Hindi, Hinglish or English). Read all of it and list EVERY character who appears or speaks (not the narrator).
 ${actorList ? `Each character is played by one of these actors (write its id in "model"; different characters may share one):\n${actorList}\n` : ''}Category: ${(CATEGORIES[category] || CATEGORIES.drama).label}.
@@ -256,9 +269,9 @@ Reply with ONLY this JSON:
 STORY:
 ${text}`;
 }
-function partPrompt({ part, index, total, cast, prev, backgrounds, stage }) {
+function partPrompt({ part, index, total, cast, prev, backgrounds, stage, language }) {
   const chars = cast.characters.map((c) => `- ${c.id}: ${c.name}, ${c.gender}, ${c.age}, ${c.role}`).join('\n');
-  return `${SYSTEM}
+  return `${sys(language)}
 
 The user's story "${cast.title}" is being turned into an animated video, part by part. This is part ${index + 1} of ${total}.
 ${FAITHFUL}
@@ -276,9 +289,9 @@ PART ${index + 1} OF THE STORY:
 ${part}`;
 }
 // one prompt for the Gemini app (paste mode)
-export function buildAdaptPrompt({ text, category, actors = [], backgrounds = [] }) {
+export function buildAdaptPrompt({ text, category, actors = [], backgrounds = [], language = 'hinglish' }) {
   const stage = backgrounds.length > 0; const actorList = actors.map((a) => `- ${a.id}: ${a.gender}, ${a.age}${a.tags?.length ? ', ' + a.tags.join('/') : ''}`).join('\n');
-  return `${SYSTEM}
+  return `${sys(language)}
 
 Turn the user's story below into an animated video script. ${FAITHFUL}
 Category: ${(CATEGORIES[category] || CATEGORIES.drama).label}. List every character.${actorList ? ` Each character is played by one of these actors (write its id in "model"):\n${actorList}` : ''}
@@ -294,14 +307,14 @@ Reply with ONLY this JSON (no other text):
 STORY:
 ${text}`;
 }
-export async function adaptStory({ text, category, minutes = 10, chain = [], actors = [], backgrounds = [], onLog = () => {}, onProgress = () => {} }) {
+export async function adaptStory({ text, category, minutes = 10, chain = [], actors = [], backgrounds = [], language = 'hinglish', fixed = [], onLog = () => {}, onProgress = () => {} }) {
   const stage = backgrounds.length > 0; const parts = splitStory(text); if (!parts.length) throw new Error('Your story is empty.');
   const total = parts.length + 1; onProgress(0, total, 'Reading your story: characters');
-  const { value: cast, used } = await askJSON(chain, { user: castPrompt({ text, category, actors }), onLog, validate: (j) => { if (!Array.isArray(j.characters) || !j.characters.length) throw new Error('No characters found'); return j; } });
+  const { value: cast, used } = await askJSON(chain, { user: castPrompt({ text, category, actors, language }) + castRule(fixed), onLog, validate: (j) => { if (!Array.isArray(j.characters) || !j.characters.length) throw new Error('No characters found'); return j; } });
   onLog(`Characters: ${cast.characters.map((c) => c.name).join(', ')} (${used.provider} · ${used.model})`);
   const ids = new Set(cast.characters.map((c) => String(c.id))); const scenes = []; let prev = '';
   const convert = async (part, i, depth = 0) => {
-    try { const { value } = await askJSON(chain, { user: partPrompt({ part, index: i, total: parts.length, cast, prev, backgrounds, stage }), onLog, validate: (j) => { if (!Array.isArray(j.scenes) || !j.scenes.length) throw new Error('No scenes in the reply'); return j; } }); return value.scenes; }
+    try { const { value } = await askJSON(chain, { user: partPrompt({ part, index: i, total: parts.length, cast, prev, backgrounds, stage, language }), onLog, validate: (j) => { if (!Array.isArray(j.scenes) || !j.scenes.length) throw new Error('No scenes in the reply'); return j; } }); return value.scenes; }
     catch (e) { if (!e.cut || depth > 1) throw e; const half = splitStory(part, Math.ceil(part.length / 2) + 20); onLog(`Part ${i + 1} too long for one reply — splitting it`); const out = []; for (const h of half) out.push(...(await convert(h, i, depth + 1))); return out; }
   };
   for (let i = 0; i < parts.length; i++) {
@@ -310,6 +323,6 @@ export async function adaptStory({ text, category, minutes = 10, chain = [], act
     prev = (prev + ' ' + sc.map((x) => x.summary).filter(Boolean).join(' ')).slice(-700);
   }
   void ids;
-  const j = storyFromObject({ ...cast, scenes }, minutes); onProgress(total, total, 'Story ready');
+  const j = keepCast(storyFromObject({ ...cast, scenes }, minutes), fixed); onProgress(total, total, 'Story ready');
   return { ...j, category, minutes, fromUser: true };
 }

@@ -6,7 +6,7 @@ const clock = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '
 
 // ---------- tabs ----------
 $('#tabs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; $$('#tabs button').forEach((x) => x.classList.toggle('on', x === b)); $$('.tab').forEach((t) => t.classList.toggle('on', t.id === 'tab-' + b.dataset.tab));
-  if (b.dataset.tab === 'library') loadLibrary(); if (b.dataset.tab === 'chars') loadChars(); else window.AVPreview?.stop(); if (b.dataset.tab === 'bgs') loadBgs(); if (b.dataset.tab === 'settings') loadSettings(); };
+  if (b.dataset.tab === 'new') { loadCastPick(); loadSeriesList(); } if (b.dataset.tab === 'library') loadLibrary(); if (b.dataset.tab === 'chars') loadChars(); else window.AVPreview?.stop(); if (b.dataset.tab === 'bgs') loadBgs(); if (b.dataset.tab === 'settings') loadSettings(); };
 
 // ---------- new video ----------
 const fill = (sel, obj, auto) => { sel.innerHTML = (auto ? '<option value="auto">Auto (based on category)</option>' : '') + Object.entries(obj).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join(''); };
@@ -14,7 +14,7 @@ async function initNew() {
   O = await api.call('options');
   $('#cats').innerHTML = Object.entries(O.categories).map(([k, v]) => `<span class="chip${k === cat ? ' on' : ''}" data-k="${k}">${esc(v.label)}</span>`).join('');
   $('#cats').onclick = (e) => { const k = e.target.dataset.k; if (!k) return; cat = k; $$('#cats .chip').forEach((c) => c.classList.toggle('on', c.dataset.k === k)); };
-  fill($('#style'), O.styles); fill($('#look'), O.looks, true); fill($('#subs'), O.subs, true); ensureMine();
+  fill($('#style'), O.styles); fill($('#look'), O.looks, true); fill($('#subs'), O.subs, true); ensureMine(); loadSeriesList(); loadCastPick(); langNote();
   for (const id of ['#min', '#style', '#count']) $(id).oninput = est; est();
 }
 async function est() {
@@ -27,7 +27,7 @@ async function est() {
   $('#estSum').textContent = n > 1 ? `${n} videos ≈ ${fmt(e.total * n)} (one after another)` : '';
 }
 let mode2 = 'idea';
-$('#storyMode').onclick = (e) => { const c = e.target.closest('.chip'); if (!c) return; mode2 = c.dataset.m; $$('#storyMode .chip').forEach((x) => x.classList.toggle('on', x === c)); $('#ideaBox').hidden = mode2 !== 'idea'; $('#mineBox').hidden = mode2 !== 'mine'; $('#count').disabled = mode2 === 'mine'; if (mode2 === 'mine') $('#count').value = 1; storyInfo(); };
+$('#storyMode').onclick = (e) => { const c = e.target.closest('.chip'); if (!c) return; mode2 = c.dataset.m; $$('#storyMode .chip').forEach((x) => x.classList.toggle('on', x === c)); $('#ideaBox').hidden = mode2 !== 'idea'; $('#mineBox').hidden = mode2 !== 'mine'; $('#findBox').hidden = mode2 !== 'find'; $('#count').disabled = mode2 === 'mine'; if (mode2 === 'mine') $('#count').value = 1; storyInfo(); };
 function storyInfo() { const t = $('#myStory').value.trim(); if (!t) { $('#storyInfo').textContent = ''; return; }
   const words = t.split(/\s+/).length; const min = Math.max(0.5, Math.min(30, Math.round((words / 95) * 2) / 2)); // ~95 spoken words a minute with acting
   $('#storyInfo').className = 'small muted'; $('#storyInfo').textContent = `${words} words · about ${min} min of video`; $('#min').max = Math.max(20, min); $('#min').value = min; est(); }
@@ -36,7 +36,7 @@ $('#loadStory').onclick = () => $('#storyFile').click();
 $('#storyFile').onchange = () => { const f = $('#storyFile').files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { $('#myStory').value = String(r.result || ''); storyInfo(); }; r.readAsText(f, 'utf-8'); $('#storyFile').value = ''; };
 const src = () => { const v = $('#storySrc').value || 'auto'; return v === 'paste' || v === 'demo' ? v : 'api'; };
 $('#storySrc').onchange = () => { $('#pasteBox').hidden = src() !== 'paste'; $('#demo').checked = src() === 'demo'; $('#keyWarn').hidden = src() !== 'api' || S?.hasKey; };
-$('#copyPrompt').onclick = async () => { const p = await api.call('story:prompt', { category: cat, minutes: $('#min').value, idea: $('#idea').value, style: $('#style').value, chars: $('#chars').value, myStory: mode2 === 'mine' ? $('#myStory').value : '' });
+$('#copyPrompt').onclick = async () => { const p = await api.call('story:prompt', { format: FMT, seriesId: FMT === 'series' ? $('#seriesSel').value || null : null, seriesTitle: $('#seriesTitle').value.trim(), language: LANG, bgMode: BGM, castIds: [...castSel], topics: mode2 === 'find' ? TOPICS.filter((_, i) => topicSel.has(i)) : [], category: cat, minutes: $('#min').value, idea: $('#idea').value, style: $('#style').value, chars: $('#chars').value, myStory: mode2 === 'mine' ? $('#myStory').value : '' });
   try { await navigator.clipboard.writeText(p); $('#copyMsg').textContent = 'Copied ✓ — now paste it in the Gemini app'; } catch { $('#pasted').value = p; $('#copyMsg').textContent = 'Prompt placed in the box below — copy it from there'; } };
 let pasteOk = false;
 $('#pasted').oninput = async () => { const t = $('#pasted').value.trim(); if (!t) { $('#pasteMsg').textContent = ''; pasteOk = false; return; }
@@ -44,13 +44,40 @@ $('#pasted').oninput = async () => { const t = $('#pasted').value.trim(); if (!t
   $('#pasteMsg').className = 'small ' + (r.ok ? '' : 'warn'); $('#pasteMsg').textContent = r.ok ? `✓ Story read: "${r.title}" · ${r.scenes} scenes · ${r.lines} lines · ${r.chars}` : r.msg; };
 async function add(start) {
   const mode = src();
-  const o = { category: cat, idea: $('#idea').value, minutes: $('#min').value, count: $('#count').value, style: $('#style').value, look: $('#look').value, subs: $('#subs').value, chars: $('#chars').value, demo: mode === 'demo', storyAI: mode === 'api' ? $('#storySrc').value : null, start };
+  const picked = TOPICS.filter((_, i) => topicSel.has(i));
+  if (mode2 === 'find' && !picked.length) { $('#topicMsg').className = 'small warn'; $('#topicMsg').textContent = 'Find topics and click one (or more) first.'; return; }
+  const o = { format: FMT, seriesId: FMT === 'series' ? $('#seriesSel').value || null : null, seriesTitle: $('#seriesTitle').value.trim(), language: LANG, bgMode: BGM, subsOn: SUBSON, castIds: [...castSel], topics: mode2 === 'find' ? picked : [],
+    category: cat, idea: mode2 === 'find' ? '' : $('#idea').value, minutes: $('#min').value, count: FMT === 'series' ? $('#epCount').value : $('#count').value, style: $('#style').value, look: $('#look').value, subs: $('#subs').value, chars: $('#chars').value, demo: mode === 'demo', storyAI: mode === 'api' ? $('#storySrc').value : null, start };
   if (mode2 === 'mine') { o.myStory = $('#myStory').value.trim(); o.idea = ''; o.count = 1; if (!o.myStory && mode !== 'paste' && mode !== 'demo') { $('#storyInfo').className = 'small warn'; $('#storyInfo').textContent = 'Paste your story first.'; return; } }
   if (mode === 'paste') { if (!pasteOk) { $('#pasteMsg').className = 'small warn'; $('#pasteMsg').textContent = 'Paste Gemini\'s answer first.'; return; } o.pasted = $('#pasted').value; }
   if (mode === 'api' && !S?.hasKey) { $('#keyWarn').hidden = false; return; }
   renderQueue(await api.call('queue:add', o)); if (mode === 'paste') { $('#pasted').value = ''; $('#pasteMsg').textContent = ''; pasteOk = false; } $('[data-tab=queue]').click();
 }
 $('#addQ').onclick = () => add(false); $('#addStart').onclick = () => add(true);
+// ---------- format, series, topics, language, backgrounds, characters, subtitles ----------
+let FMT = 'single', LANG = 'hinglish', BGM = 'existing', SUBSON = true, TOPICS = [], topicSel = new Set(), CAST = [], castSel = new Set(), SERIES = [];
+const chipGroup = (sel, key, set) => { $(sel).onclick = (e) => { const c = e.target.closest('.chip'); if (!c) return; $$(sel + ' .chip').forEach((x) => x.classList.toggle('on', x === c)); set(c.dataset[key]); }; };
+const toggleIn = (set, v) => { if (set.has(v)) set.delete(v); else set.add(v); };
+chipGroup('#fmt', 'f', (v) => { FMT = v; $('#seriesBox').hidden = v !== 'series'; $('#count').closest('div').hidden = v === 'series'; topicSel = new Set(); drawTopics(); seriesInfo(); });
+chipGroup('#lang', 'l', (v) => { LANG = v; langNote(); });
+chipGroup('#bgMode', 'b', (v) => { BGM = v; $('#bgNote').textContent = v === 'new' ? 'Gemini paints each place in the same art theme and saves it to your Backgrounds. Needs picture access on the Gemini key (billing on); otherwise the closest existing one is used.' : 'Your library backgrounds of this style, picked for the genre and each scene.'; });
+chipGroup('#subsOn', 's', (v) => { SUBSON = v === 'on'; $('#subs').disabled = !SUBSON; });
+function langNote() { $('#langNote').textContent = LANG === 'english' ? (O?.englishReady ? 'English voices, English story, bubbles and subtitles.' : 'English voices download once (~130 MB) with the first English video.') : LANG === 'hindi' ? 'Hindi voices; on-screen text in Devanagari.' : 'Hindi voices; on-screen text in Roman Hinglish.'; }
+async function loadSeriesList() { SERIES = await api.call('series:list'); const v = $('#seriesSel').value; $('#seriesSel').innerHTML = '<option value="">＋ New series</option>' + SERIES.map((x) => `<option value="${esc(x.id)}">${esc(x.title)} (${x.episodes} ep · ${x.characters} characters)</option>`).join(''); $('#seriesSel').value = v; seriesInfo(); }
+async function seriesInfo() { const id = $('#seriesSel').value; $('#serTitleL').hidden = !!id; if (!id) { $('#seriesInfo').textContent = 'A new series: episode 1 introduces the characters. Everything (story, characters with names, looks and voices, backgrounds) is saved so the next episode continues it.'; return; }
+  const s = await api.call('series:get', id); $('#seriesInfo').innerHTML = `Next: <b>episode ${s.episodes.length + 1}</b> · ${esc(O?.categories[s.category]?.label || s.category)} · ${esc(s.language)} · characters: ${esc(s.castFull.map((c) => c.name).join(', ') || '—')}${s.episodes.length ? '<br>Last: ' + esc(s.episodes.at(-1).title) : ''}`;
+  if (s.category && O.categories[s.category]) { cat = s.category; $$('#cats .chip').forEach((c) => c.classList.toggle('on', c.dataset.k === cat)); } if (s.style) $('#style').value = s.style; if (s.language) { LANG = s.language; $$('#lang .chip').forEach((c) => c.classList.toggle('on', c.dataset.l === LANG)); langNote(); } if (s.bgMode) { BGM = s.bgMode; $$('#bgMode .chip').forEach((c) => c.classList.toggle('on', c.dataset.b === BGM)); } }
+$('#seriesSel').onchange = seriesInfo;
+function drawTopics() { $('#topicList').innerHTML = TOPICS.map((t, i) => `<div class="topic${topicSel.has(i) ? ' on' : ''}" data-i="${i}"><input type="checkbox"${topicSel.has(i) ? ' checked' : ''}><div><b>${esc(t.title)}</b><div class="small">${esc(t.summary)}</div><div class="src">${esc([t.place, t.date, t.source].filter(Boolean).join(' · '))}${t.real ? ' · real' : ''}</div></div></div>`).join('');
+  $('#topicMsg').className = 'small muted'; if (TOPICS.length) $('#topicMsg').textContent = FMT === 'series' ? `${TOPICS.length} topics · pick ONE for the series` : `${TOPICS.length} topics · ${topicSel.size} picked (each picked topic = one video)`; }
+$('#topicList').onclick = (e) => { const d = e.target.closest('.topic'); if (!d) return; const i = +d.dataset.i; if (FMT === 'series') topicSel = new Set(topicSel.has(i) ? [] : [i]); else toggleIn(topicSel, i); drawTopics(); };
+$('#findTopics').onclick = async () => { const b = $('#findTopics'); b.disabled = true; $('#topicMsg').className = 'small muted'; $('#topicMsg').textContent = $('#topicMode').value === 'real' ? 'Searching recent real stories with Gemini + Google Search…' : 'Gemini is inventing ideas…';
+  try { const r = await api.call('topics:find', { category: cat, mode: $('#topicMode').value, language: LANG, series: FMT === 'series', extra: $('#topicExtra').value, storyAI: $('#storySrc').value });
+    if (!r.ok) { $('#topicMsg').className = 'small warn'; $('#topicMsg').textContent = r.msg; return; } TOPICS = r.topics; topicSel = new Set(); drawTopics(); } finally { b.disabled = false; } };
+api.on('topics:log', (m) => { $('#topicMsg').textContent = m; });
+async function loadCastPick() { CAST = await api.call('cast:list'); castSel = new Set([...castSel].filter((id) => CAST.some((c) => c.id === id)));
+  $('#castPick').innerHTML = CAST.length ? CAST.map((c) => `<span class="chip${castSel.has(c.id) ? ' on' : ''}" data-id="${esc(c.id)}" title="${esc([c.role, c.age, c.gender, (c.styles || []).join('/')].join(' · '))}"><span class="dot" style="background:${esc(c.top_color || c.skin_color || '#888')}"></span>${esc(c.name)}<small class="muted">${esc(c.role || '')}</small></span>`).join('') : '<span class="small muted">No saved characters yet — every video you make adds its characters here (and to the Characters tab).</span>'; }
+$('#castPick').onclick = (e) => { const c = e.target.closest('.chip'); if (!c?.dataset.id) return; toggleIn(castSel, c.dataset.id); c.classList.toggle('on'); };
 
 // ---------- queue ----------
 const STATUS = { queued: 'Queued', running: 'Rendering', done: 'Ready ✓', error: 'Error', cancelled: 'Cancelled' };
@@ -109,7 +136,14 @@ $('#libOpen').onclick = () => api.call('library:open'); $('#libRefresh').onclick
 
 // ---------- characters ----------
 let chars = [], sel = null;
-async function loadChars() { chars = await api.call('chars:list');
+async function loadCastList() { const list = await api.call('cast:list'); VOICES ||= await api.call('voice:list');
+  $('#castList').innerHTML = list.length ? list.map((c) => `<div class="castc" data-id="${esc(c.id)}"><b>${esc(c.name)}</b><div class="small muted">${esc([c.role, c.gender, c.age].filter(Boolean).join(' · '))}${(c.series || []).length ? ' · series' : ''} · used ${c.used || 0}×</div>
+    <div class="sw">${['skin_color', 'top_color', 'bottom_color', 'hair_color', 'hat_color'].filter((k) => c[k]).map((k) => `<i title="${k}" style="background:${esc(c[k])}"></i>`).join('')}${c.hat && c.hat !== 'none' ? `<small>${esc(c.hat)}</small>` : ''}</div>
+    <select data-voice="${esc(c.id)}"><option value="">Voice: auto</option>${VOICES.map((v) => `<option value="${v.id}"${v.id === c.voice ? ' selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
+    <div class="btns"><button class="danger" data-castdel="${esc(c.id)}">Delete</button></div></div>`).join('') : '<div class="small muted">None yet — make a video and its characters appear here.</div>'; }
+$('#castList').onchange = async (e) => { const id = e.target.dataset.voice; if (id) await api.call('cast:update', { id, patch: { voice: e.target.value } }); };
+$('#castList').onclick = async (e) => { const id = e.target.dataset.castdel; if (id && confirm('Delete this saved character?')) { await api.call('cast:delete', id); loadCastList(); loadCastPick(); } };
+async function loadChars() { loadCastList(); chars = await api.call('chars:list');
   $('#chList').innerHTML = chars.map((c) => `<div class="ch${sel === c.id ? ' on' : ''}" data-id="${c.id}"><div class="t">${esc(c.name)}</div><div class="tags">${c.gender === 'female' ? 'Female' : 'Male'} · ${esc(c.age)} · ${esc((c.styles || []).join('/'))}</div>
     <div class="tags">${esc((c.tags || []).join(', '))}${c.builtin ? ' · built-in' : ''}</div></div>`).join('');
   if (!sel && chars[0]) pick(chars[0].id); }

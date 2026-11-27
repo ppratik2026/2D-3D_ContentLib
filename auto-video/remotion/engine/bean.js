@@ -12,13 +12,14 @@ function seg(w, len, c, z, line) { const g = new THREE.Group(); g.position.z = z
 
 function look(ch) { // skin, hat and hair from the character
   const r = `${ch.role || ''} ${ch.name || ''} ${ch.look || ''}`.toLowerCase(); const h = hash(ch.id + 'bean');
-  const tan = /tan|brown|dark/.test(r) ? true : /white|pale/.test(r) ? false : h > 0.6;
+  const skinTxt = r.replace(/\b[a-z]+[\s-]+(hair|beanie|cap|hat|shirt|top|jacket|eyes?)\b/g, ''); /* "brown hair" says nothing about the skin */
+  const tan = /pale|white|fair/.test(skinTxt) ? false : /tan|brown|dark|wheat/.test(skinTxt) ? true : h > 0.6;
   const skin = ch.skin_color || (tan ? ['#d8a878', '#cf9f72', '#dcae80'][Math.floor(h * 3)] : ['#ecebdf', '#e6e1d3', '#f1ede2', '#d9d6cf'][Math.floor(h * 4)]);
   let hat = null; const hc = ch.hat_color || (/red/.test(r) ? '#e2452f' : /yellow/.test(r) ? '#f2c230' : /blue/.test(r) ? '#3e5fa8' : null);
-  if (/beanie|\bkid\b|little|chhota|brother|\bbhai\b/.test(r) || ch.hat === 'beanie') hat = { type: 'beanie', c: hc || '#e2452f' };
+  if (ch.hat === 'none') hat = null; else if (/beanie|\bkid\b|little|chhota|brother|\bbhai\b/.test(r) || ch.hat === 'beanie') hat = { type: 'beanie', c: hc || '#e2452f' };
   else if (/cap\b|sport|player|coach/.test(r) || ch.hat === 'cap') hat = { type: 'cap', c: hc || '#3e5fa8' };
   else if (/helmet|worker|builder/.test(r) || ch.hat === 'helmet') hat = { type: 'beanie', c: hc || '#f2c230' };
-  const hair = ch.hat === 'none' ? null : !hat && (ch.gender === 'female' || /hair|teacher|mom|maa|girl/.test(r) || h > 0.72) ? { c: ch.hair_color || (h > 0.85 ? '#7a6a5a' : '#3b2f2a'), long: ch.gender === 'female' } : null;
+  const hair = /bald|ganja/.test(r) ? null : !hat && (ch.gender === 'female' || /hair|teacher|mom|maa|girl/.test(r) || h > 0.72) ? { c: ch.hair_color || (h > 0.85 ? '#7a6a5a' : '#3b2f2a'), long: ch.gender === 'female' } : null;
   if (/inner|shadow|anxiety|andar ki|aatma|voice|parchhai|demon/.test(r)) return { skin: '#09090b', hat: null, hair: null, shadow: true };
   return { skin, hat, hair };
 }

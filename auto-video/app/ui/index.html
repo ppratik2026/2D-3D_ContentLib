@@ -24,9 +24,20 @@
   <section id="tab-new" class="tab on">
     <div class="grid2">
       <div class="card">
-        <h3>1. Category</h3><div id="cats" class="chips"></div>
+        <h3>Format</h3>
+        <div class="chips" id="fmt"><span class="chip on" data-f="single">🎬 Single video</span><span class="chip" data-f="series">📺 Series (episodes)</span></div>
+        <div id="seriesBox" hidden>
+          <div class="row"><label>Series<select id="seriesSel"><option value="">＋ New series</option></select></label><label id="serTitleL">New series name<input id="seriesTitle" placeholder="empty = from the topic"></label><label>Episodes to make now<input type="number" id="epCount" min="1" max="10" value="1"></label></div>
+          <div id="seriesInfo" class="small muted"></div>
+        </div>
+        <h3>1. Genre</h3><div id="cats" class="chips"></div>
         <h3>2. Story</h3>
-        <div class="chips" id="storyMode"><span class="chip on" data-m="idea">AI writes it from my idea</span><span class="chip" data-m="mine">My full story (I wrote it)</span></div>
+        <div class="chips" id="storyMode"><span class="chip on" data-m="idea">AI writes it from my idea</span><span class="chip" data-m="find">🔎 Find topics (real or AI)</span><span class="chip" data-m="mine">My full story (I wrote it)</span></div>
+        <div id="findBox" hidden>
+          <div class="row"><label>Topics from<select id="topicMode"><option value="real">Real recent stories (Google Search)</option><option value="ai">AI creates new ideas</option></select></label><label>Focus (optional)<input id="topicExtra" placeholder="e.g. cyber fraud, Gujarat, school"></label></div>
+          <div class="btns"><button id="findTopics" class="primary" type="button">Find 20 topics</button><span id="topicMsg" class="small muted"></span></div>
+          <div id="topicList" class="topics"></div>
+        </div>
         <div id="ideaBox"><textarea id="idea" rows="3" placeholder="Leave empty and the AI will invent an idea&#10;e.g. A theft in the village   (one line = one video)"></textarea></div>
         <div id="mineBox" hidden>
           <div class="muted small">Paste your whole story (Hindi, Hinglish or English, any length). The AI keeps your events and dialogue, picks backgrounds, actions and camera, and adds a narrator only where something cannot be acted.</div>
@@ -38,10 +49,16 @@
           <div><h3>Number of videos</h3><input type="number" id="count" min="1" max="20" value="1"></div>
           <div><h3>Characters</h3><select id="chars"><option value="auto">Auto (by length)</option><option value="2 to 3">2–3</option><option value="3 to 5">3–5</option><option value="5 to 8">5–8</option><option value="8 to 12">8–12</option></select></div>
         </div>
+        <div class="row top">
+          <div><h3>Language</h3><div class="chips" id="lang"><span class="chip" data-l="hindi">हिंदी Hindi</span><span class="chip on" data-l="hinglish">Hinglish</span><span class="chip" data-l="english">English</span></div><div id="langNote" class="small muted"></div></div>
+          <div><h3>Backgrounds</h3><div class="chips" id="bgMode"><span class="chip on" data-b="existing">Existing (same theme)</span><span class="chip" data-b="new">✨ New (Gemini paints)</span></div><div id="bgNote" class="small muted"></div></div>
+        </div>
+        <h3>Characters <small class="muted">(pick saved ones to use again; AI adds the others)</small></h3>
+        <div id="castPick" class="chips cast"></div>
         <div class="row">
           <div><h3>4. Style</h3><select id="style"></select></div>
           <div><h3>5. Look</h3><select id="look"></select></div>
-          <div><h3>6. Subtitles</h3><select id="subs"></select></div>
+          <div><h3>6. Subtitles</h3><div class="chips" id="subsOn"><span class="chip on" data-s="on">On</span><span class="chip" data-s="off">Off</span></div><select id="subs"></select></div>
         </div>
         <h3>7. Story source</h3>
         <select id="storySrc"></select>
@@ -100,6 +117,8 @@
 
   <!-- CHARACTERS -->
   <section id="tab-chars" class="tab">
+    <div class="card"><div class="qhead"><div><b>Story characters</b><div class="muted small">Every character from your videos and series (2D / Bean / Flat styles): pick them again in New Video → Characters. Their name, look and voice stay the same.</div></div></div>
+      <div id="castList" class="castgrid"></div></div>
     <div class="grid2 chars">
       <div>
         <div class="card qhead"><div><b>3D characters</b><div class="muted small">.vrm · .glb · .gltf · .fbx (humanoid rig). Drop files here.</div></div>

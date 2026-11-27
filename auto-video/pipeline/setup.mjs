@@ -58,3 +58,24 @@ export async function runSetup(onProgress = () => {}) {
   }
   return setupStatus();
 }
+
+// English voices (only when an English video is made, or from Settings): 2 Piper voices + 6 Kokoro voices (~130 MB)
+const HF_EN = 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/';
+export const EN_PIPER = ['ryan', 'amy'], EN_KOKORO = ['am_michael', 'am_fenrir', 'bm_george', 'af_heart', 'af_bella', 'bf_emma'];
+function planEnglish() {
+  const items = [];
+  for (const v of EN_PIPER) { const n = `en_US-${v}-medium`; items.push({ url: `${HF_EN}${v}/medium/${n}.onnx.json`, file: path.join(VOICES_DIR, n + '.onnx.json'), label: n + ' (info)' }, { url: `${HF_EN}${v}/medium/${n}.onnx`, file: path.join(VOICES_DIR, n + '.onnx'), label: 'English voice: ' + v }); }
+  for (const v of EN_KOKORO) items.push({ url: KOKORO + `voices/${v}.bin`, file: path.join(VOICES_DIR, 'kokoro', v + '.bin'), label: 'Kokoro English: ' + v });
+  return items;
+}
+export const englishReady = () => planEnglish().every((i) => have(i.file));
+export async function ensureEnglish(onProgress = () => {}) {
+  const items = planEnglish(); fs.mkdirSync(path.join(VOICES_DIR, 'kokoro'), { recursive: true });
+  for (const [i, it] of items.entries()) {
+    const sd = seedOf(it.file); if (!have(it.file) && sd && have(sd)) await fs.promises.copyFile(sd, it.file);
+    if (!have(it.file)) await download(it.url, it.file, (got, total) => onProgress({ index: i, count: items.length, label: it.label, got, total }));
+    if (it.file.endsWith('.onnx.json')) { const j = JSON.parse(fs.readFileSync(it.file, 'utf8')); const m = j.phoneme_id_map || {}; const bad = Object.keys(m).filter((k) => [...k].length !== 1); if (bad.length) { for (const k of bad) delete m[k]; fs.writeFileSync(it.file, JSON.stringify(j)); } } /* newer voice files list two-letter phonemes that this Piper version refuses */
+    onProgress({ index: i + 1, count: items.length, label: it.label, got: 1, total: 1 });
+  }
+  return englishReady();
+}

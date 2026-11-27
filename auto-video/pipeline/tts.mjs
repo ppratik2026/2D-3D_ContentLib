@@ -41,11 +41,30 @@ export const VOICE_LIB = [
   { id: 'f_kid', label: 'Little girl', gender: 'female', age: 'child', engine: 'kokoro', base: 'hf_beta', pitch: 1.3, speed: 1.0 },
   { id: 'f_kid2', label: 'Little girl 2', gender: 'female', age: 'child', engine: 'piper', base: 'hi_IN-priyamvada-medium', pitch: 1.28, speed: 1.02 },
 ];
-export const availableVoices = () => VOICE_LIB.filter((v) => (v.engine === 'piper' ? hasPiper(v.base) : hasKokoro() && hasPiper('hi_IN-pratham-medium')));
+// English voices (downloaded the first time an English video is made: Settings or the first English job)
+export const VOICE_LIB_EN = [
+  { id: 'en_m_ryan', label: 'Ryan — man (English)', gender: 'male', age: 'adult', engine: 'piper', base: 'en_US-ryan-medium', pitch: 1, speed: 1 },
+  { id: 'en_m_michael', label: 'Michael — man, warm (English)', gender: 'male', age: 'adult', engine: 'kokoro', base: 'am_michael', pitch: 1, speed: 1 },
+  { id: 'en_m_fenrir', label: 'Fenrir — young man (English)', gender: 'male', age: 'young', engine: 'kokoro', base: 'am_fenrir', pitch: 1.04, speed: 1.03 },
+  { id: 'en_m_deep', label: 'Deep voice — boss / villain (English)', gender: 'male', age: 'adult', engine: 'piper', base: 'en_US-ryan-medium', pitch: 0.86, speed: 0.95 },
+  { id: 'en_m_old', label: 'George — old man (English)', gender: 'male', age: 'old', engine: 'kokoro', base: 'bm_george', pitch: 0.92, speed: 0.9 },
+  { id: 'en_m_kid', label: 'Little boy (English)', gender: 'male', age: 'child', engine: 'kokoro', base: 'am_fenrir', pitch: 1.38, speed: 1.0 },
+  { id: 'en_f_amy', label: 'Amy — woman (English)', gender: 'female', age: 'adult', engine: 'piper', base: 'en_US-amy-medium', pitch: 1, speed: 1 },
+  { id: 'en_f_heart', label: 'Heart — young woman (English)', gender: 'female', age: 'young', engine: 'kokoro', base: 'af_heart', pitch: 1, speed: 1 },
+  { id: 'en_f_bella', label: 'Bella — woman, bright (English)', gender: 'female', age: 'adult', engine: 'kokoro', base: 'af_bella', pitch: 1, speed: 1 },
+  { id: 'en_f_emma', label: 'Emma — woman, calm (English)', gender: 'female', age: 'adult', engine: 'kokoro', base: 'bf_emma', pitch: 1, speed: 0.98 },
+  { id: 'en_f_old', label: 'Old woman (English)', gender: 'female', age: 'old', engine: 'kokoro', base: 'bf_emma', pitch: 0.88, speed: 0.87 },
+  { id: 'en_f_kid', label: 'Little girl (English)', gender: 'female', age: 'child', engine: 'kokoro', base: 'af_heart', pitch: 1.3, speed: 1.0 },
+].map((v) => ({ ...v, lang: 'en' }));
+const hasKv = (v) => fs.existsSync(path.join(KOKORO_DIR, v + '.bin'));
+export const EN_PHON = 'en_US-ryan-medium'; // eSpeak English phonemes for Kokoro come from this Piper voice
+export const availableVoices = (lang = 'hi') => (lang === 'en' ? VOICE_LIB_EN.filter((v) => (v.engine === 'piper' ? hasPiper(v.base) : hasKokoro() && hasKv(v.base) && hasPiper(EN_PHON)))
+  : VOICE_LIB.filter((v) => (v.engine === 'piper' ? hasPiper(v.base) : hasKokoro() && hasPiper('hi_IN-pratham-medium'))));
+export const allVoices = () => [...availableVoices('hi'), ...availableVoices('en')];
 
 // characters → voice preset ids (pinned voice wins; otherwise best gender/age match not used yet)
-export function castVoices(characters, pinned = {}) {
-  const pool = availableVoices(); if (!pool.length) throw new Error('No voice found. Open Settings → Re-check models / voices.');
+export function castVoices(characters, pinned = {}, lang = 'hi') {
+  const pool = availableVoices(lang); if (!pool.length) throw new Error(lang === 'en' ? 'No English voice found. Settings → Download English voices.' : 'No voice found. Open Settings → Re-check models / voices.');
   const used = new Map(); const out = {};
   for (const c of characters) { const v = pool.find((x) => x.id === pinned[c.id]); if (v) { out[c.id] = v.id; used.set(v.id, (used.get(v.id) || 0) + 1); } }
   for (const c of characters) {
@@ -81,15 +100,15 @@ async function shape(file, pitch, speed) {
 // lines: [{id, char, hindi}] → adds {file, duration, mouth[]}
 export async function speakAll(lines, voices, outDir, onLog = () => {}, onProgress = () => {}) {
   fs.mkdirSync(outDir, { recursive: true });
-  const lib = Object.fromEntries(VOICE_LIB.map((v) => [v.id, v]));
-  for (const l of lines) { l.file = path.join(outDir, `line_${String(l.id).padStart(4, '0')}.wav`); fs.rmSync(l.file, { force: true }); l.voice = lib[voices[l.char]] || VOICE_LIB[0]; }
+  const lib = Object.fromEntries([...VOICE_LIB, ...VOICE_LIB_EN].map((v) => [v.id, v]));
+  for (const l of lines) { l.file = path.join(outDir, `line_${String(l.id).padStart(4, '0')}.wav`); fs.rmSync(l.file, { force: true }); l.voice = lib[voices[l.char]] || VOICE_LIB[0]; l.say = l.voice.lang === 'en' ? (l.english || l.hinglish || l.hindi) : l.hindi; }
   let done = 0; const tick = () => onProgress(done, lines.length);
   // Piper groups
   const piperGroups = {}; for (const l of lines) if (l.voice.engine === 'piper') (piperGroups[l.voice.base] ||= []).push(l);
   for (const [base, items] of Object.entries(piperGroups)) {
     const count = () => items.reduce((n, l) => n + (fs.existsSync(l.file) ? 1 : 0), 0); const d0 = done;
     const timer = setInterval(() => { done = d0 + count(); tick(); }, 500);
-    try { await runPiper(base, items.map((l) => ({ text: l.hindi, file: path.resolve(l.file) }))); } finally { clearInterval(timer); }
+    try { await runPiper(base, items.map((l) => ({ text: l.say, file: path.resolve(l.file) }))); } finally { clearInterval(timer); }
     done = d0 + items.length; tick();
   }
   // Kokoro lines (phonemes from Piper's eSpeak, then Kokoro)
@@ -97,18 +116,19 @@ export async function speakAll(lines, voices, outDir, onLog = () => {}, onProgre
   if (kl.length) {
     onLog(`Kokoro voices: ${kl.length} lines`);
     const k = await loadKokoro(KOKORO_DIR);
-    const ipa = await phonemesViaPiper(piperBin(), voicePath('hi_IN-pratham-medium'), kl.map((l) => l.hindi));
+    const ipa = []; for (const en of [false, true]) { const part = kl.map((l, i) => [l, i]).filter(([l]) => (l.voice.lang === 'en') === en); if (!part.length) continue;
+      const r = await phonemesViaPiper(piperBin(), voicePath(en ? EN_PHON : 'hi_IN-pratham-medium'), part.map(([l]) => l.say)); part.forEach(([, i], k) => (ipa[i] = r[k])); }
     for (const [i, l] of kl.entries()) { const w = await synthKokoro(k, ipa[i] || '', l.voice.base, 1); const pad = new Float32Array(w.length + 3600); pad.set(w, 0); writeWav(l.file, [pad], 24000); done++; if (i % 3 === 0) tick(); }
   }
   // pitch / speed shaping per voice
   for (const l of lines) await shape(l.file, l.voice.pitch, l.voice.speed);
   onProgress(lines.length, lines.length);
-  for (const l of lines) { const w = readWav(l.file); l.duration = w.duration; l.mouth = envelope(w.samples, w.rate, FPS); l.voiceId = l.voice.id; delete l.voice; }
+  for (const l of lines) { const w = readWav(l.file); l.duration = w.duration; l.mouth = envelope(w.samples, w.rate, FPS); l.voiceId = l.voice.id; delete l.voice; delete l.say; }
   return lines;
 }
 
 // one short sample for the voice preview button
 export async function sampleVoice(id, text, outFile) {
-  const l = { id: 0, char: 'x', hindi: text || 'नमस्ते! मैं इस कहानी में आपका किरदार हूँ। सुनिए मेरी आवाज़।' };
+  const en = /^en_/.test(id); const l = { id: 0, char: 'x', hindi: text || 'नमस्ते! मैं इस कहानी में आपका किरदार हूँ। सुनिए मेरी आवाज़।', english: text || 'Hello! I am your character in this story. This is my voice.' }; if (en) l.hindi = l.english;
   await speakAll([l], { x: id }, path.dirname(outFile)); fs.renameSync(l.file, outFile); return outFile;
 }

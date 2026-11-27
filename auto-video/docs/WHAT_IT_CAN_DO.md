@@ -62,6 +62,15 @@ Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren)
 | Monkey / tiger | monkey jumps and chatters; tiger (stripes) roars and runs |
 | Snow | weather "snow" — snowfall with wind |
 
+## New Video: single video or series, topics, language, backgrounds, characters (v1.9)
+
+- **Format:** *Single video* or *Series (episodes)*. A series is saved in `Documents\AutoVideo\series\<name>\` with every episode's story, its characters (names, looks, voices) and the backgrounds it used. Pick the series again and press *Add* to make the next episode: the AI gets the story so far and the last episode's ending, keeps every character the same, and new characters are added to the series. "Episodes to make now" queues several episodes one after another.
+- **Find topics:** Story → *Find topics*. *Real recent stories* = Gemini searches Google for 15–20 recent real incidents of the genre (India first, with place, date and source); the story keeps the facts and changes private people's names. *AI creates new ideas* = 15–20 invented ideas. Click one topic (series) or several (one video each).
+- **Language:** Hindi (Devanagari on screen), Hinglish (Roman on screen) or English (English voices, English dialogue, bubbles, notes, cards and subtitles). English voices (2 Piper + 6 Kokoro, ~130 MB) download once with the first English video.
+- **Backgrounds:** *Existing* = your library backgrounds of the chosen style (same theme), picked for the genre and each scene. *New* = Gemini paints a background for every place in the story in the same art theme, measures the floor line and seats itself, and saves it in the Backgrounds library (reused next time and in the series). Gemini picture models need billing turned on for the key in Google AI Studio; without it the closest existing background is used and the job log says so.
+- **Characters:** every character of every video is saved (Characters tab → *Story characters*, with its colours and voice). In New Video → Characters, click saved characters to use them again with the same name, look and voice; the AI adds any others the story needs.
+- **Subtitles:** On / Off switch (plus the style). Bean Night always shows speech bubbles; burned subtitles only when switched On.
+
 ## Bean Night style (v1.8)
 
 Pick **Style → Bean Night (dark doodle, bean characters)** for the dark "late-night doodle" look: head and body are one soft bean, thick round arms and legs, dot eyes, thick flat brows, tired eye-bags, beanies / caps / hair, and dark backgrounds with thin light lines and warm lamp glows.

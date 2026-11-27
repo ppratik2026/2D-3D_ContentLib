@@ -3,7 +3,7 @@
 // stops at once on a dead key or an exhausted daily quota, and reports what every provider answered.
 
 export const PROVIDERS = {
-  gemini:     { label: 'Google Gemini', base: 'https://generativelanguage.googleapis.com/v1beta', keyUrl: 'https://aistudio.google.com/apikey', free: 'Free: Flash-Lite ~500/day, Flash ~20/day per project (see AI Studio → Rate limit)', native: true },
+  gemini:     { label: 'Google Gemini', base: process.env.AV_GEMINI_BASE || 'https://generativelanguage.googleapis.com/v1beta', keyUrl: 'https://aistudio.google.com/apikey', free: 'Free: Flash-Lite ~500/day, Flash ~20/day per project (see AI Studio → Rate limit)', native: true },
   groq:       { label: 'Groq', base: 'https://api.groq.com/openai/v1', keyUrl: 'https://console.groq.com/keys', free: 'Free: ~1,000 requests/day, no card needed', prefer: ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'qwen'] },
   openrouter: { label: 'OpenRouter', base: 'https://openrouter.ai/api/v1', keyUrl: 'https://openrouter.ai/keys', free: 'Free: models ending in ":free", 50/day (1,000/day after a one-time $10 top-up)', freeOnly: true },
   mistral:    { label: 'Mistral', base: 'https://api.mistral.ai/v1', keyUrl: 'https://console.mistral.ai/api-keys', free: 'Free "Experiment" plan (your data may be used for training)', prefer: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest'] },
@@ -56,9 +56,11 @@ export function rankModels(provider, ids) {
 export const defaultModel = (provider, ids) => rankModels(provider, ids)[0] || '';
 
 // ---------- one call ----------
-export async function chat(p, { system, user, temperature = 0.9, json = true, maxTokens = 32000 }) {
+export async function chat(p, { system, user, temperature = 0.9, json = true, maxTokens = 32000, search = false, images = [] }) {
   if (p.provider === 'gemini') {
-    const body = { contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: { temperature, maxOutputTokens: maxTokens, ...(json ? { responseMimeType: 'application/json' } : {}) } };
+    const parts = [...images.map((im) => ({ inlineData: { mimeType: im.mime || 'image/jpeg', data: im.b64 } })), { text: user }];
+    const body = { contents: [{ role: 'user', parts }], generationConfig: { temperature, maxOutputTokens: maxTokens, ...(json && !search ? { responseMimeType: 'application/json' } : {}) } };
+    if (search) body.tools = [{ google_search: {} }]; /* real, recent facts from Google Search (JSON mode cannot be combined with it) */
     if (system) body.systemInstruction = { parts: [{ text: system }] };
     const r = await fetch(`${baseOf(p)}/models/${encodeURIComponent(p.model)}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': p.key }, body: JSON.stringify(body) });
     const t = await r.text(); if (!r.ok) throw apiError(r.status, t, r.headers);
@@ -82,13 +84,14 @@ const short = (e) => (e.quota ? 'no quota left (429)' : e.status === 503 ? 'busy
 const isQuota = (e) => e.status === 429 && /quota|billing|credits|insufficient|daily|per day|limit: 0/i.test(e.message) && !/per minute|tokens per minute|rpm|tpm/i.test(e.message);
 
 // chain: [{provider, model, key, baseUrl}] → parsed JSON from the first that works
-export async function askJSON(chain, { system, user, temperature = 0.9, onLog = () => {}, validate = (x) => x }) {
+export async function askJSON(chain, { system, user, temperature = 0.9, onLog = () => {}, validate = (x) => x, search = false, images = [] }) {
+  if (search || images.length) chain = chain.filter((p) => p.provider === 'gemini'); /* Google Search and pictures: Gemini only */
   const tried = []; if (!chain.length) throw Object.assign(new Error('No story AI configured. Add a key in Settings → Story AI, or use "Paste from Gemini app".'), { retryable: false });
   for (const [ci, p] of chain.entries()) {
     const name = `${PROVIDERS[p.provider]?.label || p.provider} ${p.model}`; let last = null, fails = 0, jsonMode = true;
     for (let i = 0; i <= WAITS.length; i++) {
       try {
-        const text = await chat(p, { system, user, temperature, json: jsonMode });
+        const text = await chat(p, { system, user, temperature, json: jsonMode, search, images });
         const val = validate(parseJSON(text));
         if (ci > 0) onLog(`Story written by ${name}`);
         return { value: val, used: p };
@@ -110,4 +113,26 @@ export async function askJSON(chain, { system, user, temperature = 0.9, onLog = 
     : all(/busy|rate limit|network|server error/) ? `Story AI is busy right now. Tried: ${tried.join(' · ')}`
     : `Story AI could not write the story. Tried: ${tried.join(' · ')}`);
   err.retryable = all(/busy|rate limit|network|server error/); err.quota = all(/no quota/); err.cut = tried.some((t) => /too long/.test(t)); throw err;
+}
+
+// ---------- pictures: Gemini image models (new backgrounds) ----------
+const IMAGE_MODELS = ['gemini-2.5-flash-image', 'gemini-2.5-flash-image-preview', 'gemini-2.0-flash-preview-image-generation'];
+export async function makeImage(key, prompt, { onLog = () => {} } = {}) {
+  let all = []; try { const r = await fetch(`${PROVIDERS.gemini.base}/models?pageSize=200`, { headers: { 'x-goog-api-key': key } }); const j = await r.json(); all = (j.models || []).map((m) => String(m.name).replace(/^models\//, '')); } catch {}
+  const models = [...IMAGE_MODELS.filter((m) => !all.length || all.includes(m)), ...all.filter((m) => /image/.test(m) && /gemini/.test(m) && !IMAGE_MODELS.includes(m))];
+  let last = null;
+  for (const model of models) {
+    for (let i = 0; i < 3; i++) {
+      try {
+        const body = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseModalities: ['IMAGE', 'TEXT'], ...(/2\.5/.test(model) ? { imageConfig: { aspectRatio: '16:9' } } : {}) } };
+        const r = await fetch(`${PROVIDERS.gemini.base}/models/${encodeURIComponent(model)}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) });
+        const t = await r.text(); if (!r.ok) throw apiError(r.status, t, r.headers);
+        const part = (JSON.parse(t).candidates?.[0]?.content?.parts || []).find((x) => x.inlineData?.data);
+        if (!part) throw Object.assign(new Error('no picture in the reply'), { status: 'empty' });
+        return { b64: part.inlineData.data, mime: part.inlineData.mimeType || 'image/png', model };
+      } catch (e) { last = e; if (e.status === 429 && !isQuota(e) && i < 2) { onLog(`Picture AI busy, retrying in ${10 * (i + 1)}s…`); await sleep(10 * (i + 1)); continue; } break; }
+    }
+  }
+  const why = !last ? 'no Gemini picture model is available for this key' : last.status === 429 ? 'no free picture quota on this key (Gemini picture models usually need billing turned on in Google AI Studio)' : last.status === 400 || last.status === 403 ? 'this key may not use Gemini picture models (turn on billing in Google AI Studio)' : last.message;
+  throw new Error(why);
 }

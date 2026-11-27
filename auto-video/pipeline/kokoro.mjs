@@ -9,12 +9,12 @@ import ort from 'onnxruntime-node';
 export const KOKORO_FILES = ['model_quantized.onnx', 'tokenizer.json', 'hf_alpha.bin', 'hf_beta.bin', 'hm_omega.bin', 'hm_psi.bin'];
 let K = null;
 export async function loadKokoro(dir) {
-  if (K && K.dir === dir) return K;
+  if (K && K.dir === dir && K.n === fs.readdirSync(dir).filter((x) => x.endsWith('.bin')).length) return K;
   const session = await ort.InferenceSession.create(path.join(dir, 'model_quantized.onnx'), { intraOpNumThreads: Math.max(1, Math.min(4, os.cpus().length - 1)) });
   const vocab = JSON.parse(fs.readFileSync(path.join(dir, 'tokenizer.json'), 'utf8')).model.vocab;
   const voices = {};
-  for (const v of ['hf_alpha', 'hf_beta', 'hm_omega', 'hm_psi']) { const b = fs.readFileSync(path.join(dir, v + '.bin')); voices[v] = new Float32Array(b.buffer, b.byteOffset, b.length / 4); }
-  K = { dir, session, vocab, voices }; return K;
+  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.bin'))) { const b = fs.readFileSync(path.join(dir, f)); voices[f.slice(0, -4)] = new Float32Array(b.buffer, b.byteOffset, b.length / 4); } /* Hindi + English voices, whatever is downloaded */
+  K = { dir, session, vocab, voices, n: Object.keys(voices).length }; return K;
 }
 
 // texts → IPA strings, using Piper's eSpeak (one Piper run for all lines)

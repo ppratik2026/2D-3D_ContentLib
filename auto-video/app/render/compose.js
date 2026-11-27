@@ -53,9 +53,9 @@ export function makeComposer(W, H) {
   function titleCard(ctx, tl, t) {
     const o = 1 - lerpk(t, 2.7, 3.2); if (o <= 0) return; const s = tl.story; const sc = 1 + 0.06 * clamp(t / 3.2);
     ctx.save(); ctx.globalAlpha = o; ctx.fillStyle = 'rgba(5,6,10,0.78)'; ctx.fillRect(0, 0, W, H);
-    ctx.translate(W / 2, H / 2); ctx.scale(sc, sc); ctx.textAlign = 'center'; ctx.fillStyle = '#ffd166'; ctx.font = `26px ${FONT}`; ctx.fillText(String(tl.categoryLabel || '').toUpperCase().split('').join(' '), 0, -70);
+    ctx.translate(W / 2, H / 2); ctx.scale(sc, sc); ctx.textAlign = 'center'; ctx.fillStyle = '#ffd166'; ctx.font = `26px ${FONT}`; ctx.fillText((String(tl.categoryLabel || '') + (tl.episodeLabel ? ' · ' + tl.episodeLabel : '')).toUpperCase().split('').join(' '), 0, -70);
     ctx.fillStyle = '#fff'; ctx.font = `900 76px ${FONT}`; ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 20; ctx.fillText(s.title, 0, 10, W * 0.9);
-    if (s.title_hindi) { ctx.shadowBlur = 0; ctx.font = `40px ${FONT}`; ctx.globalAlpha = o * 0.9; ctx.fillText(s.title_hindi, 0, 70, W * 0.9); }
+    if (s.title_hindi && s.title_hindi.trim().toLowerCase() !== String(s.title).trim().toLowerCase()) { ctx.shadowBlur = 0; ctx.font = `40px ${FONT}`; ctx.globalAlpha = o * 0.9; ctx.fillText(s.title_hindi, 0, 70, W * 0.9); }
     ctx.restore();
   }
   function endCard(ctx, tl, t) {

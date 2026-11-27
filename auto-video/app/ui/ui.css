@@ -75,3 +75,17 @@ details summary{cursor:pointer;margin:10px 0}
 .stshot{background:var(--card2);border-radius:10px;padding:8px 10px;margin:6px 0;font-size:13px}.stshot .h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.stshot .h b{color:var(--acc)}
 .stshot .cp{margin-left:auto}.stshot button,.stchar button{padding:2px 8px!important;font-size:11px!important}
 .stline{margin-top:4px}.stline i{color:var(--mut)}
+
+.topics{display:grid;gap:6px;margin-top:8px;max-height:360px;overflow:auto}
+.topic{border:1px solid var(--line,#333);border-radius:10px;padding:8px 10px;cursor:pointer;display:flex;gap:8px;align-items:flex-start}
+.topic.on{border-color:var(--acc,#6ab0ff);background:rgba(106,176,255,.08)}
+.topic b{display:block}.topic .src{opacity:.65;font-size:11px}
+.chips.cast .chip{display:inline-flex;align-items:center;gap:6px}
+.chips.cast .dot{width:12px;height:12px;border-radius:50%;display:inline-block;border:1px solid rgba(255,255,255,.3)}
+
+.castgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:8px}
+.castc{border:1px solid var(--line,#333);border-radius:10px;padding:8px;display:grid;gap:4px}
+.castc .sw{display:flex;gap:4px}.castc .sw i{width:16px;height:16px;border-radius:4px;display:inline-block;border:1px solid rgba(255,255,255,.25)}
+.castc select{width:100%}
+
+.row.top{align-items:flex-start}
