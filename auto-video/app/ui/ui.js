@@ -22,7 +22,7 @@ $('#cats').onclick = async (e) => { if (e.target.dataset.del) { if (!confirm('De
 $('#gCancel').onclick = () => { $('#genreAdd').hidden = true; };
 $('#gSave').onclick = async () => { const label = $('#gName').value.trim(); if (!label) return; const r = await api.call('genre:add', { label, hint: $('#gHint').value.trim() || `a ${label} story`, mood: $('#gMood').value }); O.categories = r.categories; cat = r.key; $('#genreAdd').hidden = true; $('#gName').value = $('#gHint').value = ''; drawCats(); };
 async function est() {
-  const m = $('#min').value, n = Math.max(1, +$('#count').value || 1); $('#minv').textContent = m + ' min';
+  const m = $('#min').value, n = Math.max(1, +$('#count').value || 1); $('#minv').textContent = m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? (m % 60) + ' min' : ''}` : m + ' min';
   const e = await api.call('estimate', { style: $('#style').value, minutes: m });
   $('#estTotal').textContent = e.totalText;
   const names = { story: 'Story (AI)', voice: 'Hindi voices (Piper)', sound: 'Music + effects', prepare: 'Preparing', render: '3D render' };
@@ -34,7 +34,7 @@ let mode2 = 'idea';
 $('#storyMode').onclick = (e) => { const c = e.target.closest('.chip'); if (!c) return; mode2 = c.dataset.m; $$('#storyMode .chip').forEach((x) => x.classList.toggle('on', x === c)); $('#ideaBox').hidden = mode2 !== 'idea'; $('#mineBox').hidden = mode2 !== 'mine'; $('#findBox').hidden = mode2 !== 'find'; $('#count').disabled = mode2 === 'mine'; if (mode2 === 'mine') $('#count').value = 1; storyInfo(); };
 function storyInfo() { const t = $('#myStory').value.trim(); if (!t) { $('#storyInfo').textContent = ''; return; }
   const words = t.split(/\s+/).length; const min = Math.max(0.5, Math.min(30, Math.round((words / 95) * 2) / 2)); // ~95 spoken words a minute with acting
-  $('#storyInfo').className = 'small muted'; $('#storyInfo').textContent = `${words} words · about ${min} min of video`; $('#min').max = Math.max(20, min); $('#min').value = min; est(); }
+  $('#storyInfo').className = 'small muted'; $('#storyInfo').textContent = `${words} words · about ${min} min of video`; $('#min').max = Math.max(120, min); $('#min').value = min; est(); }
 $('#myStory').oninput = storyInfo;
 $('#loadStory').onclick = () => $('#storyFile').click();
 $('#storyFile').onchange = () => { const f = $('#storyFile').files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { $('#myStory').value = String(r.result || ''); storyInfo(); }; r.readAsText(f, 'utf-8'); $('#storyFile').value = ''; };

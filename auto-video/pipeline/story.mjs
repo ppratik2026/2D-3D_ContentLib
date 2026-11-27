@@ -34,6 +34,7 @@ function seriesRule(se) { if (!se) return '';
   return `\nThis is EPISODE ${se.episode} of the series "${se.title}"${se.logline ? ` (${se.logline})` : ''}.${se.previous.length ? `\nStory so far:\n${se.previous.join('\n')}${se.lastEnding ? `\nThe last episode ended with: ${se.lastEnding}` : ''}\nContinue from there with NEW events (do not repeat old episodes); keep every character's name, personality and relationships.` : '\nStart the series: introduce the main characters and the big question of the series.'}\nEnd with a hook for the next episode. Also add to the JSON: "episode_summary":"3 sentences of what happened in this episode","next_hook":"one line: the open question for the next episode".`; }
 
 export async function writeStory({ category, minutes, idea = '', chain = [], actors = [], backgrounds = [], chars = 'auto', language = 'hinglish', fixed = [], series = null, bgMode = 'existing', plan = {}, onLog = () => {}, onProgress = () => {} }) {
+  if (minutes > 12) return writeLongStory({ category, minutes, idea, chain, actors, backgrounds, chars, language, fixed, series, bgMode, plan, onLog, onProgress }); /* feature-length: acts → scenes → dialogue */
   // 1) whole story in ONE request (saves free quota: 1 request per video)
   onProgress(0, 1, 'Writing the whole story (1 request)');
   try {
@@ -353,4 +354,66 @@ Do NOT write the scenes yet. Reply with ONLY this JSON:
   value.characters = value.characters.slice(0, 12).map((c, i) => { let id = String(c.id || c.name || 'c' + i).toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16) || 'c' + i; while (ids.has(id)) id += i; ids.add(id);
     return { ...c, id, name: String(c.name || id), gender: c.gender === 'female' ? 'female' : 'male', age: ['child', 'young', 'adult', 'old'].includes(c.age) ? c.age : 'adult', role: String(c.role || ''), main: !!c.main }; });
   return { title: String(value.title || ''), logline: String(value.logline || ''), characters: value.characters };
+}
+
+// ---------- feature-length movies (up to 2 hours): bible + acts → scenes of each act → dialogue for 3 scenes at a time ----------
+export async function writeLongStory({ category, minutes, idea = '', chain = [], actors = [], backgrounds = [], chars = 'auto', language = 'hinglish', fixed = [], series = null, bgMode = 'existing', plan = {}, onLog = () => {}, onProgress = () => {} }) {
+  const cat = CATEGORIES[category] || CATEGORIES.drama; const totalSec = Math.round(minutes * 60); const stage = backgrounds.length > 0 || bgMode === 'new';
+  const nActs = Math.max(3, Math.min(14, Math.round(minutes / 9))); const scenesTotal = Math.max(nActs * 2, Math.round(minutes * 1.25));
+  const nChars = chars === 'auto' ? (minutes >= 60 ? '8 to 14' : '6 to 10') : chars;
+  const places = bgMode === 'new' ? 'NEW BACKGROUNDS: for each scene write "background":"new: short English description of the empty place"; use exactly the same description for the same place.' + (backgrounds.length ? `\nAlready made (reuse for the same place): ${backgrounds.map((b) => `${b.id} (${b.name})`).join(', ')}` : '')
+    : stage ? `Every scene happens in front of one of these painted backgrounds (write its id in "background"):\n${listPlaces(backgrounds)}` : `Every scene uses one of these locations (write the key in "location"):\n${Object.entries(LOCATIONS).map(([k, v]) => `- ${k}: ${v}`).join('\n')}`;
+  const steps = 1 + nActs + Math.ceil(scenesTotal / 3); let done = 0; const tick = (label) => onProgress(++done, steps, label);
+  onProgress(0, steps, 'Writing the film plan (characters and acts)');
+  const { value: bible } = await askJSON(chain, { onLog, temperature: 0.95, validate: (j) => { if (!Array.isArray(j.characters) || !j.characters.length || !Array.isArray(j.acts) || j.acts.length < 2) throw new Error('plan incomplete'); return j; },
+    user: `${sys(language)}
+
+Plan a FEATURE-LENGTH animated film of about ${minutes} minutes: ${cat.hint}. Category: ${cat.label}.
+${idea ? `Idea / title: ${idea}` : 'Invent an original title and idea.'}
+Use ${nChars} characters with clear roles, wants and arcs (a hero, people close to the hero, an antagonist / obstacle, side characters).${castRule(fixed, plan)}${seriesRule(series)}
+Structure it like a real film in ${nActs} acts: setup and hook, inciting incident, rising stakes with subplots, midpoint twist, the low point, the climax, the resolution. Every act moves the story forward and ends with a change or a hook.
+Reply with ONLY this JSON:
+{"title":"title","title_hindi":"title in Hindi","logline":"one line","moral":"last message or empty","characters":[{"id":"short_id","name":"name","gender":"male|female","age":"child|young|adult|old","role":"role","top_color":"#hex","bottom_color":"#hex","hair_color":"#hex","look":"skin tone and hair","hat":"none|beanie|cap","personality":"few words","model":"actor id"}],
+ "acts":[{"title":"act title","summary":"5–8 sentences: exactly what happens","minutes":number}]}
+The act minutes add up to ${minutes}.` });
+  const tmp = { ...bible, scenes: [{ present: [] }] }; normalizeOutline(tmp, 60); // checks / fixes the characters
+  const chars0 = tmp.characters; const sumMin = bible.acts.reduce((a, x) => a + (Number(x.minutes) || 0), 0) || minutes;
+  for (const a of bible.acts) a.minutes = ((Number(a.minutes) || minutes / bible.acts.length) * minutes) / sumMin;
+  tick('Film plan ready');
+  const charList = (cs) => cs.map((c) => `${c.id} (${c.name}, ${c.gender}, ${c.age}, ${c.role})`).join('; ');
+  const scenes = [];
+  for (const [ai, act] of bible.acts.entries()) {
+    const n = Math.max(2, Math.round(act.minutes * 1.25));
+    const { value } = await askJSON(chain, { onLog, temperature: 0.9, validate: (j) => { if (!Array.isArray(j.scenes) || !j.scenes.length) throw new Error('no scenes'); return j; },
+      user: `${sys(language)}
+
+Film "${bible.title}" (${cat.label}, ${minutes} min). ${bible.logline}
+Characters: ${charList(chars0)}
+Acts: ${bible.acts.map((a, i) => `${i + 1}. ${a.title}: ${a.summary}`).join('\n')}
+${scenes.length ? `Scenes so far (last ones): ${scenes.slice(-6).map((s) => s.summary).join(' | ')}` : ''}
+Now break ACT ${ai + 1} ("${act.title}", about ${Math.round(act.minutes * 60)} seconds) into about ${n} scenes. A new place or a jump in time = a new scene; every scene has a goal, a conflict and a turn.
+${places}
+At most 6 characters in one scene.
+Reply with ONLY this JSON: {"scenes":[{${stage ? '"background":"…"' : '"location":"key"'},"time_of_day":"${TIMES_OF_DAY.join('|')}","weather":"none|rain|storm|fog|wind|snow","present":["character ids at the start"],"summary":"2–3 sentences","seconds":number}]}
+The seconds add up to about ${Math.round(act.minutes * 60)}.` });
+    scenes.push(...value.scenes.map((x) => ({ ...x, act: ai + 1 }))); tick(`Act ${ai + 1}/${bible.acts.length}: ${value.scenes.length} scenes`);
+  }
+  // dialogue and actions, 3 scenes per request
+  const sumSec = scenes.reduce((a, x) => a + (Number(x.seconds) || 30), 0) || totalSec; for (const x of scenes) x.seconds = Math.max(12, Math.round(((Number(x.seconds) || 30) * totalSec) / sumSec));
+  for (let i = 0; i < scenes.length; i += 3) {
+    const group = scenes.slice(i, i + 3);
+    const { value } = await askJSON(chain, { onLog, temperature: 0.95, validate: (j) => { if (!Array.isArray(j.scenes) || j.scenes.length < group.length || !j.scenes.some((s) => Array.isArray(s.beats) && s.beats.length)) throw new Error('beats missing'); return j; },
+      user: `${sys(language)}
+
+Film "${bible.title}" (${cat.label}). ${bible.logline}
+Characters (use these ids only): ${charList(chars0)}
+Story so far: ${scenes.slice(Math.max(0, i - 8), i).map((s, k) => `${i - Math.min(8, i) + k + 1}. ${s.summary}`).join(' ') || '(the film starts here)'}
+Write the full screenplay for these ${group.length} scenes (in this order):
+${group.map((s, k) => `Scene ${i + k + 1}: present ${JSON.stringify(s.present || [])}, about ${s.seconds} seconds (about ${Math.max(4, Math.round(s.seconds / 3.4))} dialogue lines). ${s.summary}`).join('\n')}
+${actionHelp(stage)}
+Reply with ONLY this JSON: {"scenes":[{"beats":[{"type":"action","char":"id","action":"enter"},{"type":"line","char":"id","emotion":"neutral|happy|sad|angry|surprised|scared","hindi":"देवनागरी","hinglish":"Roman Hinglish","english":"English"}]}]} — one entry per scene above, in order.` });
+    group.forEach((s, k) => { s.beats = value.scenes[k]?.beats || []; }); tick(`Dialogue: scenes ${i + 1}–${Math.min(scenes.length, i + 3)} of ${scenes.length}`);
+  }
+  const j = storyFromObject({ title: bible.title, title_hindi: bible.title_hindi, logline: bible.logline, moral: bible.moral, characters: chars0, scenes }, minutes);
+  return { ...keepCast(j, fixed), category, minutes, acts: bible.acts };
 }

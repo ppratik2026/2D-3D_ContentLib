@@ -2,8 +2,9 @@
 // camera per moment, dialogue text + mute, music / effects / voice levels, your own music. Then "Render video".
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}.${Math.floor((s % 1) * 10)}`;
-const PX = 44; // timeline pixels per second
+const fmt = (s) => { s = Math.max(0, s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return `${h ? h + ':' + String(m).padStart(2, '0') : m}:${String(Math.floor(s % 60)).padStart(2, '0')}.${Math.floor((s % 1) * 10)}`; };
+const parseT = (v) => { const p = String(v).trim().split(':').map(Number); if (p.some(isNaN)) return null; return p.reduce((a, x) => a * 60 + x, 0); };
+let PX = 44; // timeline pixels per second (zoom)
 const SHOTS = { wide: 'Wide (whole place)', two: 'Two-shot (2 people)', speaker: 'Speaker (medium)', ots: 'Over the shoulder', cu: 'Close-up', react: 'Reaction close-up', hands: 'Hands', vehicle: 'Vehicle' };
 let ED = null; // { id, tl, bgs, moods, audio, t, playing, sel, dirty }
 
@@ -17,10 +18,11 @@ const visChars = (sc) => (sc.cast || []).filter((id) => id !== 'narrator' && ED.
 export async function openEditor(id) {
   $('#edModal').hidden = false; $('#edMsg').textContent = 'Loading…';
   const d = await api.call('editor:get', id); ED = { id, ...d, t: 0, playing: false, sel: null, loop: null }; audio.src = d.audio;
+  $('#edScene').innerHTML = ED.tl.scenes.map((sc) => `<option value="${sc.index}">Scene ${sc.index + 1} · ${fmt(sc.start).replace(/\.\d$/, '')} · ${esc((sc.summary || '').slice(0, 40))}</option>`).join('');
   await reload(); drawAll(); $('#edMsg').textContent = '';
 }
 async function reload() { $('#edMsg').textContent = 'Building the preview…'; await window.AVEditor.load($('#edGl'), $('#edOut'), ED.tl); $('#edMsg').textContent = ''; frame(); }
-function frame() { if (!ED || !window.AVEditor.ready()) return; ED.tl._forceWide = $('#edWide').checked; window.AVEditor.frame(ED.t); $('#edTime').textContent = `${fmt(ED.t)} / ${fmt(ED.tl.duration)}`; $('#edScrub').value = ED.t; drawHead(); drawMarks(); }
+function frame() { if (!ED || !window.AVEditor.ready()) return; ED.tl._forceWide = $('#edWide').checked; window.AVEditor.frame(ED.t); $('#edTime').textContent = `${fmt(ED.t)} / ${fmt(ED.tl.duration)}`; $('#edScrub').value = ED.t; const si = sceneAt(ED.t).index; if (+$('#edScene').value !== si) $('#edScene').value = si; drawHead(); drawMarks(); }
 const changed = (rebuild) => { ED.dirty = true; window.AVEditor.invalidate(); if (rebuild) reload(); else frame(); };
 
 // ---------- transport ----------
@@ -30,17 +32,26 @@ function play(from, to) { if (ED.playing) { audio.pause(); ED.playing = false; $
 audio.onended = () => { ED.playing = false; $('#edPlay').textContent = '▶ Play'; };
 
 // ---------- timeline tracks ----------
-function drawAll() { const tl = ED.tl; $('#edScrub').max = tl.duration; const W = Math.ceil(tl.duration * PX);
-  const cams = [...tl.shots.map((s, i) => ({ ...s, i })), ...(ed().cams || []).map((s, i) => ({ ...s, i, mine: true }))];
-  const walks = ed().walks || [];
-  $('#edTracks').innerHTML = `<div class="edtrk" style="width:${W}px"><span class="lab">Scenes</span>${tl.scenes.map((sc) => `<div class="blk scene${sceneAt(ED.t) === sc ? ' on' : ''}" data-sel="scene:${sc.index}" style="left:${sc.start * PX}px;width:${(sc.end - sc.start) * PX}px">${sc.index + 1}. ${esc(sc.summary || '')}</div>`).join('')}</div>
+function drawAll() { drawTracks(); drawSide(); }
+// only the part of the timeline on screen is drawn (a 2-hour film has thousands of blocks)
+function drawTracks() { const tl = ED.tl; $('#edScrub').max = tl.duration; const W = Math.ceil(tl.duration * PX); const tr = $('#edTracks');
+  const a = Math.max(0, (tr.scrollLeft - 400) / PX), b = (tr.scrollLeft + (tr.clientWidth || 900) + 400) / PX; const vis = (t0, t1) => t1 >= a && t0 <= b;
+  const cams = [...tl.shots.map((s, i) => ({ ...s, i })), ...(ed().cams || []).map((s, i) => ({ ...s, i, mine: true }))].filter((s) => vis(s.t0, s.t1));
+  const walks = (ed().walks || []).map((w, i) => ({ w, i, t0: tl.scenes[w.scene].start + w.at })).filter((x) => vis(x.t0, x.t0 + (x.w.dur || 2)));
+  const step = PX >= 30 ? 1 : PX >= 12 ? 5 : 10, lab = PX >= 60 ? 1 : PX >= 30 ? 5 : PX >= 12 ? 10 : 30; let ticks = '';
+  for (let t = Math.floor(a / step) * step; t <= Math.min(b, tl.duration); t += step) ticks += `<i class="tk${t % lab === 0 ? ' big' : ''}" style="left:${t * PX}px">${t % lab === 0 ? fmt(t).replace(/\.\d$/, '') : ''}</i>`;
+  const muted = ed().mix?.mutedLines || tl.mix?.mutedLines || [];
+  tr.innerHTML = `<div class="edtrk ruler" style="width:${W}px">${ticks}</div>
+    <div class="edtrk" style="width:${W}px"><span class="lab">Scenes</span>${tl.scenes.filter((sc) => vis(sc.start, sc.end)).map((sc) => `<div class="blk scene${sceneAt(ED.t) === sc ? ' on' : ''}" data-sel="scene:${sc.index}" style="left:${sc.start * PX}px;width:${(sc.end - sc.start) * PX}px">${sc.index + 1}. ${esc(sc.summary || '')}</div>`).join('')}</div>
     <div class="edtrk" style="width:${W}px"><span class="lab">Camera</span>${cams.map((s) => `<div class="blk cam${s.mine ? ' mine' : ''}${ED.sel === (s.mine ? 'mycam:' : 'cam:') + s.i ? ' sel' : ''}" data-sel="${s.mine ? 'mycam' : 'cam'}:${s.i}" style="left:${s.t0 * PX}px;width:${Math.max(4, (s.t1 - s.t0) * PX)}px" title="${esc(SHOTS[s.type] || s.type)}">${esc(s.type)}${s.char ? ' ' + esc(chName(s.char)) : ''}</div>`).join('')}</div>
-    <div class="edtrk" style="width:${W}px"><span class="lab">Dialogue</span>${tl.lines.map((l, i) => `<div class="blk line${(ed().mix?.mutedLines || tl.mix?.mutedLines || []).includes(l.id) ? ' muted' : ''}${ED.sel === 'line:' + i ? ' sel' : ''}" data-sel="line:${i}" style="left:${l.start * PX}px;width:${Math.max(4, (l.end - l.start) * PX)}px" title="${esc(l.hinglish)}">${esc(chName(l.char))}: ${esc(l.hinglish)}</div>`).join('')}</div>
-    <div class="edtrk" style="width:${W}px"><span class="lab">Walks</span>${walks.map((w, i) => { const sc = tl.scenes[w.scene]; const t0 = sc.start + w.at; return `<div class="blk walk${ED.sel === 'walk:' + i ? ' sel' : ''}" data-sel="walk:${i}" style="left:${t0 * PX}px;width:${Math.max(4, (w.dur || 2) * PX)}px">${esc(chName(w.char))} →</div>`; }).join('')}</div>
+    <div class="edtrk" style="width:${W}px"><span class="lab">Dialogue</span>${tl.lines.map((l, i) => [l, i]).filter(([l]) => vis(l.start, l.end)).map(([l, i]) => `<div class="blk line${muted.includes(l.id) ? ' muted' : ''}${ED.sel === 'line:' + i ? ' sel' : ''}" data-sel="line:${i}" style="left:${l.start * PX}px;width:${Math.max(4, (l.end - l.start) * PX)}px" title="${esc(l.hinglish)}">${esc(chName(l.char))}: ${esc(l.hinglish)}</div>`).join('')}</div>
+    <div class="edtrk" style="width:${W}px"><span class="lab">Walks</span>${walks.map(({ w, i, t0 }) => `<div class="blk walk${ED.sel === 'walk:' + i ? ' sel' : ''}" data-sel="walk:${i}" style="left:${t0 * PX}px;width:${Math.max(4, (w.dur || 2) * PX)}px">${esc(chName(w.char))} →</div>`).join('')}</div>
     <div id="edHead" class="edhead"></div>`;
-  drawHead(); drawSide(); }
+  ED.drawnA = a; ED.drawnB = b; drawHead(); }
 function drawHead() { const h = $('#edHead'); if (!h) return; const x = ED.t * PX; h.style.left = x + 'px'; const tr = $('#edTracks'); if (x < tr.scrollLeft + 60 || x > tr.scrollLeft + tr.clientWidth - 60) tr.scrollLeft = Math.max(0, x - tr.clientWidth / 3); /* keep the playhead in view */ }
-$('#edTracks').onclick = (e) => { const b = e.target.closest('[data-sel]'); const box = $('#edTracks').getBoundingClientRect(); const t = (e.clientX - box.left + $('#edTracks').scrollLeft) / PX;
+let scrollT = 0; $('#edTracks').onscroll = () => { if (!ED) return; cancelAnimationFrame(scrollT); scrollT = requestAnimationFrame(() => { const tr = $('#edTracks'); const a = tr.scrollLeft / PX, b = (tr.scrollLeft + tr.clientWidth) / PX; if (a < ED.drawnA + 1 || b > ED.drawnB - 1) drawTracks(); }); };
+const snap = (t) => ($('#edSnap')?.checked ? Math.round(t) : t);
+$('#edTracks').onclick = (e) => { const b = e.target.closest('[data-sel]'); const box = $('#edTracks').getBoundingClientRect(); const t = snap((e.clientX - box.left + $('#edTracks').scrollLeft) / PX);
   if (b) { ED.sel = b.dataset.sel; if (!ED.sel.startsWith('scene')) seek(Math.max(t, 0)); else { const sc = ED.tl.scenes[+ED.sel.split(':')[1]]; seek(Math.max(sc.start, t)); ED.sel = null; } drawAll(); } else seek(t); };
 
 // ---------- side panel ----------
@@ -50,6 +61,7 @@ function drawSide() { if (!ED) return; const sc = sceneAt(ED.t); const [kind, id
       <label>Angle<select id="cType">${Object.entries(SHOTS).map(([k, v]) => `<option value="${k}"${k === s.type ? ' selected' : ''}>${v}</option>`).join('')}</select></label>
       <label>On<select id="cChar"><option value="">—</option>${people.map((id) => `<option value="${esc(id)}"${id === s.char ? ' selected' : ''}>${esc(chName(id))}</option>`).join('')}</select></label>
       <label>Listener (over-the-shoulder)<select id="cList"><option value="">—</option>${people.map((id) => `<option value="${esc(id)}"${id === s.listener ? ' selected' : ''}>${esc(chName(id))}</option>`).join('')}</select></label>
+      ${kind === 'mycam' ? `<div class="row"><label>From (s)<input type="number" id="cT0" step="1" value="${Math.round(s.t0 * 10) / 10}"></label><label>To (s)<input type="number" id="cT1" step="1" value="${Math.round(s.t1 * 10) / 10}"></label></div>` : ''}
       <div class="btns"><button id="cApply" class="primary">Use this angle</button><button id="cSplit" class="ghost">Change only from the playhead</button>${kind === 'mycam' ? '<button id="cDel" class="danger">Remove my change</button>' : ''}</div>
       <div class="small muted">Tip: untick "Wide view" to see the camera while playing.</div>`; }
   else if (kind === 'line') { const l = ED.tl.lines[+idx]; const mx = (ED.tl.mix ||= {}); const muted = (mx.mutedLines || []).includes(l.id);
@@ -59,7 +71,7 @@ function drawSide() { if (!ED) return; const sc = sceneAt(ED.t); const [kind, id
       <label class="check"><input type="checkbox" id="lMute"${muted ? ' checked' : ''}> Mute this line</label><label>Volume<input type="range" id="lVol" min="0" max="1.5" step="0.05" value="${mx.lineVol?.[l.id] ?? 1}"></label>
       <div class="btns"><button id="lRevoice" class="primary">Save text &amp; make new voices</button><button id="lPlay" class="ghost">▶ Play line</button></div><div class="small muted">New voices change the timing a little; your camera changes made by time may need a check after it.</div>`; }
   else if (kind === 'walk') { const w = ed().walks[+idx];
-    h = `<h3>Walk — ${esc(chName(w.char))}</h3><label>Starts (s after the scene start)<input type="number" id="wAt" step="0.1" value="${w.at}"></label><label>Takes (seconds)<input type="number" id="wDur" step="0.1" value="${w.dur}"></label><label class="check"><input type="checkbox" id="wRun"${w.run ? ' checked' : ''}> Run</label>
+    h = `<h3>Walk — ${esc(chName(w.char))}</h3><label>Starts (s after the scene start)<input type="number" id="wAt" step="1" value="${w.at}"></label><label>Takes (seconds)<input type="number" id="wDur" step="1" value="${w.dur}"></label><label class="check"><input type="checkbox" id="wRun"${w.run ? ' checked' : ''}> Run</label>
       <div class="btns"><button id="wDel" class="danger">Delete walk</button><button id="wPlay" class="ghost">▶ Play it</button></div>`; }
   else { const people = visChars(sc); const b = window.AVEditor.info?.(ED.t); const marks = (b?.marks || []).map((m, i) => ({ ...m, i })).filter((m) => m.type !== 'door' && m.type !== 'window'); const pos = ed().pos?.[sc.index] || {}; const be = ed().bg?.[sc.index] || {};
     h = `<h3>Scene ${sc.index + 1} <span class="small muted">${fmt(sc.start)}–${fmt(sc.end)}</span></h3><div class="small">${esc(sc.summary || '')}</div>
@@ -79,7 +91,8 @@ function bindSide(kind, idx) { const on = (sel, ev, fn) => { const el = $(sel); 
   if (kind === 'cam' || kind === 'mycam') { const src = kind === 'cam' ? ED.tl.shots[idx] : ed().cams[idx];
     const val = () => ({ type: $('#cType').value, char: $('#cChar').value || undefined, listener: $('#cList').value || undefined });
     on('#cApply', 'onclick', () => { if (kind === 'mycam') Object.assign(src, val()); else (ed().cams ||= []).push({ t0: src.t0, t1: src.t1, ...val() }); changed(); drawAll(); });
-    on('#cSplit', 'onclick', () => { const t0 = Math.max(src.t0, ED.t); (ed().cams ||= []).push({ t0, t1: src.t1, ...val() }); changed(); drawAll(); });
+    on('#cT0', 'onchange', (e) => { src.t0 = Math.max(0, Math.min(src.t1 - 0.5, +e.target.value)); changed(); drawAll(); }); on('#cT1', 'onchange', (e) => { src.t1 = Math.min(ED.tl.duration, Math.max(src.t0 + 0.5, +e.target.value)); changed(); drawAll(); });
+    on('#cSplit', 'onclick', () => { const t0 = Math.max(src.t0, snap(ED.t)); (ed().cams ||= []).push({ t0, t1: src.t1, ...val() }); changed(); drawAll(); });
     on('#cDel', 'onclick', () => { ed().cams.splice(idx, 1); ED.sel = null; changed(); drawAll(); }); }
   if (kind === 'line') { const l = ED.tl.lines[idx]; const mx = (ED.tl.mix ||= {});
     on('#lMute', 'onchange', (e) => { mx.mutedLines = (mx.mutedLines || []).filter((x) => x !== l.id); if (e.target.checked) mx.mutedLines.push(l.id); ED.audioDirty = true; drawAll(); });
@@ -111,7 +124,7 @@ function drawMarks() { const c = $('#edOv'); const x = c.getContext('2d'); x.cle
   info.marks.forEach((m, i) => { const [px, py] = toPx(m.x, m.y); x.fillStyle = 'rgba(255,200,60,.9)'; x.beginPath(); x.arc(px, py, 5, 0, 7); x.fill(); x.font = '11px sans-serif'; x.fillText(`${m.type} ${i + 1}`, px + 7, py - 4); }); }
 const ovXY = (e) => { const r = $('#edOv').getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
 $('#edOv').onmousedown = (e) => { if (!ED) return; const [nx, ny] = ovXY(e); const sc = sceneAt(ED.t);
-  if (ED.walkFor) { const p = window.AVEditor.toStage(nx, ny, ED.t); if (p) { const from = (ed().pos?.[sc.index]?.[ED.walkFor]?.x ?? 0.5); (ed().walks ||= []).push({ scene: sc.index, char: ED.walkFor, toX: +p.x.toFixed(3), toRow: +p.row.toFixed(3), at: +(ED.t - sc.start).toFixed(2), dur: +Math.max(1, Math.abs(p.x - from) * 6).toFixed(1) }); ED.sel = 'walk:' + (ed().walks.length - 1); } ED.walkFor = null; $('#edMsg').textContent = ''; changed(); drawAll(); return; }
+  if (ED.walkFor) { const p = window.AVEditor.toStage(nx, ny, ED.t); if (p) { const from = (ed().pos?.[sc.index]?.[ED.walkFor]?.x ?? 0.5); (ed().walks ||= []).push({ scene: sc.index, char: ED.walkFor, toX: +p.x.toFixed(3), toRow: +p.row.toFixed(3), at: +snap(ED.t - sc.start).toFixed(2), dur: +Math.max(1, Math.abs(p.x - from) * 6).toFixed(1) }); ED.sel = 'walk:' + (ed().walks.length - 1); } ED.walkFor = null; $('#edMsg').textContent = ''; changed(); drawAll(); return; }
   if (!$('#edWide').checked) return; const id = window.AVEditor.pick(nx, ny); if (!id) return; ED.drag = id;
   const move = (ev) => { const [mx, my] = ovXY(ev); const p = window.AVEditor.toStage(mx, my, ED.t); if (!p) return; const P = (((ed().pos ||= {})[sc.index] ||= {})[id] ||= {}); P.x = +p.x.toFixed(3); P.row = +p.row.toFixed(3); P.seat = -1; changed(); };
   const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); ED.drag = null; drawSide(); }; window.addEventListener('mousemove', move); window.addEventListener('mouseup', up); };
@@ -130,7 +143,12 @@ async function remix() { $('#edMsg').textContent = 'Mixing the sound…'; const 
 
 // ---------- buttons ----------
 $('#edPlay').onclick = () => play(); $('#edScrub').oninput = (e) => seek(+e.target.value); $('#edWide').onchange = frame;
-$('#edBack').onclick = () => seek(ED.t - 2); $('#edFwd').onclick = () => seek(ED.t + 2);
+$('#edBack').onclick = () => seek(Math.round(ED.t) - 1); $('#edFwd').onclick = () => seek(Math.round(ED.t) + 1);
+$('#edZoom').oninput = (e) => { const t = ED.t; PX = +e.target.value; drawTracks(); const tr = $('#edTracks'); tr.scrollLeft = Math.max(0, t * PX - tr.clientWidth / 3); drawTracks(); };
+$('#edGo').onchange = (e) => { const t = parseT(e.target.value); if (t != null) seek(t); e.target.value = ''; };
+$('#edScene').onchange = (e) => { const sc = ED.tl.scenes[+e.target.value]; if (sc) seek(sc.start); };
+window.addEventListener('keydown', (e) => { if (!ED || $('#edModal').hidden || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
+  if (e.key === 'ArrowRight') { seek(Math.round(ED.t) + (e.shiftKey ? 10 : 1)); e.preventDefault(); } else if (e.key === 'ArrowLeft') { seek(Math.round(ED.t) - (e.shiftKey ? 10 : 1)); e.preventDefault(); } else if (e.key === ' ') { play(); e.preventDefault(); } }); /* ← → = 1 second, Shift = 10 s, Space = play */
 $('#edSave').onclick = async () => { await api.call('editor:save', { id: ED.id, tl: strip() }); ED.dirty = false; $('#edMsg').textContent = 'Saved ✓'; };
 $('#edClose').onclick = async () => { if (ED?.playing) play(); if (ED) await api.call('editor:save', { id: ED.id, tl: strip() }); $('#edModal').hidden = true; };
 $('#edRender').onclick = async () => { if (ED.playing) play(); if (ED.audioDirty) await remix(); const q = await api.call('editor:render', { id: ED.id, tl: strip() }); $('#edModal').hidden = true; window.AVRenderQueue?.(q); };

@@ -1,3 +1,4 @@
+import fs from 'fs';
 // Step 4: background music (by category mood), ambience (by location), sound effects and dialogue,
 // all generated/mixed in code into one track. Free: no samples needed. Music ducks under dialogue.
 import { readWav, writeWav } from './wav.mjs';
@@ -188,7 +189,7 @@ export function mixAll(tl, mood, outFile) {
   let music; if (MX.musicWav) { try { const w = readWav(MX.musicWav); const r = w.rate / SR; music = new Float32Array(n); const len = Math.floor(w.samples.length / r); for (let i = 0; i < n; i++) music[i] = w.samples[Math.floor((i % Math.max(1, len)) * r)] * 0.7; } catch { music = null; } } /* your own music file (loops) */
   music ||= makeMusic(mood, dur); const mv = vol('music');
   for (let i = 0; i < n; i++) { const t = i / SR; const fade = Math.min(1, t / 1.5, (dur - t) / 2.5); mix[i] += music[i] * duck[i] * fade * 0.8 * mv; }
-  const base = mix.slice(); /* everything added after this line is ambience / effects */
+  const fvol = vol('sfx'); const base = fvol !== 1 ? mix.slice() : null; /* everything added after this line is ambience / effects */
   // ambience per scene
   for (const sc of tl.scenes) {
     const d = sc.end - sc.start + 0.6; const fade = (x) => { for (let i = 0; i < x.length; i++) { const tt = i / SR; x[i] *= Math.min(1, tt / 0.6, (x.length / SR - tt) / 0.6); } return x; };
@@ -205,7 +206,7 @@ export function mixAll(tl, mood, outFile) {
   for (const c of tl.cues) if (c.kind === 'thunder') add(mix, thunder(), c.t, 0.55);
   for (const sc of tl.scenes) { const place = tl.backgrounds?.[sc.background]?.place; const a = place ? stageAmbience(PLACE_AMB[place] || 'street', sc.time_of_day === 'night', sc.end - sc.start + 0.6) : ambience(sc.location, sc.time_of_day, sc.end - sc.start + 0.6); for (let i = 0; i < a.length; i++) { const t = i / SR; a[i] *= 0.18 * Math.min(1, t / 0.6, (a.length / SR - t) / 0.6); } add(mix, a, sc.start - 0.3); }
   // effects
-  add(mix, sting(), 0.2, 0.9);
+  if (!tl._part) add(mix, sting(), 0.2, 0.9); /* only at the very start of the movie */
   for (const c of tl.cues) {
     if (c.kind === 'scene' && c.t > 4) add(mix, whoosh(), c.t - 0.5, 0.25);
     if (c.kind === 'door' && c.location !== 'street' && c.location !== 'park' && c.location !== 'forest' && c.location !== 'alley') add(mix, door(), c.t, 0.6);
@@ -245,7 +246,30 @@ export function mixAll(tl, mood, outFile) {
     if (c.kind === 'snore') add(mix, snore(c.t1 - c.t), c.t, 0.35);
     if (c.kind === 'sit' || c.kind === 'stand') { const s = new Float32Array(Math.floor(0.3 * SR)); for (let i = 0; i < s.length; i++) s[i] = noise() * Math.sin(Math.PI * i / s.length); add(mix, lowpass(s, 0.1), c.t + 0.3, 0.25); }
   }
-  const fv = vol('sfx'); if (fv !== 1) for (let i = 0; i < n; i++) mix[i] = base[i] + (mix[i] - base[i]) * fv;
+  if (base) for (let i = 0; i < n; i++) mix[i] = base[i] + (mix[i] - base[i]) * fvol;
   let m = 1e-6; for (const v of mix) m = Math.max(m, Math.abs(v)); const g = Math.min(1, 0.9 / m); for (let i = 0; i < n; i++) mix[i] *= g;
   writeWav(outFile, [mix], SR);
+}
+
+// long movies (up to 2 hours): mix in parts of about 10 minutes (cut at scene changes) so memory stays small, then join
+export function mixAuto(tl, mood, outFile) {
+  if (tl.duration <= 900) return mixAll(tl, mood, outFile);
+  const parts = []; let a = 0;
+  for (const sc of tl.scenes) if (sc.start - a >= 600) { parts.push([a, sc.start]); a = sc.start; }
+  parts.push([a, tl.duration]);
+  const files = [];
+  parts.forEach(([t0, t1], i) => {
+    const inPart = (t) => t >= t0 - 1e-6 && t < t1 - 1e-6; const sh = (o, keys) => { const c = { ...o }; for (const k of keys) if (typeof c[k] === 'number') c[k] -= t0; return c; };
+    const sub = { ...tl, _part: i > 0, duration: t1 - t0,
+      lines: tl.lines.filter((l) => inPart(l.start)).map((l) => sh(l, ['start', 'end'])),
+      scenes: tl.scenes.filter((sc) => inPart(sc.start)).map((sc) => ({ ...sh(sc, ['start', 'end']), events: (sc.events || []).map((e) => sh(e, ['t0', 't1'])) })),
+      cues: (tl.cues || []).filter((c) => inPart(c.t)).map((c) => sh(c, ['t', 't1'])) };
+    const f = outFile.replace(/\.wav$/i, `.part${i}.wav`); mixAll(sub, mood, f); files.push(f);
+  });
+  // join the parts (same format: 16-bit mono) into one WAV
+  const datas = files.map((f) => { const b = fs.readFileSync(f); let p = 12; while (p + 8 <= b.length) { const id = b.toString('ascii', p, p + 4), sz = b.readUInt32LE(p + 4); if (id === 'data') return b.subarray(p + 8, p + 8 + sz); p += 8 + sz + (sz & 1); } return Buffer.alloc(0); });
+  const total = datas.reduce((n, d) => n + d.length, 0); const h = Buffer.alloc(44);
+  h.write('RIFF', 0); h.writeUInt32LE(36 + total, 4); h.write('WAVE', 8); h.write('fmt ', 12); h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22); h.writeUInt32LE(SR, 24); h.writeUInt32LE(SR * 2, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write('data', 36); h.writeUInt32LE(total, 40);
+  const fd = fs.openSync(outFile, 'w'); fs.writeSync(fd, h); for (const d of datas) fs.writeSync(fd, d); fs.closeSync(fd);
+  for (const f of files) fs.rmSync(f, { force: true });
 }

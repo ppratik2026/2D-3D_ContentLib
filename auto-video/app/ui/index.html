@@ -46,7 +46,7 @@
           <div class="btns"><button id="loadStory" class="ghost" type="button">Load .txt file</button><input type="file" id="storyFile" accept=".txt,text/plain" hidden><span id="storyInfo" class="small muted"></span></div>
         </div>
         <div class="row">
-          <div><h3>3. Minutes</h3><div class="range"><input type="range" id="min" min="0.5" max="20" step="0.5" value="2"><b id="minv">2 min</b></div></div>
+          <div><h3>3. Minutes</h3><div class="range"><input type="range" id="min" min="0.5" max="120" step="0.5" value="2"><b id="minv">2 min</b></div></div>
           <div><h3>Number of videos</h3><input type="number" id="count" min="1" max="20" value="1"></div>
           <div><h3>Characters in the story</h3><select id="chars"><option value="auto">Auto (by length)</option><option value="exactly 1">1</option><option value="exactly 2">2</option><option value="exactly 3">3</option><option value="exactly 4">4</option><option value="exactly 5">5</option><option value="exactly 6">6</option><option value="exactly 7">7</option><option value="exactly 8">8</option><option value="exactly 9">9</option><option value="exactly 10">10</option><option value="2 to 3">2–3</option><option value="3 to 5">3–5</option><option value="5 to 8">5–8</option><option value="8 to 12">8–12</option></select></div>
         </div>
@@ -305,7 +305,8 @@
   <div class="qhead"><div><b>Timeline editor</b> <span id="edMsg" class="small muted"></span></div><div class="btns"><button id="edSave" class="ghost">Save</button><button id="edClose" class="ghost">Close (keeps changes)</button><button id="edRender" class="primary">Render video ▶</button></div></div>
   <div class="edgrid">
     <div><div class="edview"><canvas id="edGl" width="1280" height="720" hidden></canvas><canvas id="edOut" width="1280" height="720"></canvas><canvas id="edOv" width="960" height="540"></canvas></div>
-      <div class="edbar"><button id="edBack" class="ghost">⏪ 2s</button><button id="edPlay" class="primary">▶ Play</button><button id="edFwd" class="ghost">2s ⏩</button><input type="range" id="edScrub" min="0" step="0.01" value="0"><span id="edTime" class="small"></span><label class="check"><input type="checkbox" id="edWide" checked> Wide view (drag people)</label></div>
+      <div class="edbar"><button id="edBack" class="ghost" title="1 second back (←)">⏪ 1s</button><button id="edPlay" class="primary">▶ Play</button><button id="edFwd" class="ghost" title="1 second forward (→)">1s ⏩</button><input type="range" id="edScrub" min="0" step="0.1" value="0"><span id="edTime" class="small"></span><label class="check"><input type="checkbox" id="edWide" checked> Wide view (drag people)</label></div>
+      <div class="edbar"><select id="edScene"></select><input id="edGo" placeholder="go to time e.g. 1:05:30" style="width:150px"><label class="small">Zoom<input type="range" id="edZoom" min="4" max="160" step="1" value="44"></label><label class="check"><input type="checkbox" id="edSnap" checked> Snap to 1 s</label><span class="small muted">← → 1 s · Shift 10 s · Space play</span></div>
       <div id="edTracks" class="edtracks"></div>
       <div id="edAudio" class="edaudio"></div></div>
     <div id="edSide" class="edside"></div>

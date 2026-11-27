@@ -19,7 +19,7 @@ const { CATEGORIES, STYLES, LOOKS, SUBTITLE_STYLES, MUSIC_MOODS, saveCategory, d
 const review = await import('../pipeline/review.mjs');
 const { estimate, fmt } = await import('../pipeline/estimate.mjs');
 const { makeVideo, newJobId, rebuildTimeline } = await import('../pipeline/run.mjs');
-const { mixAll } = await import('../pipeline/audio.mjs');
+const { mixAuto: mixAll } = await import('../pipeline/audio.mjs');
 const { setupStatus, runSetup } = await import('../pipeline/setup.mjs');
 const lib = await import('../pipeline/library.mjs');
 const bgs = await import('../pipeline/backgrounds.mjs');
@@ -142,7 +142,7 @@ async function pump() {
   job.stages = Object.fromEntries(STAGES.map((k) => [k, { state: 'todo', done: 0, total: 0, label: '' }])); abort = new AbortController(); broadcast(true);
   const s = readSettings();
   try {
-    const chain = job.opts.storyJson || job.opts.demo ? [] : await buildChain(job.opts.storyAI);
+    const chain = job.opts.storyJson || job.opts.demo ? [] : job.opts.testChain || await buildChain(job.opts.storyAI); /* testChain: dev tests only */
     const r = await makeVideo({ ...job.opts, id: job.id, chain, ffmpegPath, renderer: s.renderer, concurrency: s.concurrency, renderFn: s.renderer === 'remotion' ? null : chromeRender },
       (e) => { Object.assign(job, { step: e.step, msg: e.msg, elapsed: e.elapsed }); if (e.progress != null) job.progress = e.progress; if (e.eta != null) job.eta = e.eta; if (e.estimate) job.estimate = e.estimate; if (e.title) job.title = e.title; if (e.duration) job.duration = e.duration;
         if (e.stage && job.stages[e.stage.name]) { const i = STAGES.indexOf(e.stage.name); STAGES.forEach((k, j) => { if (j < i) job.stages[k].state = 'done'; });
@@ -395,8 +395,10 @@ function createWindow() {
     if (process.argv.includes('--mystory-ui')) { await win.webContents.executeJavaScript(`document.querySelector('#storyMode [data-m=mine]').click(); const t=document.querySelector('#myStory'); t.value='Inspector Arjun: "Raka, gaadi roko!"\\n\\n'+'Raka laal car me highway par bhaag raha tha. '.repeat(120); t.dispatchEvent(new Event('input'));`); await wait(2000); fs.writeFileSync(path.join(dir, 'mystory_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
     if (process.argv.includes('--subed-ui')) { await win.webContents.executeJavaScript(`document.querySelector('[data-tab=library]').click()`); await wait(2000); await win.webContents.executeJavaScript(`document.querySelector('[data-subs]').click()`); await wait(2500); await win.webContents.executeJavaScript(`(()=>{const v=document.querySelector('#seVideo'); v.currentTime=13.4; document.querySelector('#sePreset').value='youtube'; document.querySelector('#sePreset').onchange();})()`); await wait(2500); fs.writeFileSync(path.join(dir, 'subed_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
     if (process.argv.includes('--edit-ui')) { const js = (c) => win.webContents.executeJavaScript(c); const shot = async (n) => fs.writeFileSync(path.join(dir, n), (await win.webContents.capturePage()).toPNG());
-      await H['queue:add']({ category: 'romance', minutes: 1, count: 1, style: process.argv.includes('--bean') ? 'bean2d' : 'flat2d', look: 'auto', subs: 'auto', demo: true, edit: true, start: true, ...(process.argv.includes('--bean') ? { demoFile: 'demo-bean1.json' } : {}) });
-      for (let i = 0; i < 120 && !queue.some((j) => j.status === 'edit'); i++) await wait(1000); const j = queue.find((x) => x.status === 'edit'); if (!j) { console.log('NO EDIT JOB', queue.map((x) => x.status + ' ' + (x.error || ''))); app.quit(); return; }
+      const aiu = process.argv.includes('--ai-url') ? process.argv[process.argv.indexOf('--ai-url') + 1] : null; const mins = process.argv.includes('--minutes') ? Number(process.argv[process.argv.indexOf('--minutes') + 1]) : 1;
+      await H['queue:add']({ category: 'romance', minutes: mins, count: 1, style: process.argv.includes('--bean') ? 'bean2d' : 'flat2d', look: 'auto', subs: 'auto', demo: !aiu, edit: true, start: false });
+      if (aiu) { const q = queue[queue.length - 1]; q.opts.testChain = [{ provider: 'custom', baseUrl: aiu, key: 'x', model: 'fake' }]; } H['queue:start']();
+      for (let i = 0; i < 1500 && !queue.some((j) => j.status === 'edit' || j.status === 'error'); i++) await wait(1000); const j = queue.find((x) => x.status === 'edit'); if (!j) { console.log('NO EDIT JOB', queue.map((x) => x.status + ' ' + (x.error || ''))); app.quit(); return; }
       await js(`document.querySelector('[data-tab=queue]').click()`); await wait(600); await shot('ed_queue.png');
       await js(`window.AVOpenEditor(${JSON.stringify(j.id)})`); await wait(4000); await shot('ed_open.png');
       await js(`document.querySelector('#edScrub').value = 30; document.querySelector('#edScrub').oninput({ target: document.querySelector('#edScrub') }); 1`); await wait(1500); await shot('ed_t30.png');

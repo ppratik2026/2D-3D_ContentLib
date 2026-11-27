@@ -12,7 +12,7 @@ import { buildTimeline, finalize } from './timeline.mjs';
 import { adaptStory } from './story.mjs';
 import { applySubs, linesFromTimeline, styleFrom } from './subs.mjs';
 import { WIDTH, HEIGHT } from './config.mjs';
-import { mixAll } from './audio.mjs';
+import { mixAll, mixAuto } from './audio.mjs';
 import { estimate, fmt } from './estimate.mjs';
 import { actorsFor, assignActors, listCharacters } from './library.mjs';
 import { listBackgrounds, pickBackground } from './backgrounds.mjs';
@@ -38,7 +38,7 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   const look = opts.look && opts.look !== 'auto' && LOOKS[opts.look] ? opts.look : isStage ? (category === 'horror' ? 'horror' : 'vivid') : CATEGORIES[category].look; // cartoon channels are colourful
   const subs = opts.subs && opts.subs !== 'auto' && SUBTITLE_STYLES[opts.subs] ? opts.subs : CATEGORIES[category].subs;
   const renderer = opts.renderer === 'remotion' || !opts.renderFn ? 'remotion' : 'chrome';
-  const minutes = Math.max(0.5, Math.min(30, Number(opts.minutes) || 1));
+  const minutes = Math.max(0.5, Math.min(120, Number(opts.minutes) || 1)); /* up to a 2-hour movie */
   const id = opts.id || newJobId(category);
   const work = path.join(OUTPUT, '.work', id); const pubDir = path.join(JOBS, id); fs.mkdirSync(work, { recursive: true }); fs.mkdirSync(pubDir, { recursive: true });
   const T = { start: Date.now() }; const step = (name, msg, extra = {}) => report({ id, step: name, msg, elapsed: (Date.now() - T.start) / 1000, ...extra });
@@ -120,14 +120,14 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   step('voice', `Voices ready (${tl.lines.length} lines). Video length ${fmt(tl.duration)}`, { duration: tl.duration });
   tl.voicesMap = voices; tl.voiceDir = path.join(work, 'voice');
   if (opts.edit && tl.mode === 'stage') { // timeline editor before the render
-    fs.writeFileSync(path.join(work, 'edit_timeline.json'), JSON.stringify(tl)); mixAll(tl, CATEGORIES[category].mood, path.join(pubDir, 'mix.wav'));
+    fs.writeFileSync(path.join(work, 'edit_timeline.json'), JSON.stringify(tl)); mixAuto(tl, CATEGORIES[category].mood, path.join(pubDir, 'mix.wav'));
     step('voice', 'Ready to edit — open the editor', { title: story.title }); return { edit: true, id, story, duration: tl.duration }; }
   }
 
   // 3. sound
   const mixFile = path.join(pubDir, 'mix.wav');
   stage('sound', 0, 1, 'Music, ambience and effects');
-  mixAll(tl, CATEGORIES[category]?.mood || 'drama', mixFile);
+  mixAuto(tl, CATEGORIES[category]?.mood || 'drama', mixFile);
   stage('sound', 1, 1, 'Music, ambience, effects and dialogue mixed');
 
   // 4. render

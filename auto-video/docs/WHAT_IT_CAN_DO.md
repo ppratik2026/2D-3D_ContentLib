@@ -66,6 +66,13 @@ Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren)
 
 3D loader reads FBX 7 and newer. Old FBX files (FBX 6.x, the error "FBX version not supported, FileVersion: 6100") are converted to GLB automatically when you import them; for one imported earlier, open it in the Characters tab and click **Convert to the new format**. The free FBX2glTF converter (~4 MB) downloads the first time.
 
+## Feature-length movies up to 2 hours (v1.13)
+
+- New Video → Minutes goes up to **120** (2 hours). For anything longer than 12 minutes the AI writes like a film: first the plan (characters with arcs and 3–14 acts), then the scenes of every act, then the full screenplay 3 scenes at a time (about 60 AI requests for 2 hours — a free Groq key is enough; Gemini's free daily limit may run out). The final length follows the real voices, so it can differ a little from the minutes you set.
+- Sound for long movies is mixed in 10-minute parts and joined; big background pictures are loaded at 2560 px so many backgrounds fit in memory.
+- The timeline editor opens for long movies too and edits in 1-second steps: a ruler with every second, ← / → = 1 s (Shift = 10 s), Space = play / pause, *Snap to 1 s*, zoom, jump to a scene or type a time (e.g. 1:05:30), camera changes with exact From / To seconds. Only the visible part of the timeline is drawn, so 2 hours stay fast.
+- Rendering time grows with length (on a normal PC roughly 2–6 hours for a 2-hour movie); leave it running, the queue continues by itself.
+
 ## Timeline editor (v1.12)
 
 With *Open the timeline editor before rendering* (New Video, on by default) the job stops after the voices: Queue → **Ready to edit → Open editor**. (2D stage styles: Flat 2D, Bean Night, 2D Cartoon Stage.)

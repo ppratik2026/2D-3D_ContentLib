@@ -46,7 +46,11 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
 
   // backgrounds (cover-fit into 16:9; mirrored repeat so chases can scroll them)
   const tl_ = new THREE.TextureLoader(); const bgTex = {}, fit = {};
-  for (const [id, b] of Object.entries(tl.backgrounds || {})) { const t = await tl_.loadAsync(url(b.file)); t.colorSpace = THREE.SRGBColorSpace; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 8; t.wrapS = THREE.MirroredRepeatWrapping;
+  // big pictures (4K) are scaled to 2560 px wide: the video is 1280×720 and long films can use many backgrounds (GPU memory)
+  const loadBg = async (u) => { const img = await new Promise((ok, fail) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => ok(i); i.onerror = () => fail(new Error('background not found: ' + u)); i.src = u; });
+    let src = img; if (img.width > 2560) { const c = document.createElement('canvas'); c.width = 2560; c.height = Math.round((img.height * 2560) / img.width); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); src = c; }
+    const t = new THREE.Texture(src); t.needsUpdate = true; return t; };
+  for (const [id, b] of Object.entries(tl.backgrounds || {})) { const t = await loadBg(url(b.file)); t.colorSpace = THREE.SRGBColorSpace; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 8; t.wrapS = THREE.MirroredRepeatWrapping;
     const ia = t.image.width / t.image.height; if (ia > AR) { t.repeat.set(AR / ia, 1); t.offset.set((1 - AR / ia) / 2, 0); } else { t.repeat.set(1, ia / AR); t.offset.set(0, (1 - ia / AR) / 2); }
     bgTex[id] = t; fit[id] = { rx: t.repeat.x, ry: t.repeat.y, ox: t.offset.x, oy: t.offset.y }; }
   const bgMat = new THREE.MeshBasicMaterial({ toneMapped: false }); bgMat.userData.outlineParameters = { visible: false };
