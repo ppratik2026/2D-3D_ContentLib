@@ -18,16 +18,18 @@ const LANG_RULE = {
 };
 export const sys = (language = 'hinglish') => `${SYSTEM}\n${LANG_RULE[language] || LANG_RULE.hinglish}`;
 // characters that must be used as they are (picked from the library, or the series cast)
-function castRule(fixed = []) { if (!fixed.length) return '';
-  return `\nUse these EXISTING characters with exactly these ids, names, gender, age and role (their look is fixed, copy their colours):\n${fixed.map((c) => `- ${JSON.stringify(Object.fromEntries(Object.entries(c).filter(([k]) => !['castId', 'voice'].includes(k))))}`).join('\n')}\nAdd new characters only when the story needs them (with new ids).`; }
+function castRule(fixed = [], plan = {}) { const lead = plan.lead && fixed.find((c) => c.id === plan.lead || c.castId === plan.lead);
+  const roles = `${lead ? `\nThe MAIN character (the hero the story follows from start to end) is ${lead.name} (id "${lead.id}").` : plan.mains ? '\nCreate the main character (the hero) yourself so that it fits the genre.' : ''}${plan.mains ? `\nThe story has exactly ${plan.mains} main character${plan.mains > 1 ? 's' : ''} with big roles (the hero included); every other character is a small side role that the genre needs (e.g. crime: inspector, constable, witness; family drama: parents, relatives).` : ''}`;
+  if (!fixed.length) return roles;
+  return roles + `\nUse these EXISTING characters with exactly these ids, names, gender, age and role (their look is fixed, copy their colours):\n${fixed.map((c) => `- ${JSON.stringify(Object.fromEntries(Object.entries(c).filter(([k]) => !['castId', 'voice'].includes(k))))}`).join('\n')}\nAdd new characters only when the story needs them (with new ids).`; }
 function seriesRule(se) { if (!se) return '';
   return `\nThis is EPISODE ${se.episode} of the series "${se.title}"${se.logline ? ` (${se.logline})` : ''}.${se.previous.length ? `\nStory so far:\n${se.previous.join('\n')}${se.lastEnding ? `\nThe last episode ended with: ${se.lastEnding}` : ''}\nContinue from there with NEW events (do not repeat old episodes); keep every character's name, personality and relationships.` : '\nStart the series: introduce the main characters and the big question of the series.'}\nEnd with a hook for the next episode. Also add to the JSON: "episode_summary":"3 sentences of what happened in this episode","next_hook":"one line: the open question for the next episode".`; }
 
-export async function writeStory({ category, minutes, idea = '', chain = [], actors = [], backgrounds = [], chars = 'auto', language = 'hinglish', fixed = [], series = null, bgMode = 'existing', onLog = () => {}, onProgress = () => {} }) {
+export async function writeStory({ category, minutes, idea = '', chain = [], actors = [], backgrounds = [], chars = 'auto', language = 'hinglish', fixed = [], series = null, bgMode = 'existing', plan = {}, onLog = () => {}, onProgress = () => {} }) {
   // 1) whole story in ONE request (saves free quota: 1 request per video)
   onProgress(0, 1, 'Writing the whole story (1 request)');
   try {
-    const { value, used } = await askJSON(chain, { user: buildPastePrompt({ category, minutes, idea, actors, backgrounds, chars, language, fixed, series, bgMode }), onLog, validate: (j) => keepCast(storyFromObject(j, minutes), fixed) });
+    const { value, used } = await askJSON(chain, { user: buildPastePrompt({ category, minutes, idea, actors, backgrounds, chars, language, fixed, series, bgMode, plan }), onLog, validate: (j) => keepCast(storyFromObject(j, minutes), fixed) });
     onLog(`Story written by ${used.provider} · ${used.model}`); onProgress(1, 1, 'Story ready');
     return { ...value, category, minutes };
   } catch (e) { if (!e.cut) throw e; onLog('Story too long for one reply — writing it scene by scene…'); }
@@ -44,7 +46,7 @@ export async function writeStory({ category, minutes, idea = '', chain = [], act
     { role: 'system', content: sys(language) },
     { role: 'user', content: `Write the outline of ${cat.hint}. Category: ${cat.label}. Total length about ${totalSec} seconds.
 ${idea ? `User idea / title: ${idea}` : 'Invent an original title and idea.'}
-Use 2 to 5 characters. Use about ${nScenes} scenes.${castRule(fixed)}${seriesRule(series)}
+Use 2 to 5 characters. Use about ${nScenes} scenes.${castRule(fixed, plan)}${seriesRule(series)}
 ${actorList ? `Each character is played by one of these 3D actors (pick the best match by gender/age/role, use different actors where possible, write its id in "model"):\n${actorList}\n` : ''} Each scene happens in ONE of these locations (use the key):
 ${locs}
 JSON shape:
@@ -192,7 +194,7 @@ ${stage ? `- Places in the background (if the background has them): {"action":"g
 - Title card for a jump in time or place: {"type":"card","text":"Agle din — Court"}.
 - If something happens that is not in the action list (fight, climb, swim, dance, fire, explosion…), still write it as an action with your own short English word (e.g. {"type":"action","char":"id","action":"fight"}) AND add a narration line that tells it. The app lists these so they can be added later.${stage ? `
 - If no background fits a scene, write "background":"new: short English description of the place" (the app uses the closest one and tells the user which image to make).` : ''}`; }
-export function buildPastePrompt({ category, minutes, idea = '', actors = [], backgrounds = [], chars = 'auto', language = 'hinglish', fixed = [], series = null, bgMode = 'existing' }) {
+export function buildPastePrompt({ category, minutes, idea = '', actors = [], backgrounds = [], chars = 'auto', language = 'hinglish', fixed = [], series = null, bgMode = 'existing', plan = {} }) {
   const cat = CATEGORIES[category] || CATEGORIES.drama; const totalSec = Math.round(minutes * 60);
   const nScenes = Math.max(2, Math.min(30, Math.round(minutes * 1.6))); const lines = Math.max(6, Math.round(totalSec / 4.2));
   const stage = backgrounds.length > 0 || bgMode === 'new';
@@ -206,7 +208,7 @@ export function buildPastePrompt({ category, minutes, idea = '', actors = [], ba
 
 Write ${cat.hint}. Category: ${cat.label}. Total length about ${totalSec} seconds (${minutes} min): about ${nScenes} scenes and about ${lines} dialogue lines in total. Keep a strong story: hook in the first scene, rising conflict, twist, clear ending.
 ${idea ? `Idea / title: ${idea}` : 'Invent an original title and idea.'}
-Use ${nChars} characters with clearly different ages and roles (for example dada, dadi, father, mother, son, daughter, child, villager, inspector, constable, doctor, villain).${castRule(fixed)}${seriesRule(series)}${actorList ? ` Each character is played by one of these actors (write its id in "model"; different characters may share an actor):\n${actorList}` : ''}
+Use ${nChars} characters with clearly different ages and roles (for example dada, dadi, father, mother, son, daughter, child, villager, inspector, constable, doctor, villain).${castRule(fixed, plan)}${seriesRule(series)}${actorList ? ` Each character is played by one of these actors (write its id in "model"; different characters may share an actor):\n${actorList}` : ''}
 ${bgMode === 'new' ? 'NEW BACKGROUNDS: the app paints a new background for every place. For each scene write "background":"new: short English description of the empty place (what is in it, style details), e.g. new: small night cafe with a counter on the right and one table with two stools". Use exactly the same description for scenes in the same place. Backgrounds already made:' : stage ? 'Every scene happens in front of one of these painted backgrounds (write its id in "background"):' : 'Every scene uses one of these locations (write the key in "location"):'}
 ${places}
 At most 6 characters in one scene. ${genreFx}${crimePlan}
@@ -307,10 +309,10 @@ Reply with ONLY this JSON (no other text):
 STORY:
 ${text}`;
 }
-export async function adaptStory({ text, category, minutes = 10, chain = [], actors = [], backgrounds = [], language = 'hinglish', fixed = [], onLog = () => {}, onProgress = () => {} }) {
+export async function adaptStory({ text, category, minutes = 10, chain = [], actors = [], backgrounds = [], language = 'hinglish', fixed = [], plan = {}, onLog = () => {}, onProgress = () => {} }) {
   const stage = backgrounds.length > 0; const parts = splitStory(text); if (!parts.length) throw new Error('Your story is empty.');
   const total = parts.length + 1; onProgress(0, total, 'Reading your story: characters');
-  const { value: cast, used } = await askJSON(chain, { user: castPrompt({ text, category, actors, language }) + castRule(fixed), onLog, validate: (j) => { if (!Array.isArray(j.characters) || !j.characters.length) throw new Error('No characters found'); return j; } });
+  const { value: cast, used } = await askJSON(chain, { user: castPrompt({ text, category, actors, language }) + castRule(fixed, plan), onLog, validate: (j) => { if (!Array.isArray(j.characters) || !j.characters.length) throw new Error('No characters found'); return j; } });
   onLog(`Characters: ${cast.characters.map((c) => c.name).join(', ')} (${used.provider} · ${used.model})`);
   const ids = new Set(cast.characters.map((c) => String(c.id))); const scenes = []; let prev = '';
   const convert = async (part, i, depth = 0) => {

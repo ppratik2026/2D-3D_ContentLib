@@ -53,7 +53,9 @@
           <div><h3>Language</h3><div class="chips" id="lang"><span class="chip" data-l="hindi">हिंदी Hindi</span><span class="chip on" data-l="hinglish">Hinglish</span><span class="chip" data-l="english">English</span></div><div id="langNote" class="small muted"></div></div>
           <div><h3>Backgrounds</h3><div class="chips" id="bgMode"><span class="chip on" data-b="existing">Existing (same theme)</span><span class="chip" data-b="new">✨ New (AI paints)</span></div><div id="bgNote" class="small muted"></div></div>
         </div>
-        <h3>Characters <small class="muted">(pick saved ones to use again; AI adds the others)</small></h3>
+        <h3>Characters</h3>
+        <div class="row top"><label>Main character (hero)<select id="leadSel"><option value="">AI creates one for this genre</option></select></label><label>Main characters (big roles)<select id="mainsSel"><option value="0">Auto</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label></div>
+        <div class="small muted">Also use these saved characters (click to pick). Everyone not picked is created by the AI to fit the genre and saved to your library after the video.</div>
         <div id="castPick" class="chips cast"></div>
         <div class="row">
           <div><h3>4. Style</h3><select id="style"></select></div>

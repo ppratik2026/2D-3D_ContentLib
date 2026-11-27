@@ -46,7 +46,8 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   const est = estimate({ style, minutes, renderer }); step('plan', `Estimated total ${fmt(est.total)}`, { estimate: est });
   const language = ['hindi', 'hinglish', 'english'].includes(opts.language) ? opts.language : 'hinglish'; const vlang = language === 'english' ? 'en' : 'hi';
   const series = opts.seriesId ? seriesContext(opts.seriesId) : null; const bgMode = opts.bgMode === 'new' && isStage ? 'new' : 'existing';
-  const fixed = [...(series?.characters || []), ...getCast(opts.castIds || []).map(toStoryChar)].filter((c, i, a) => a.findIndex((x) => x.id === c.id) === i);
+  const plan = { lead: opts.leadId || null, mains: Math.max(0, Math.min(6, Number(opts.mains) || 0)) };
+  const fixed = [...(series?.characters || []), ...getCast([...(opts.leadId ? [opts.leadId] : []), ...(opts.castIds || [])]).map(toStoryChar)].filter((c, i, a) => a.findIndex((x) => x.id === c.id) === i);
   if (series) step('plan', `Series "${series.title}" · episode ${series.episode} · ${series.characters.length} saved characters`);
   if (vlang === 'en' && !englishReady()) { stage('story', 0, 1, 'Downloading English voices (one time, ~130 MB)'); await ensureEnglish((p) => stage('story', p.index, p.count, `English voices: ${p.label}${p.total > 1 ? ' ' + Math.round((p.got / p.total) * 100) + '%' : ''}`)); }
 
@@ -58,9 +59,9 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
     let chain = opts.chain;
     if (!chain) { const key = opts.key || process.env.GEMINI_API_KEY; chain = key ? [{ provider: 'gemini', key, model: opts.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite' }] : []; }
     const bgList = isStage ? styleBgs().map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [];
-    if (opts.myStory) story = await adaptStory({ text: opts.myStory, category, minutes, chain, backgrounds: bgList, language, fixed, actors: actorsFor(isStage ? 'toon' : style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
+    if (opts.myStory) story = await adaptStory({ text: opts.myStory, category, minutes, chain, backgrounds: bgList, language, fixed, plan, actors: actorsFor(isStage ? 'toon' : style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
     const seriesBgs = series ? series.backgrounds.map((id) => listBackgrounds().find((b) => b.id === id)).filter(Boolean) : [];
-    if (!opts.myStory) story = await writeStory({ category, minutes, idea: opts.idea || '', chain, chars: opts.chars || 'auto', language, fixed, series, bgMode, backgrounds: bgMode === 'new' ? seriesBgs.map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags })) : isStage ? [...seriesBgs, ...styleBgs().filter((b) => !seriesBgs.includes(b))].map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [],
+    if (!opts.myStory) story = await writeStory({ category, minutes, idea: opts.idea || '', chain, chars: opts.chars || 'auto', language, fixed, series, bgMode, plan, backgrounds: bgMode === 'new' ? seriesBgs.map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags })) : isStage ? [...seriesBgs, ...styleBgs().filter((b) => !seriesBgs.includes(b))].map((b) => ({ id: b.id, name: b.name, place: b.place, time: b.time, tags: b.tags, marks: [...new Set((b.seats || []).map((m) => m.type || 'seat'))] })) : [],
       actors: actorsFor(style).map((a) => ({ id: a.id, gender: a.gender, age: a.age, tags: a.tags })), onLog: (m) => step('story', m), onProgress: (d, n, label) => stage('story', d, n, label) });
   }
   check();
