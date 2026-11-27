@@ -271,3 +271,9 @@ Videos of 1–3 minutes get all three phases at once.
 You can close the app and continue with NEXT later.
 
 **Libraries:** the genre, location / prop, structure and schema libraries are in `Documents\AutoVideo\studio\library`. Click **Edit libraries** to open that folder and add genres, locations or props.
+
+**Make the video in this app:**
+1. In a Prompt Studio story, choose the video style (Flat 2D Explainer, 2D Cartoon Stage…) and the subtitles.
+2. Click **Make video ▶**.
+
+The story is written out like a screenplay: every scene with its place and time, every action, every dialogue line and the narration. It goes to New Video in "My full story" mode. The video maker keeps the events and the dialogue, picks backgrounds, actions and camera, adds voices, music and subtitles, and renders the MP4. You can follow it in the Queue tab.

@@ -197,3 +197,19 @@ export function exportsOf(V) {
 function writeExports(P) { const V = view(P); const d = path.join(PROJ, P.id); const E = exportsOf(V);
   const W = (f, s) => fs.writeFileSync(path.join(d, f), s); W('full_with_prompts.json', JSON.stringify({ project: V.project, story_bible: V.story_bible, scenes: V.scenes, continuity_checkpoints: P.checkpoints, extras: V.extras }, null, 2));
   W('ONLY_PROMPTS.txt', E.prompts); W('VOICEOVER_SCRIPT.txt', E.voiceover); W('CHARACTER_SHEET.txt', E.characters); W('THUMBNAILS_TITLES.txt', E.thumbnails); }
+
+// ---------- Prompt Studio story → this app's video maker ("My full story" mode) ----------
+const CAT = { horror: 'horror', crime: 'crime', thriller: 'thriller', drama: 'drama', mystery: 'mystery', comedy: 'comedy', romance: 'romance', kids_moral: 'kids', action: 'thriller', sci_fi: 'mystery', fantasy: 'kids', mythology: 'drama', historical: 'drama', adventure: 'motivational' };
+export function videoJob(id) { // the story written out like a screenplay: the video maker keeps the events and every dialogue line
+  const V = get(id); const B = V.story_bible; const name = (cid) => B.characters.find((c) => c.char_id === cid)?.name || cid;
+  const locOf = (lid) => { const l = B.locations.find((x) => x.loc_id === lid); return l ? `${String(l.library_ref || '').replace(/_/g, ' ')}${l.weather && l.weather !== 'clear' ? ', ' + l.weather : ''}` : lid; };
+  const out = [`${V.project.title}`, '', `${B.synopsis || ''}`, '', 'Characters:', ...B.characters.map((c) => `- ${c.name}: ${c.gender}, ${c.age}, ${c.role}${c.personality?.length ? ', ' + c.personality.join(', ') : ''}`), ''];
+  for (const sc of V.scenes || []) {
+    { const lo = locOf(sc.loc_id); out.push(`Scene ${sc.scene_no} — ${sc.title} (${lo}${sc.sub_area && !lo.includes(sc.sub_area) ? ', ' + sc.sub_area : ''}, ${sc.time_of_day || 'day'})`); }
+    if (!sc.shots?.length) { out.push(sc.summary || '', ''); continue; }
+    for (const sh of sc.shots) { if (sh.action) out.push(`[${sh.action}]`); for (const d of sh.dialogue || []) out.push(`${name(d.char_id)}${d.emotion ? ' (' + d.emotion + ')' : ''}: "${d.line}"`); if (sh.voiceover) out.push(`Narrator: ${sh.voiceover}`); }
+    out.push('');
+  }
+  const g = V.project.genre_primary; const done = (V.scenes || []).filter((s) => s.shots?.length).length;
+  return { text: out.join('\n'), category: CAT[g] || 'drama', minutes: Math.max(1, Math.min(30, V.project.duration_min)), title: V.project.title, scenes: (V.scenes || []).length, withShots: done };
+}

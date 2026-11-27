@@ -301,6 +301,8 @@ const H = {
   'studio:open': async (id) => { const S = await studio(); return shell.openPath(id ? S.folderOf(id) : S.STUDIO); },
   'studio:library': async () => shell.openPath((await studio()).libraryFolder()),
   'studio:delete': async (id) => { (await studio()).remove(id); return true; },
+  'studio:toVideo': async (o) => { const j = (await studio()).videoJob(o.id); return H['queue:add']({ category: j.category, idea: '', myStory: j.text, minutes: j.minutes, count: 1, style: o.style || 'flat2d', look: 'auto', subs: o.subs || 'auto', chars: 'auto', demo: false, storyAI: o.ai || 'auto', start: true }); },
+  'studio:jobInfo': async (id) => { const j = (await studio()).videoJob(id); delete j.text; return j; },
   'update:get': () => upd,
   'update:check': () => checkUpdates(),
   'update:download': () => { autoUpdater.downloadUpdate().catch((e) => sendUpd({ state: 'error', msg: String(e.message || e) })); sendUpd({ state: 'downloading', percent: 0 }); return upd; },

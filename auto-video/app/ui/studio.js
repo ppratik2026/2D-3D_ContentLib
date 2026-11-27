@@ -46,6 +46,10 @@ function render() {
       <button class="ghost" data-tone="scary">More scary</button><button class="ghost" data-tone="emotional">More emotional</button><button class="ghost" data-tone="fast">Faster pace</button>
     </div>
     <div class="btns"><button class="ghost" data-ex="prompts">Only prompts</button><button class="ghost" data-ex="voiceover">Voiceover script</button><button class="ghost" data-ex="characters">Character sheet</button><button class="ghost" id="stThumb">Thumbnail</button><button class="ghost" id="stFolder">Open folder</button><button class="danger" id="stDel">Delete</button></div>
+    <div class="stsec"><h3>🎬 Make the video in this app</h3>
+      <div class="small muted">Sends this story (every scene, action and dialogue line) to New Video. The video maker picks backgrounds, actions and camera, adds the voices, music and subtitles, and renders the MP4. ${st.phase < 3 ? '<span class="warn">Shots are not finished yet — scenes without shots go in as their summary. Press NEXT until "complete" for the full detail.</span>' : ''}</div>
+      <div class="row"><label>Video style<select id="stVStyle">${[...($('#style')?.options || [])].map((o) => `<option value="${esc(o.value)}"${o.value === 'flat2d' ? ' selected' : ''}>${esc(o.textContent)}</option>`).join('')}</select></label><label>Subtitles<select id="stVSubs">${[...($('#subs')?.options || [])].map((o) => o.outerHTML).join('')}</select></label></div>
+      <div class="btns"><button class="primary" id="stVideo">Make video ▶</button></div></div>
     <div id="stBusy" class="small muted" hidden></div>
     ${P.tone?.length ? `<div class="small muted">Tone for the next batches: ${esc(P.tone.join(' · '))}</div>` : ''}
     <div id="stEx" hidden class="stsec"><div class="qhead"><b id="stExT"></b><div class="btns"><button class="ghost" id="stExCopy">Copy all</button><button class="ghost" id="stExClose">Close</button></div></div><textarea id="stExTxt" rows="16" readonly></textarea></div>
@@ -80,6 +84,7 @@ function render() {
   on('#stThumb', () => run('Writing thumbnails and titles…', 'studio:thumbs', { id: P.id, ai: $('#stAI').value }).then(() => showEx('thumbnails', 'Thumbnails & titles')));
   on('[data-ex]', (el) => showEx(el.dataset.ex, el.textContent));
   on('#stFolder', () => api.call('studio:open', P.id));
+  on('#stVideo', async (el) => { el.disabled = true; try { await api.call('studio:toVideo', { id: P.id, style: $('#stVStyle').value, subs: $('#stVSubs').value, ai: $('#stAI').value }); log('Sent to the video maker ✓ — see the Queue tab'); document.querySelector('[data-tab=queue]').click(); } catch (e) { log(errMsg(e), true); } finally { el.disabled = false; } });
   on('#stDel', async () => { if (!confirm(`Delete "${P.project.title}"?`)) return; await api.call('studio:delete', P.id); CUR = null; $('#stView').innerHTML = '<div class="muted">Deleted.</div>'; renderList(); });
 }
 async function showEx(kind, title) { const E = await api.call('studio:exports', CUR.id); $('#stEx').hidden = false; $('#stExT').textContent = title; $('#stExTxt').value = E[kind] || '(nothing yet)';
