@@ -66,6 +66,15 @@ Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren)
 
 3D loader reads FBX 7 and newer. Old FBX files (FBX 6.x, the error "FBX version not supported, FileVersion: 6100") are converted to GLB automatically when you import them; for one imported earlier, open it in the Characters tab and click **Convert to the new format**. The free FBX2glTF converter (~4 MB) downloads the first time.
 
+## Resume, preview MP4, Shorts, YouTube kit, branding, Help book (v1.14)
+
+- **Render resume:** videos render in 2-minute parts; after a crash, power cut or closing the app, Queue → Start continues from the last finished part (story, voices and sound are not made again). The PC does not sleep while a video is being made.
+- **Preview MP4** (timeline editor): *this scene* / *next 30 s* — a real MP4 with sound in a minute or two.
+- **Shorts** (Library → 📱 Shorts): 9:16, 15–60 s, suggested lively moments, crop (with a position slider and a yellow guide box) or fit with a blurred background, big subtitles, title on top.
+- **YouTube kit** (Library → ▶ YouTube): thumbnail maker (emotional moments, big text, colours, badge), AI titles / description / tags + chapters from the scenes, upload with privacy or schedule (Settings → YouTube, one-time Google OAuth setup explained in Help).
+- **Branding** (Settings → Branding): logo watermark (corner, size, opacity), intro and outro (video or picture), on every new video (switch per video in New Video).
+- **❓ Help** tab: the full English guide for every screen and option.
+
 ## Feature-length movies up to 2 hours (v1.13)
 
 - New Video → Minutes goes up to **120** (2 hours). For anything longer than 12 minutes the AI writes like a film: first the plan (characters with arcs and 3–14 acts), then the scenes of every act, then the full screenplay 3 scenes at a time (about 60 AI requests for 2 hours — a free Groq key is enough; Gemini's free daily limit may run out). The final length follows the real voices, so it can differ a little from the minutes you set.

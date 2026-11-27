@@ -50,7 +50,7 @@ async function add(start) {
   const mode = src();
   const picked = TOPICS.filter((_, i) => topicSel.has(i));
   if (mode2 === 'find' && !picked.length) { $('#topicMsg').className = 'small warn'; $('#topicMsg').textContent = 'Find topics and click one (or more) first.'; return; }
-  const o = { edit: $('#editBefore').checked, review: $('#reviewPlan').checked, format: FMT, seriesId: FMT === 'series' ? $('#seriesSel').value || null : null, seriesTitle: $('#seriesTitle').value.trim(), language: LANG, bgMode: BGM, subsOn: SUBSON, castIds: [...castSel].filter((x) => x !== $('#leadSel').value), leadId: $('#leadSel').value || null, mains: +$('#mainsSel').value || 0, topics: mode2 === 'find' ? picked : [],
+  const o = { brand: $('#brandRow').hidden ? false : $('#useBrand').checked, edit: $('#editBefore').checked, review: $('#reviewPlan').checked, format: FMT, seriesId: FMT === 'series' ? $('#seriesSel').value || null : null, seriesTitle: $('#seriesTitle').value.trim(), language: LANG, bgMode: BGM, subsOn: SUBSON, castIds: [...castSel].filter((x) => x !== $('#leadSel').value), leadId: $('#leadSel').value || null, mains: +$('#mainsSel').value || 0, topics: mode2 === 'find' ? picked : [],
     category: cat, idea: mode2 === 'find' ? '' : $('#idea').value, minutes: $('#min').value, count: FMT === 'series' ? $('#epCount').value : $('#count').value, style: $('#style').value, look: $('#look').value, subs: $('#subs').value, chars: $('#chars').value, demo: mode === 'demo', storyAI: mode === 'api' ? $('#storySrc').value : null, start };
   if (mode2 === 'mine') { o.myStory = $('#myStory').value.trim(); o.idea = ''; o.count = 1; if (!o.myStory && mode !== 'paste' && mode !== 'demo') { $('#storyInfo').className = 'small warn'; $('#storyInfo').textContent = 'Paste your story first.'; return; } }
   if (mode === 'paste') { if (!pasteOk) { $('#pasteMsg').className = 'small warn'; $('#pasteMsg').textContent = 'Paste Gemini\'s answer first.'; return; } o.pasted = $('#pasted').value; }
@@ -173,11 +173,11 @@ api.on('queue', renderQueue); window.AVRenderQueue = renderQueue;
 async function loadLibrary() {
   const list = await api.call('library:list'); $('#libPath').textContent = (S?.dataDir || '') + '\\Videos';
   $('#libList').innerHTML = list.length ? list.map((v) => `<div class="card lib"><video src="${v.video}#t=4" preload="metadata" data-play="${v.video}"></video><div class="t">${esc(v.title)}</div>
-    <div class="muted small">${new Date(v.created).toLocaleString('en-IN')} · ${v.sizeMB} MB</div><div class="btns"><button class="ghost" data-subs="${esc(v.dir)}">Subtitles</button><button class="ghost" data-open="${esc(v.dir)}">Folder</button><button class="danger" data-del="${esc(v.dir)}">Delete</button></div></div>`).join('') : '<div class="muted">No videos yet.</div>';
+    <div class="muted small">${new Date(v.created).toLocaleString('en-IN')} · ${v.sizeMB} MB</div><div class="btns"><button class="ghost" data-subs="${esc(v.dir)}">Subtitles</button><button class="ghost" data-shorts="${esc(v.dir)}">📱 Shorts</button><button class="ghost" data-yt="${esc(v.dir)}">▶ YouTube</button><button class="ghost" data-open="${esc(v.dir)}">Folder</button><button class="danger" data-del="${esc(v.dir)}">Delete</button></div></div>`).join('') : '<div class="muted">No videos yet.</div>';
 }
 $('#libList').onclick = async (e) => { const t = e.target;
   if (t.dataset.play) { $('#playerVideo').src = t.dataset.play; $('#player').hidden = false; $('#playerVideo').play(); }
-  if (t.dataset.open) api.call('library:open', t.dataset.open);
+  if (t.dataset.open) api.call('library:open', t.dataset.open); const ttl = t.closest('.lib')?.querySelector('.t')?.textContent || ''; if (t.dataset.shorts) window.AVShorts(t.dataset.shorts, ttl); if (t.dataset.yt) window.AVYouTube(t.dataset.yt, ttl);
   if (t.dataset.subs) openSubEd(t.dataset.subs, t.closest('.lib')?.querySelector('.t')?.textContent || '');
   if (t.dataset.del && confirm('Delete this video?')) { await api.call('library:delete', t.dataset.del); loadLibrary(); } };
 $('#playerClose').onclick = () => { $('#playerVideo').pause(); $('#player').hidden = true; };

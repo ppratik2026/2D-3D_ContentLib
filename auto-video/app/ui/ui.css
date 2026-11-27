@@ -120,3 +120,14 @@ details summary{cursor:pointer;margin:10px 0}
 
 .edtrk.ruler{height:20px}.edtrk.ruler .tk{position:absolute;top:10px;width:1px;height:8px;background:rgba(255,255,255,.25);font-style:normal}
 .edtrk.ruler .tk.big{top:0;height:18px;background:rgba(255,255,255,.55)}.edtrk.ruler .tk.big{font-size:10px;color:#cfd3dd;padding-left:3px;line-height:10px;white-space:nowrap;width:auto;border-left:1px solid rgba(255,255,255,.55);background:none}
+#player{z-index:60}
+
+.modal .card.sh,.modal .card.yt{width:min(1240px,96vw);max-height:94vh;overflow:auto}
+.shgrid{display:grid;grid-template-columns:1.3fr 1fr;gap:14px}.shview{position:relative}.shview video{width:100%;border-radius:8px;background:#000;display:block}
+.shbox{position:absolute;top:0;border:3px solid #ffd400;box-shadow:0 0 0 9999px rgba(0,0,0,.35);pointer-events:none;border-radius:4px}
+.shlist{display:grid;gap:6px}.shlist .it{display:flex;gap:8px;align-items:center;justify-content:space-between;border:1px solid var(--line,#333);border-radius:8px;padding:6px}
+.ytgrid{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}#ytCanvas{width:100%;border-radius:8px;background:#000}
+.ytmoments{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}.ytmoments img{width:100%;border-radius:6px;cursor:pointer;border:2px solid transparent}.ytmoments img:hover{border-color:var(--acc,#ffb84d)}
+.ytpane{margin-top:10px}#ytTitles label{display:flex;gap:8px;align-items:center;margin:4px 0}#ytTitles input[type=text]{flex:1}
+.helpwrap{display:grid;grid-template-columns:240px 1fr;gap:14px}.helpnav{position:sticky;top:70px;align-self:start;display:grid;gap:4px}.helpnav a{color:var(--txt);text-decoration:none;padding:6px 10px;border-radius:8px;font-size:13px}.helpnav a:hover,.helpnav a.on{background:rgba(255,184,77,.12)}
+.helpbody{line-height:1.6}.helpbody h2{margin-top:28px;border-top:1px solid var(--line,#333);padding-top:18px}.helpbody h2:first-child{margin-top:0;border:0;padding:0}.helpbody code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px}.helpbody .tip{border-left:3px solid var(--acc,#ffb84d);padding:6px 12px;background:rgba(255,184,77,.06);border-radius:6px}

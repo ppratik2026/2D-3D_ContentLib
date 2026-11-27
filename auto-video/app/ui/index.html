@@ -16,6 +16,7 @@
     <button data-tab="chars">Characters</button>
     <button data-tab="bgs">Backgrounds</button>
     <button data-tab="settings">Settings</button>
+    <button data-tab="help">❓ Help</button>
   </nav>
   <div class="hdr-right"><button id="teamData" class="primary small-btn" hidden>New team data → Update</button><span id="teamName" class="small"></span><button id="teamLogout" class="ghost small-btn" hidden>Log out</button><span id="ver" class="muted small"></span><button id="updBtn" class="primary small-btn" hidden>Update available</button></div>
 </header>
@@ -58,6 +59,7 @@
         <div class="row top"><label>Main character (hero)<select id="leadSel"><option value="">AI creates one for this genre</option></select></label><label>Main characters (big roles)<select id="mainsSel"><option value="0">Auto</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label></div>
         <div class="small muted">Also use these saved characters (click to pick). Everyone not picked is created by the AI to fit the genre and saved to your library after the video.</div>
         <div id="castPick" class="chips cast"></div>
+        <label class="check" id="brandRow" hidden><input type="checkbox" id="useBrand" checked> Add my branding (logo, intro, outro — set them in Settings → Branding)</label>
         <label class="check"><input type="checkbox" id="editBefore" checked> Open the timeline editor before rendering (move people, walks, camera, background, dialogue, sound — then Render)</label>
         <label class="check"><input type="checkbox" id="reviewPlan" checked> Show me the plan before the video is made (characters, the background of every scene, props — swap anything, then press Make video)</label>
         <label class="check"><input type="checkbox" id="reviewCast" checked> Show me the characters first (AI plans the story and its characters → I check, swap or add them → then the script is written)</label>
@@ -119,6 +121,9 @@
     </div>
     <div id="qList"></div>
   </section>
+
+  <!-- HELP -->
+  <section id="tab-help" class="tab"><div class="helpwrap"><nav id="helpNav" class="helpnav"></nav><article id="helpBody" class="card helpbody"></article></div></section>
 
   <!-- LIBRARY -->
   <section id="tab-library" class="tab">
@@ -185,6 +190,24 @@
   <!-- SETTINGS -->
   <section id="tab-settings" class="tab">
     <div class="grid2">
+      <div class="card" style="order:9">
+        <h3>🎨 Branding (your channel logo, intro and outro)</h3>
+        <div class="small muted">Added to every new video (switch it off per video in New Video). PNG logos with a transparent background look best. Intro / outro can be a short video or a picture.</div>
+        <div class="row"><div><b>Logo</b><div id="brLogo" class="small muted">none</div><div class="btns"><button id="brLogoPick" class="ghost" type="button">Choose logo…</button><button id="brLogoX" class="ghost" type="button">Remove</button></div></div>
+          <label>Corner<select id="brPos"><option value="top-right">Top right</option><option value="top-left">Top left</option><option value="bottom-right">Bottom right</option><option value="bottom-left">Bottom left</option></select></label></div>
+        <div class="row"><label>Logo size (% of width)<input type="range" id="brSize" min="4" max="30" step="1"></label><label>Logo opacity<input type="range" id="brOp" min="0.2" max="1" step="0.05"></label></div>
+        <div class="row"><div><b>Intro</b><div id="brIntro" class="small muted">none</div><div class="btns"><button id="brIntroPick" class="ghost" type="button">Choose…</button><button id="brIntroX" class="ghost" type="button">Remove</button></div><label class="small">Seconds (pictures)<input type="number" id="brIntroSec" min="1" max="15" step="1"></label></div>
+          <div><b>Outro</b><div id="brOutro" class="small muted">none</div><div class="btns"><button id="brOutroPick" class="ghost" type="button">Choose…</button><button id="brOutroX" class="ghost" type="button">Remove</button></div><label class="small">Seconds (pictures)<input type="number" id="brOutroSec" min="1" max="20" step="1"></label></div></div>
+        <label class="check"><input type="checkbox" id="brOn"> Use branding on new videos</label>
+      </div>
+      <div class="card" style="order:9">
+        <h3>▶ YouTube (upload and schedule from the app)</h3>
+        <div class="small muted">One-time setup: make your own free Google "OAuth client" (Help → YouTube upload shows every click), paste its Client ID and Client secret here, then Connect. Your keys stay encrypted on this PC.</div>
+        <label>OAuth Client ID<input id="ytId" placeholder="…apps.googleusercontent.com"></label>
+        <label>OAuth Client secret<input id="ytSecret" type="password" placeholder="GOCSPX-…"></label>
+        <div class="btns"><button id="ytSave" class="ghost" type="button">Save keys</button><button id="ytConnect" class="primary" type="button">Connect my channel</button><button id="ytDisc" class="ghost" type="button">Disconnect</button></div>
+        <div id="ytStat" class="small"></div>
+      </div>
       <div class="card">
         <h3>Story AI (writes the story)</h3>
         <label>Provider<select id="aiProv"></select></label>
@@ -306,16 +329,62 @@
   <div class="edgrid">
     <div><div class="edview"><canvas id="edGl" width="1280" height="720" hidden></canvas><canvas id="edOut" width="1280" height="720"></canvas><canvas id="edOv" width="960" height="540"></canvas></div>
       <div class="edbar"><button id="edBack" class="ghost" title="1 second back (←)">⏪ 1s</button><button id="edPlay" class="primary">▶ Play</button><button id="edFwd" class="ghost" title="1 second forward (→)">1s ⏩</button><input type="range" id="edScrub" min="0" step="0.1" value="0"><span id="edTime" class="small"></span><label class="check"><input type="checkbox" id="edWide" checked> Wide view (drag people)</label></div>
-      <div class="edbar"><select id="edScene"></select><input id="edGo" placeholder="go to time e.g. 1:05:30" style="width:150px"><label class="small">Zoom<input type="range" id="edZoom" min="4" max="160" step="1" value="44"></label><label class="check"><input type="checkbox" id="edSnap" checked> Snap to 1 s</label><span class="small muted">← → 1 s · Shift 10 s · Space play</span></div>
+      <div class="edbar"><select id="edScene"></select><input id="edGo" placeholder="go to time e.g. 1:05:30" style="width:150px"><label class="small">Zoom<input type="range" id="edZoom" min="4" max="160" step="1" value="44"></label><label class="check"><input type="checkbox" id="edSnap" checked> Snap to 1 s</label><button id="edPrevScene" class="ghost" title="a real MP4 of this scene with sound">🎞 Preview MP4: this scene</button><button id="edPrev30" class="ghost" title="a real MP4 of the next 30 seconds">🎞 Next 30 s</button><span class="small muted">← → 1 s · Shift 10 s · Space play</span></div>
       <div id="edTracks" class="edtracks"></div>
       <div id="edAudio" class="edaudio"></div></div>
     <div id="edSide" class="edside"></div>
   </div></div></div>
+<div id="shModal" class="modal" hidden><div class="card wide sh">
+  <div class="qhead"><div><b>📱 Make a Short (9:16 — YouTube Shorts, Instagram Reels)</b><div id="shTitleV" class="small muted"></div></div><div class="btns"><button id="shFolder" class="ghost" type="button">Open shorts folder</button><button id="shClose" class="ghost" type="button">Close</button></div></div>
+  <div class="shgrid">
+    <div><div class="shview"><video id="shVideo" controls></video><div id="shBox" class="shbox"></div></div><div class="small muted">The yellow box shows what the Short keeps (Crop mode). Play or drag the video to choose the start.</div></div>
+    <div>
+      <div class="small"><b>1. Pick the moment</b> — the app suggests the liveliest parts:</div><div id="shSug" class="chips"></div>
+      <div class="row"><label>Start (seconds)<input type="number" id="shStart" min="0" step="1" value="0"></label><button id="shNow" class="ghost" type="button">Use the video's current time</button></div>
+      <label>Length<select id="shLen"><option value="15">15 s</option><option value="30">30 s</option><option value="45" selected>45 s</option><option value="60">60 s</option></select></label>
+      <div class="small"><b>2. Framing</b></div>
+      <div class="chips" id="shMode"><span class="chip on" data-m="crop">Crop to fill (bigger people)</span><span class="chip" data-m="fit">Fit + blurred background (whole picture)</span></div>
+      <label id="shFocusL">Crop position (left ↔ right)<input type="range" id="shFocus" min="0" max="1" step="0.01" value="0.5"></label>
+      <div class="small"><b>3. Text</b></div>
+      <label>Title on top (optional)<input id="shTitle" placeholder="e.g. Usne aisa kyun kiya? 😱"></label>
+      <label class="check"><input type="checkbox" id="shSubs" checked> Big subtitles</label>
+      <div class="btns"><button id="shMake" class="primary" type="button">Make the Short</button></div>
+      <div class="small"><b>Your Shorts</b></div><div id="shList" class="shlist"></div>
+    </div>
+  </div></div></div>
+<div id="ytModal" class="modal" hidden><div class="card wide yt">
+  <div class="qhead"><div><b>▶ YouTube kit</b><div id="ytTitleV" class="small muted"></div></div><div class="btns"><button id="ytClose" class="ghost" type="button">Close</button></div></div>
+  <div class="chips" id="ytTabs"><span class="chip on" data-t="thumb">1. Thumbnail</span><span class="chip" data-t="texts">2. Title, description, tags</span><span class="chip" data-t="up">3. Upload / schedule</span></div>
+  <div id="ytThumb" class="ytpane">
+    <div class="ytgrid"><div><canvas id="ytCanvas" width="1280" height="720"></canvas><div class="small muted">Saved as thumbnail.jpg next to the video (1280×720, the size YouTube wants).</div></div>
+      <div><div class="small"><b>Picture</b> — click a suggested moment or choose a time:</div><div id="ytMoments" class="ytmoments"></div>
+        <div class="row"><label>Time (s)<input type="number" id="ytT" min="0" step="1" value="5"></label><button id="ytGrab" class="ghost" type="button">Use this time</button></div>
+        <div class="small"><b>Big text</b></div><label>Line 1<input id="ytL1" placeholder="e.g. 3 BAJE RAAT"></label><label>Line 2 (optional)<input id="ytL2" placeholder="e.g. KYA HUA?"></label>
+        <div class="row"><label>Text colour<input type="color" id="ytC1" value="#ffd400"></label><label>Line 2 colour<input type="color" id="ytC2" value="#ffffff"></label><label>Size<input type="range" id="ytSz" min="60" max="200" value="130"></label></div>
+        <div class="row"><label>Place<select id="ytPos"><option value="left">Left</option><option value="right">Right</option><option value="top">Top</option><option value="bottom">Bottom</option></select></label><label>Corner badge<input id="ytBadge" placeholder="e.g. EP 2"></label></div>
+        <label class="check"><input type="checkbox" id="ytDark" checked> Darken the picture behind the text</label>
+        <div class="btns"><button id="ytSaveThumb" class="primary" type="button">Save thumbnail</button><span id="ytThumbMsg" class="small"></span></div></div></div>
+  </div>
+  <div id="ytTexts" class="ytpane" hidden>
+    <div class="btns"><button id="ytWrite" class="primary" type="button">✨ Write with AI</button><button id="ytSaveTexts" class="ghost" type="button">Save</button><span class="small muted">Chapters (timestamps) are added from the scenes automatically.</span></div>
+    <div class="small"><b>Titles</b> (pick one for the upload)</div><div id="ytTitles"></div>
+    <label>Description <button class="ghost small-btn" type="button" data-copy="ytDesc">Copy</button><textarea id="ytDesc" rows="10"></textarea></label>
+    <label>Tags (comma separated) <button class="ghost small-btn" type="button" data-copy="ytTags">Copy</button><textarea id="ytTags" rows="3"></textarea></label>
+  </div>
+  <div id="ytUp" class="ytpane" hidden>
+    <div id="ytUpStat" class="small"></div>
+    <label>Title<input id="ytUpTitle" maxlength="100"></label>
+    <div class="row"><label>Who can see it<select id="ytPriv"><option value="private">Private (only me)</option><option value="unlisted">Unlisted (with the link)</option><option value="public">Public</option><option value="schedule">Scheduled (goes public at the time below)</option></select></label><label>Publish at (your time)<input type="datetime-local" id="ytWhen"></label></div>
+    <div class="row"><label>Category<select id="ytCat"><option value="1">Film &amp; Animation</option><option value="24">Entertainment</option><option value="27">Education</option><option value="22">People &amp; Blogs</option><option value="23">Comedy</option></select></label><label class="check"><input type="checkbox" id="ytKids"> Made for kids</label><label class="check"><input type="checkbox" id="ytUseThumb" checked> Use my thumbnail</label></div>
+    <div class="btns"><button id="ytUpload" class="primary" type="button">Upload to YouTube</button></div><div id="ytUpMsg" class="small"></div>
+  </div>
+</div></div>
 <div id="player" class="modal" hidden><div class="card wide"><video id="playerVideo" controls></video><div class="btns"><button id="playerClose" class="ghost">Close</button></div></div></div>
 
 <script src="../build/preview.js"></script>
 <script src="../build/editor.js"></script>
 <script type="module" src="editor.js"></script>
+<script type="module" src="extras.js"></script>
 <script type="module" src="ui.js"></script>
 <script type="module" src="studio.js"></script>
 </body></html>

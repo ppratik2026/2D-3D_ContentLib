@@ -1,6 +1,6 @@
 // Auto Video Studio — Electron main process.
 // Data lives in Documents\AutoVideo (Videos\, data\ for models/voices/characters, settings.json, queue.json).
-import { app, BrowserWindow, ipcMain, protocol, net, dialog, shell, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, protocol, net, dialog, shell, safeStorage, powerSaveBlocker } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { spawn } from 'child_process';
@@ -26,6 +26,9 @@ const bgs = await import('../pipeline/backgrounds.mjs');
 const tts = await import('../pipeline/tts.mjs');
 const fbx = await import('../pipeline/fbxconvert.mjs');
 const castLib = await import('../pipeline/cast.mjs');
+const brandLib = await import('../pipeline/brand.mjs');
+const shortsLib = await import('../pipeline/shorts.mjs');
+const yt = await import('../pipeline/youtube.mjs');
 const seriesLib = await import('../pipeline/series.mjs');
 const { findTopics, topicIdea } = await import('../pipeline/topics.mjs');
 const { englishReady, ensureEnglish } = await import('../pipeline/setup.mjs');
@@ -119,7 +122,7 @@ async function buildChain(choice) {
 // ---------- queue ----------
 const QFILE = path.join(STATE, 'queue.json');
 let queue = []; try { queue = JSON.parse(fs.readFileSync(QFILE, 'utf8')); for (const j of queue) if (j.status === 'running') j.status = 'queued'; } catch {}
-let running = null, autoRun = false, abort = null, lastSave = 0;
+let running = null, autoRun = false, abort = null, lastSave = 0, awake = null;
 const SESSION = Date.now();
 for (const j of queue) if (j.status === 'queued') j.session = SESSION;
 const saveQueue = () => fs.writeFileSync(QFILE, JSON.stringify(queue, null, 2));
@@ -135,15 +138,15 @@ let wakeTimer = null;
 async function pump() {
   if (running || !autoRun) return; if (!LIC.ok) { autoRun = false; broadcast(true); return; }
   const now = Date.now(); const ready = queue.find((j) => j.status === 'queued' && !(j.retryAt > now));
-  if (!ready) { const waiting = queue.filter((j) => j.status === 'queued'); if (!waiting.length) { autoRun = false; broadcast(true); return; }
+  if (!ready) { if (awake != null) { powerSaveBlocker.stop(awake); awake = null; } const waiting = queue.filter((j) => j.status === 'queued'); if (!waiting.length) { autoRun = false; broadcast(true); return; }
     clearTimeout(wakeTimer); wakeTimer = setTimeout(pump, Math.max(1000, Math.min(...waiting.map((j) => j.retryAt || now)) - now)); broadcast(true); return; }
   if (!NO_LICENSE && !(await licCheck())) return;
-  const job = ready; running = job; job.status = 'running'; job.started = Date.now(); job.error = null; job.retryAt = null; job.progress = 0; job.eta = null;
+  const job = ready; running = job; job.status = 'running'; if (awake == null) awake = powerSaveBlocker.start('prevent-app-suspension'); /* no sleep while rendering */ job.started = Date.now(); job.error = null; job.retryAt = null; job.progress = 0; job.eta = null;
   job.stages = Object.fromEntries(STAGES.map((k) => [k, { state: 'todo', done: 0, total: 0, label: '' }])); abort = new AbortController(); broadcast(true);
   const s = readSettings();
   try {
     const chain = job.opts.storyJson || job.opts.demo ? [] : job.opts.testChain || await buildChain(job.opts.storyAI); /* testChain: dev tests only */
-    const r = await makeVideo({ ...job.opts, id: job.id, chain, ffmpegPath, renderer: s.renderer, concurrency: s.concurrency, renderFn: s.renderer === 'remotion' ? null : chromeRender },
+    const r = await makeVideo({ ...job.opts, id: job.id, chain, ffmpegPath, renderer: s.renderer, concurrency: s.concurrency, renderFn: s.renderer === 'remotion' ? null : segmentedRender },
       (e) => { Object.assign(job, { step: e.step, msg: e.msg, elapsed: e.elapsed }); if (e.progress != null) job.progress = e.progress; if (e.eta != null) job.eta = e.eta; if (e.estimate) job.estimate = e.estimate; if (e.title) job.title = e.title; if (e.duration) job.duration = e.duration;
         if (e.stage && job.stages[e.stage.name]) { const i = STAGES.indexOf(e.stage.name); STAGES.forEach((k, j) => { if (j < i) job.stages[k].state = 'done'; });
           Object.assign(job.stages[e.stage.name], { state: e.stage.total && e.stage.done >= e.stage.total ? 'done' : 'active', done: e.stage.done, total: e.stage.total, label: e.stage.label }); }
@@ -172,7 +175,7 @@ ipcMain.handle('render:chunk', (e, pos, data) => sessions.get(e.sender.id)?.chun
 ipcMain.on('render:progress', (e, f, n, secs) => sessions.get(e.sender.id)?.progress(f, n, secs));
 ipcMain.on('render:done', (e, info) => sessions.get(e.sender.id)?.done(info));
 ipcMain.on('render:fail', (e, msg) => sessions.get(e.sender.id)?.fail(msg));
-function chromeRender({ tl, mixFile, out, onProgress, onSave = () => {}, signal, only = null }) {
+function chromeRender({ tl, mixFile, out, onProgress, onSave = () => {}, signal, only = null, range = null }) {
   return new Promise((resolve, reject) => {
     const win = new BrowserWindow({ show: false, width: 1280, height: 720, webPreferences: { preload: path.join(APP_DIR, 'app', 'render', 'preload.cjs'), backgroundThrottling: false } });
     const id = win.webContents.id; const tmp = out + '.video.mp4'; const fd = fs.openSync(tmp, 'w'); let finished = false;
@@ -181,16 +184,30 @@ function chromeRender({ tl, mixFile, out, onProgress, onSave = () => {}, signal,
     win.webContents.on('render-process-gone', (_e, d) => end(new Error('Renderer crashed: ' + d.reason)));
     win.webContents.on('console-message', (_e, level, msg) => { if (level >= 2) console.log('[render]', msg); });
     sessions.set(id, {
-      ready: () => win.webContents.send('render:job', { tl, only }),
+      ready: () => win.webContents.send('render:job', { tl, only, range }),
       chunk: (pos, data) => { const b = Buffer.from(data.buffer || data, data.byteOffset || 0, data.byteLength); fs.writeSync(fd, b, 0, b.length, pos); },
       progress: (f, n, secs) => onProgress(f / n, f, secs),
       fail: (msg) => end(new Error(msg)),
-      done: async (info) => { if (only) return end(null, info); try { fs.closeSync(fd); } catch {} onSave();
+      done: async (info) => { if (only) return end(null, info); try { fs.closeSync(fd); } catch {} if (!mixFile) { fs.renameSync(tmp, out); return end(null, info); } /* a part without sound */ onSave();
         try { await ffmpeg(['-y', '-i', tmp, '-i', mixFile, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out]); fs.rmSync(tmp, { force: true }); end(null, info); }
         catch (e) { end(e); } },
     });
     win.loadURL('av://app/app/render/render.html').catch((e) => end(e));
   });
+}
+// long videos are rendered in 2-minute parts: a finished part is kept, so after a crash / restart the render continues from the last part
+const SEG = Number(process.env.AV_SEG) || 3600;
+async function segmentedRender({ tl, mixFile, out, onProgress, onSave = () => {}, signal }) {
+  const N = tl.durationInFrames; const dir = out + '.parts'; fs.mkdirSync(dir, { recursive: true }); const files = []; let secs = 0, frames = 0; const t0 = Date.now();
+  for (let a = 0, k = 0; a < N; a += SEG, k++) {
+    const f = path.join(dir, `part_${String(k).padStart(3, '0')}.mp4`); files.push(f); const b = Math.min(N, a + SEG);
+    if (fs.existsSync(f + '.ok')) { onProgress(b / N, b, (Date.now() - t0) / 1000); continue; } /* done before the restart */
+    const r = await chromeRender({ tl, mixFile: null, out: f, range: [a, b], signal, onProgress: (p, fr, s) => onProgress((a + fr) / N, a + fr, (Date.now() - t0) / 1000) });
+    fs.writeFileSync(f + '.ok', String(r.frames)); secs += r.seconds; frames += r.frames;
+  }
+  onSave(); const list = path.join(dir, 'list.txt'); fs.writeFileSync(list, files.map((f) => `file '${f.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`).join('\n'));
+  await ffmpeg(['-y', '-f', 'concat', '-safe', '0', '-i', list, '-i', mixFile, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out]);
+  fs.rmSync(dir, { recursive: true, force: true }); return { frames: frames || N, seconds: secs || 1 };
 }
 function ffmpeg(args) { return new Promise((ok, fail) => { const p = spawn(ffmpegPath, args); let err = ''; p.stderr.on('data', (d) => (err = (err + d).slice(-2000))); p.on('error', fail); p.on('close', (c) => (c === 0 ? ok() : fail(new Error('ffmpeg failed: ' + err)))); }); }
 
@@ -226,6 +243,7 @@ async function importChars(paths, meta, e) { const out = [];
   for (const f of paths) { let src = f; if (fbx.needsConvert(f)) { try { src = await fbx.convertFbx(f, (m) => e?.sender.send('busy', { title: 'Importing ' + path.basename(f), label: m })); } finally { e?.sender.send('busy', null); } }
     out.push(lib.importCharacter(src, { ...meta, name: meta.name || path.basename(f, path.extname(f)) })); }
   return out; }
+const vDir = (dir) => path.join(OUTPUT, path.basename(String(dir || '')));
 const edWork = (id) => path.join(OUTPUT, '.work', id);
 const edSave = (id, tl) => { const t = { ...tl }; delete t._forceWide; fs.writeFileSync(path.join(edWork(id), 'edit_timeline.json'), JSON.stringify(t)); };
 const H = {
@@ -249,7 +267,48 @@ const H = {
   'editor:music': async (o, e) => { const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), { properties: ['openFile'], filters: [{ name: 'Music', extensions: ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'] }] }); if (r.canceled) return null;
     const out = path.join(edWork(o.id), 'music.wav'); await new Promise((ok, fail) => { const p = spawn(ffmpegPath, ['-v', 'error', '-y', '-i', r.filePaths[0], '-ac', '1', '-ar', '24000', '-c:a', 'pcm_s16le', out]); p.on('error', fail); p.on('close', (c) => (c === 0 ? ok() : fail(new Error('Could not read that music file')))); });
     return { file: out, name: path.basename(r.filePaths[0]) }; },
+  'editor:preview': async (o, e) => { const { id, from, to } = o; edSave(id, o.tl); const t = JSON.parse(JSON.stringify(o.tl)); delete t._forceWide; t.subs = 'none'; for (const l of t.lines) delete l.file;
+    const dir = path.join(JOBS, id); const part = path.join(dir, 'preview_part.mp4'), out = path.join(dir, 'preview.mp4'); const a = Math.max(0, Math.floor(from * 30)), b = Math.min(t.durationInFrames, Math.ceil(to * 30));
+    e.sender.send('busy', { title: 'Preview MP4', label: 'Rendering the preview…', i: 0, n: b - a });
+    try { await chromeRender({ tl: t, mixFile: null, out: part, range: [a, b], onProgress: (p, f) => e.sender.send('busy', { title: 'Preview MP4', label: 'Rendering the preview…', i: f, n: b - a }) });
+      await ffmpeg(['-y', '-i', part, '-ss', String(a / 30), '-t', String((b - a) / 30), '-i', path.join(dir, 'mix.wav'), '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', out]); fs.rmSync(part, { force: true }); }
+    finally { e.sender.send('busy', null); }
+    return `av://data/jobs/${encodeURIComponent(id)}/preview.mp4?${Date.now()}`; },
   'editor:render': (o) => { edSave(o.id, o.tl); const j = queue.find((x) => x.id === o.id); if (!j) throw new Error('job not found'); j.opts = { ...j.opts, resumeEdit: true }; Object.assign(j, { status: 'queued', msg: 'Edited — rendering', session: SESSION }); autoRun = true; broadcast(true); pump(); return queueView(); },
+  // ---- Shorts ----
+  'shorts:suggest': (o) => shortsLib.suggest(vDir(o.dir), Number(o.len) || 45),
+  'shorts:list': (dir) => shortsLib.listShorts(vDir(dir)).map((f) => ({ name: f, url: `av://videos/${encodeURIComponent(path.basename(dir))}/shorts/${encodeURIComponent(f)}?${Date.now()}` })),
+  'shorts:make': async (o, e) => { e.sender.send('busy', { title: 'Making the Short', label: 'Cutting and framing 9:16…', i: 0, n: 100 });
+    try { await shortsLib.makeShort({ ffmpegPath, folder: vDir(o.dir), start: Number(o.start) || 0, dur: Math.max(5, Math.min(60, Number(o.dur) || 45)), mode: o.mode, focus: Number(o.focus ?? 0.5), subs: o.subs !== false, title: o.title || '', onProgress: (p) => e.sender.send('busy', { title: 'Making the Short', label: 'Cutting and framing 9:16…', i: Math.round(p * 100), n: 100 }) }); }
+    finally { e.sender.send('busy', null); } return H['shorts:list'](o.dir); },
+  'shorts:open': (dir) => { const d = path.join(vDir(dir), 'shorts'); fs.mkdirSync(d, { recursive: true }); return shell.openPath(d); },
+  // ---- YouTube kit ----
+  'yt:texts': (dir) => yt.loadTexts(vDir(dir)),
+  'yt:write': async (o, e) => { const chain = await buildChain(o.ai); if (!chain.length) throw new Error('Add a story AI key in Settings first.'); let lang = 'hinglish'; try { lang = JSON.parse(fs.readFileSync(path.join(vDir(o.dir), 'subtitles.json'), 'utf8')).style?.lang || lang; } catch {}
+    return yt.writeTexts({ folder: vDir(o.dir), chain, language: lang, onLog: (m) => e.sender.send('busy', { title: 'YouTube texts', label: m }) }); },
+  'yt:saveTexts': (o) => yt.saveTexts(vDir(o.dir), o.texts),
+  'yt:chapters': (dir) => yt.chapters(vDir(dir)),
+  'yt:moments': (dir) => yt.thumbMoments(vDir(dir)),
+  'yt:frame': async (o) => { await yt.grabFrame(ffmpegPath, vDir(o.dir), Number(o.t) || 0); return `av://videos/${encodeURIComponent(path.basename(o.dir))}/thumb_frame.jpg?${Date.now()}`; },
+  'yt:saveThumb': (o) => { const f = path.join(vDir(o.dir), 'thumbnail.jpg'); fs.writeFileSync(f, Buffer.from(String(o.dataUrl).split(',')[1], 'base64')); return { ok: true, file: f }; },
+  'yt:thumbUrl': (dir) => (fs.existsSync(path.join(vDir(dir), 'thumbnail.jpg')) ? `av://videos/${encodeURIComponent(path.basename(dir))}/thumbnail.jpg?${Date.now()}` : null),
+  'yt:status': () => { const y = readSettings().youtube || {}; return { hasClient: !!(y.clientId && dec(y.secret)), clientId: y.clientId || '', connected: !!dec(y.token), channel: y.channel || '' }; },
+  'yt:setClient': (o) => { const s = readSettings(); s.youtube = { ...(s.youtube || {}), clientId: String(o.clientId || '').trim(), secret: enc(String(o.clientSecret || '').trim()) }; writeSettings(s); return H['yt:status'](); },
+  'yt:connect': async () => { const s = readSettings(); const y = s.youtube || {}; if (!y.clientId || !dec(y.secret)) throw new Error('Save your OAuth Client ID and Client secret first.');
+    const r = await yt.connect({ clientId: y.clientId, clientSecret: dec(y.secret), openUrl: (u) => shell.openExternal(u) }); let channel = ''; try { channel = await yt.channelName(r.accessToken); } catch {}
+    const s2 = readSettings(); s2.youtube = { ...(s2.youtube || {}), token: enc(r.refreshToken), channel }; writeSettings(s2); return H['yt:status'](); },
+  'yt:disconnect': () => { const s = readSettings(); if (s.youtube) { delete s.youtube.token; delete s.youtube.channel; } writeSettings(s); return H['yt:status'](); },
+  'yt:upload': async (o, e) => { const y = readSettings().youtube || {}; if (!dec(y.token)) throw new Error('Connect your YouTube channel in Settings → YouTube first.'); const folder = vDir(o.dir);
+    const token = await yt.accessToken({ clientId: y.clientId, clientSecret: dec(y.secret), refreshToken: dec(y.token) }); e.sender.send('busy', { title: 'Uploading to YouTube', label: 'Uploading…', i: 0, n: 100 });
+    try { const r = await yt.upload({ token, file: path.join(folder, 'final.mp4'), meta: o.meta, onProgress: (p) => e.sender.send('busy', { title: 'Uploading to YouTube', label: `Uploading ${Math.round(p * 100)}%`, i: Math.round(p * 100), n: 100 }) });
+      let thumb = null; const jpg = path.join(folder, 'thumbnail.jpg'); if (o.thumb !== false && fs.existsSync(jpg)) { try { await yt.setThumbnail({ token, videoId: r.id, jpg }); thumb = 'set'; } catch (err) { thumb = err.message; } }
+      const info = { id: r.id, url: `https://youtu.be/${r.id}`, at: new Date().toISOString(), publishAt: o.meta.publishAt || null, privacy: o.meta.publishAt ? 'scheduled' : o.meta.privacy, thumb }; fs.writeFileSync(path.join(folder, 'youtube_uploaded.json'), JSON.stringify(info, null, 2)); return info; }
+    finally { e.sender.send('busy', null); } },
+  'yt:open': (url) => shell.openExternal(String(url).startsWith('https://') ? url : 'https://youtube.com'),
+  'brand:get': () => ({ ...brandLib.getBrand(), active: brandLib.brandActive() }),
+  'brand:set': (o) => brandLib.setBrand(o),
+  'brand:file': async (kind, e) => { const pic = kind === 'logo'; const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), { properties: ['openFile'], filters: [{ name: pic ? 'Logo picture (PNG with transparency is best)' : 'Video or picture', extensions: pic ? ['png', 'jpg', 'jpeg', 'webp'] : ['mp4', 'mov', 'webm', 'mkv', 'png', 'jpg', 'jpeg'] }] }); if (r.canceled) return brandLib.getBrand(); return brandLib.importBrandFile(kind, r.filePaths[0]); },
+  'brand:clear': (kind) => brandLib.setBrand({ [kind]: null }),
   'genre:add': (o) => { const key = saveCategory(o); return { key, categories: CATEGORIES }; },
   'genre:delete': (key) => { deleteCategory(key); return CATEGORIES; },
   'review:get': (id) => { const j = queue.find((x) => x.id === id); if (!j?.plan) throw new Error('No plan for this job');
@@ -298,7 +357,7 @@ const H = {
     if (o.format === 'series' && !seriesId) seriesId = seriesLib.createSeries({ title: o.seriesTitle || topics[0]?.title || ideas[0] || storyJson?.title || 'My series', category: o.category, style: o.style, language: o.language, bgMode: o.bgMode, subsOn: o.subsOn, topic: topics[0] || null }).id;
     const ideaOf = (i) => (topics.length ? topicIdea(topics[o.format === 'series' ? Math.min(i, topics.length - 1) : i] || topics[0]) + (o.idea && i === 0 ? ' ' + o.idea : '') : null);
     const count = o.format !== 'series' && topics.length ? topics.length : n;
-    for (let i = 0; i < (storyJson || o.myStory ? 1 : count); i++) { const opts = { language: o.language || 'hinglish', subsOn: o.subsOn, bgMode: o.bgMode || 'existing', castIds: Array.isArray(o.castIds) ? o.castIds : [], leadId: o.leadId || null, mains: Number(o.mains) || 0, castPlan: Array.isArray(o.castPlan) ? o.castPlan : null, review: !!o.review, edit: !!o.edit, planTitle: o.planTitle || '', planLogline: o.planLogline || '', seriesId, format: o.format || 'single', category: o.category, idea: storyJson ? storyJson.title : (o.format === 'series' && topics.length && i > 0 ? (ideas[i] || '') : ideaOf(i) ?? ideas[i] ?? (n > 1 ? '' : o.idea || '')), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs === 'mine' ? (readSettings().subStyle ? 'classic' : 'auto') : o.subs, subStyle: o.subs === 'mine' ? readSettings().subStyle || null : null, demo: !!o.demo, storyJson, storyAI: o.storyAI || 'auto', chars: o.chars || 'auto', myStory: storyJson ? '' : o.myStory || '' };
+    for (let i = 0; i < (storyJson || o.myStory ? 1 : count); i++) { const opts = { language: o.language || 'hinglish', subsOn: o.subsOn, bgMode: o.bgMode || 'existing', castIds: Array.isArray(o.castIds) ? o.castIds : [], leadId: o.leadId || null, mains: Number(o.mains) || 0, castPlan: Array.isArray(o.castPlan) ? o.castPlan : null, review: !!o.review, edit: !!o.edit, brand: o.brand !== false && brandLib.brandActive() ? brandLib.getBrand() : null, planTitle: o.planTitle || '', planLogline: o.planLogline || '', seriesId, format: o.format || 'single', category: o.category, idea: storyJson ? storyJson.title : (o.format === 'series' && topics.length && i > 0 ? (ideas[i] || '') : ideaOf(i) ?? ideas[i] ?? (n > 1 ? '' : o.idea || '')), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs === 'mine' ? (readSettings().subStyle ? 'classic' : 'auto') : o.subs, subStyle: o.subs === 'mine' ? readSettings().subStyle || null : null, demo: !!o.demo, storyJson, storyAI: o.storyAI || 'auto', chars: o.chars || 'auto', myStory: storyJson ? '' : o.myStory || '' };
       const est = estimate({ style: opts.style, minutes: opts.minutes, renderer: readSettings().renderer });
       queue.push({ id: newJobId(o.category) + (count > 1 ? `_${i + 1}` : ''), title: seriesId ? `${seriesLib.getSeries(seriesId).title} · episode ${seriesLib.getSeries(seriesId).episodes.length + 1 + i}` : undefined, opts, status: 'queued', progress: 0, estimate: est, created: Date.now(), msg: 'Queued', session: SESSION }); }
     if (o.start) autoRun = true; broadcast(true); pump(); return queueView(); },
@@ -337,7 +396,9 @@ const H = {
   'subs:save': async (o, e) => { const S = await import('../pipeline/subs.mjs'); const f = path.join(OUTPUT, path.basename(o.dir)); const { WIDTH, HEIGHT } = await import('../pipeline/config.mjs');
     if (!fs.existsSync(path.join(f, 'video_clean.mp4'))) { fs.writeFileSync(path.join(f, 'subtitles.json'), JSON.stringify({ style: o.style, lines: o.lines }, null, 2)); S.writeSRT(o.lines, path.join(f, 'subtitles.srt'), o.style.lang === 'hindi' ? 'hindi' : o.style.lang === 'english' ? 'english' : 'hinglish'); return { ok: true, burned: false }; }
     const dur = Math.max(1, ...o.lines.map((l) => l.end + 4));
-    await S.applySubs({ ffmpegPath, folder: f, lines: o.lines, style: o.style, W: WIDTH, H: HEIGHT, duration: dur, onProgress: (p) => e.sender.send('subs:progress', p) }); return { ok: true, burned: true }; },
+    await S.applySubs({ ffmpegPath, folder: f, lines: o.lines, style: o.style, W: WIDTH, H: HEIGHT, duration: dur, onProgress: (p) => e.sender.send('subs:progress', p) });
+    try { const bf = path.join(f, 'brand.json'); if (fs.existsSync(bf)) await brandLib.applyBrand({ ffmpegPath, file: path.join(f, 'final.mp4'), brand: JSON.parse(fs.readFileSync(bf, 'utf8')), duration: dur, onProgress: (p) => e.sender.send('subs:progress', p) }); } catch (err) { console.warn(err); } /* the re-burned video gets the logo / intro / outro again */
+    return { ok: true, burned: true }; },
   'subs:default': (style) => { const s = readSettings(); s.subStyle = style; writeSettings(s); return true; },
   'library:open': (dir) => shell.openPath(dir ? path.join(OUTPUT, dir) : OUTPUT),
   'library:delete': (dir) => { fs.rmSync(path.join(OUTPUT, dir), { recursive: true, force: true }); return libraryList(); },
@@ -394,6 +455,16 @@ function createWindow() {
     const dir = process.argv[shots + 1]; const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); await wait(2500);
     if (process.argv.includes('--mystory-ui')) { await win.webContents.executeJavaScript(`document.querySelector('#storyMode [data-m=mine]').click(); const t=document.querySelector('#myStory'); t.value='Inspector Arjun: "Raka, gaadi roko!"\\n\\n'+'Raka laal car me highway par bhaag raha tha. '.repeat(120); t.dispatchEvent(new Event('input'));`); await wait(2000); fs.writeFileSync(path.join(dir, 'mystory_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
     if (process.argv.includes('--subed-ui')) { await win.webContents.executeJavaScript(`document.querySelector('[data-tab=library]').click()`); await wait(2000); await win.webContents.executeJavaScript(`document.querySelector('[data-subs]').click()`); await wait(2500); await win.webContents.executeJavaScript(`(()=>{const v=document.querySelector('#seVideo'); v.currentTime=13.4; document.querySelector('#sePreset').value='youtube'; document.querySelector('#sePreset').onchange();})()`); await wait(2500); fs.writeFileSync(path.join(dir, 'subed_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
+    if (process.argv.includes('--extras-ui')) { const js = (c) => win.webContents.executeJavaScript(c); const shot = async (n) => fs.writeFileSync(path.join(dir, n), (await win.webContents.capturePage()).toPNG());
+      const v = libraryList()[0]; await js(`document.querySelector('[data-tab=help]').click()`); await wait(1500); await shot('x_help.png');
+      await js(`document.querySelector('[data-tab=settings]').click()`); await wait(1500); await shot('x_settings.png');
+      if (v) { await js(`window.AVShorts(${JSON.stringify(v.dir)}, 'Test video')`); await wait(2500); await shot('x_shorts.png'); await js(`document.querySelector('#shClose').click(); window.AVYouTube(${JSON.stringify(v.dir)}, 'Coffee Date')`); await wait(5000); await shot('x_yt.png');
+        await js(`document.querySelector('[data-t=texts]').click()`); await wait(800); await shot('x_yt2.png'); await js(`document.querySelector('[data-t=up]').click()`); await wait(800); await shot('x_yt3.png'); }
+      app.quit(); return; }
+    if (process.argv.includes('--queue-run')) { // dev: run the queue; --add adds a demo job; --kill-after N simulates a crash
+      if (process.argv.includes('--add')) await H['queue:add']({ category: 'romance', minutes: 1, count: 1, style: 'flat2d', look: 'auto', subs: 'auto', demo: true, start: false });
+      const ka = process.argv.includes('--kill-after') ? Number(process.argv[process.argv.indexOf('--kill-after') + 1]) : 0; if (ka) setTimeout(() => { saveQueue(); console.log('KILLED', JSON.stringify(queue.map((j) => [j.status, j.msg]))); process.exit(1); }, ka * 1000);
+      H['queue:start'](); for (let i = 0; i < 900 && queue.some((j) => j.status === 'queued' || j.status === 'running'); i++) await wait(1000); console.log('QUEUE DONE', JSON.stringify(queue.map((j) => [j.status, j.error || '', j.folder || '', j.msg]))); app.quit(); return; }
     if (process.argv.includes('--edit-ui')) { const js = (c) => win.webContents.executeJavaScript(c); const shot = async (n) => fs.writeFileSync(path.join(dir, n), (await win.webContents.capturePage()).toPNG());
       const aiu = process.argv.includes('--ai-url') ? process.argv[process.argv.indexOf('--ai-url') + 1] : null; const mins = process.argv.includes('--minutes') ? Number(process.argv[process.argv.indexOf('--minutes') + 1]) : 1;
       await H['queue:add']({ category: 'romance', minutes: mins, count: 1, style: process.argv.includes('--bean') ? 'bean2d' : 'flat2d', look: 'auto', subs: 'auto', demo: !aiu, edit: true, start: false });
@@ -404,6 +475,7 @@ function createWindow() {
       await js(`document.querySelector('#edScrub').value = 30; document.querySelector('#edScrub').oninput({ target: document.querySelector('#edScrub') }); 1`); await wait(1500); await shot('ed_t30.png');
       await js(`document.querySelector('.blk.cam:nth-of-type(4)')?.click(); 1`); await wait(1000); await shot('ed_cam.png');
       await js(`document.querySelector('.blk.line')?.click(); 1`); await wait(1000); await shot('ed_line.png');
+      if (process.argv.includes('--preview')) { const t = JSON.parse(fs.readFileSync(path.join(edWork(j.id), 'edit_timeline.json'), 'utf8')); const u = await H['editor:preview']({ id: j.id, tl: t, from: t.scenes[1].start, to: t.scenes[1].start + 8 }, { sender: { send() {} } }); console.log('PREVIEW', u, fs.statSync(path.join(JOBS, j.id, 'preview.mp4')).size); }
       if (process.argv.includes('--render')) { const t = JSON.parse(fs.readFileSync(path.join(edWork(j.id), 'edit_timeline.json'), 'utf8')); const sc = t.scenes[1]; const ids = sc.cast.filter((x) => x !== 'narrator');
         t.edits = { pos: { 1: { [ids[0]]: { x: 0.2, row: 0.1, seat: -1 } } }, bg: { 1: { zoom: 1.25, dx: 0.05, dy: 0.04 } }, walks: [{ scene: 1, char: ids[0], toX: 0.75, toRow: 0.2, at: 1.5, dur: 3 }], cams: [{ t0: sc.start + 6, t1: sc.start + 10, type: 'cu', char: ids[0] }] };
         t.mix = { music: 0.3, sfx: 0.5, mutedLines: [t.lines[0].id] }; t.story.characters.find((c) => c.id === ids[0]).width = 1.2;

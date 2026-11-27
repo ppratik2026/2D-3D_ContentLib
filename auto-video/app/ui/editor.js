@@ -153,3 +153,10 @@ $('#edSave').onclick = async () => { await api.call('editor:save', { id: ED.id, 
 $('#edClose').onclick = async () => { if (ED?.playing) play(); if (ED) await api.call('editor:save', { id: ED.id, tl: strip() }); $('#edModal').hidden = true; };
 $('#edRender').onclick = async () => { if (ED.playing) play(); if (ED.audioDirty) await remix(); const q = await api.call('editor:render', { id: ED.id, tl: strip() }); $('#edModal').hidden = true; window.AVRenderQueue?.(q); };
 window.AVOpenEditor = async (id) => { await openEditor(id); drawAudio(); };
+
+// ---------- draft preview: a real MP4 (with sound) of one part, made in a minute or two ----------
+async function previewMp4(from, to) { if (ED.playing) play(); if (ED.audioDirty) await remix(); $('#edMsg').textContent = 'Making the preview MP4…';
+  try { const u = await api.call('editor:preview', { id: ED.id, tl: strip(), from, to }); $('#playerVideo').src = u; $('#player').hidden = false; $('#playerVideo').play(); $('#edMsg').textContent = 'Preview ready ✓ (the final video looks the same, with subtitles added)'; }
+  catch (e) { $('#edMsg').textContent = '✗ ' + String(e.message || e).replace(/^Error invoking remote method[^:]*: (Error: )?/, ''); } }
+$('#edPrevScene').onclick = () => { const sc = sceneAt(ED.t); previewMp4(sc.start, sc.end); };
+$('#edPrev30').onclick = () => previewMp4(ED.t, Math.min(ED.tl.duration, ED.t + 30));

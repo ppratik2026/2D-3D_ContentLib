@@ -20,6 +20,7 @@ import { getCast, toStoryChar, saveFromStory } from './cast.mjs';
 import { seriesContext, addEpisode } from './series.mjs';
 import { makeStoryBackground } from './bgmake.mjs';
 import { buildPlan } from './review.mjs';
+import { applyBrand } from './brand.mjs';
 import { englishReady, ensureEnglish } from './setup.mjs';
 
 export function loadEnv() {
@@ -56,6 +57,10 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   if (vlang === 'en' && !englishReady()) { stage('story', 0, 1, 'Downloading English voices (one time, ~130 MB)'); await ensureEnglish((p) => stage('story', p.index, p.count, `English voices: ${p.label}${p.total > 1 ? ' ' + Math.round((p.got / p.total) * 100) + '%' : ''}`)); }
 
   let story, tl, voices;
+  const rr = path.join(work, 'render_ready.json');
+  if (!opts.resumeEdit && !opts.fresh && fs.existsSync(rr) && fs.existsSync(path.join(work, 'timeline.json')) && fs.existsSync(path.join(pubDir, 'mix.wav')) && fs.existsSync(path.join(work, 'story.json'))) { // restart after a crash / shutdown: continue the render
+    story = JSON.parse(fs.readFileSync(path.join(work, 'story.json'), 'utf8')); const clean = JSON.parse(fs.readFileSync(path.join(work, 'timeline.json'), 'utf8')); voices = clean.voicesMap || {};
+    stage('story', 1, 1, 'Story'); stage('voice', 1, 1, 'Voices'); stage('sound', 1, 1, 'Sound'); step('render', 'Continuing the render from where it stopped'); return finish(clean, JSON.parse(fs.readFileSync(rr, 'utf8')).subStyle); }
   if (opts.resumeEdit) { // back from the timeline editor: everything up to the voices is done
     story = JSON.parse(fs.readFileSync(path.join(work, 'story.json'), 'utf8')); tl = JSON.parse(fs.readFileSync(path.join(work, 'edit_timeline.json'), 'utf8')); voices = tl.voicesMap || {};
     stage('story', 1, 1, 'Story'); stage('voice', 1, 1, 'Voices ready'); } else {
@@ -134,7 +139,10 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   const clean = JSON.parse(JSON.stringify(tl)); for (const l of clean.lines) delete l.file;
   let subStyle = styleFrom(subs, opts.subStyle); subStyle = { ...subStyle, lang: subStyle.lang === 'dual' && language !== 'english' ? 'dual' : language, ...(language === 'hindi' && !/Mukta|Hind/.test(subStyle.font || '') ? { font: 'Mukta' } : {}) }; clean.bubbleLang = language; /* bubbles, subtitles and the voice use the chosen language */
   const subsOn = opts.subsOn === true || opts.subsOn === false ? opts.subsOn : style !== 'bean2d' && subs !== 'none'; if (!subsOn) subStyle = { ...subStyle, off: true }; /* Bean Night: the words are in speech bubbles (subtitles only if turned on) */ clean.subsPreset = subs; clean.subs = 'none'; // subtitles are burned afterwards (editable)
-  fs.writeFileSync(path.join(work, 'timeline.json'), JSON.stringify(clean));
+  fs.writeFileSync(path.join(work, 'timeline.json'), JSON.stringify(clean)); fs.writeFileSync(path.join(work, 'render_ready.json'), JSON.stringify({ subStyle })); /* checkpoint: a restart continues with the render */
+  return finish(clean, subStyle);
+  async function finish(clean, subStyle) {
+  const mixFile = path.join(pubDir, 'mix.wav');
   const out = path.join(work, 'video_clean.mp4');
   const onProgress = (p, frames, secs) => { step('render', `Rendering ${(p * 100).toFixed(0)}% (${frames}/${clean.durationInFrames} frames)`, { progress: p, eta: p > 0.02 ? secs / p - secs : null, stage: { name: 'render', done: frames, total: clean.durationInFrames, label: `Frames ${frames}/${clean.durationInFrames}` } }); };
   const onSave = () => stage('save', 0, 1, 'Adding audio and saving MP4');
@@ -143,17 +151,19 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   else r = await opts.renderFn({ tl: clean, mixFile, out, onProgress, onSave, signal });
   check();
   stage('save', 0, 1, 'Adding subtitles');
-  await applySubs({ ffmpegPath: opts.ffmpegPath || (await import('ffmpeg-static')).default, folder: work, lines: linesFromTimeline(clean), style: subStyle, W: WIDTH, H: HEIGHT, duration: tl.duration,
+  await applySubs({ ffmpegPath: opts.ffmpegPath || (await import('ffmpeg-static')).default, folder: work, lines: linesFromTimeline(clean), style: subStyle, W: WIDTH, H: HEIGHT, duration: clean.duration,
     onProgress: (p) => stage('save', Math.round(p * 100), 100, `Adding subtitles ${Math.round(p * 100)}%`) });
+  if (opts.brand) { stage('save', 0, 100, 'Adding your logo / intro / outro'); try { await applyBrand({ ffmpegPath: opts.ffmpegPath || (await import('ffmpeg-static')).default, file: path.join(work, 'final.mp4'), brand: opts.brand, duration: clean.duration, onProgress: (p) => stage('save', Math.round(p * 100), 100, `Branding ${Math.round(p * 100)}%`) }); fs.writeFileSync(path.join(work, 'brand.json'), JSON.stringify(opts.brand)); } catch (e) { step('save', '⚠ Branding skipped: ' + e.message.slice(0, 200)); } }
   stage('save', 1, 1, 'Saved');
-  fs.rmSync(pubDir, { recursive: true, force: true }); fs.rmSync(path.join(work, 'voice'), { recursive: true, force: true });
+  fs.rmSync(pubDir, { recursive: true, force: true }); fs.rmSync(path.join(work, 'voice'), { recursive: true, force: true }); fs.rmSync(path.join(work, 'render_ready.json'), { force: true }); fs.rmSync(path.join(work, 'edit_timeline.json'), { force: true });
   // final folder: Videos/<date>_<category>_<title>/
   const final = path.join(OUTPUT, `${id}_${slug(story.title)}`); fs.renameSync(work, final);
   try { const bf = path.join(STATE, 'bench.json'); const b = fs.existsSync(bf) ? JSON.parse(fs.readFileSync(bf, 'utf8')) : {}; b[`${style}_${renderer}`] = +(r.seconds / r.frames).toFixed(3); fs.writeFileSync(bf, JSON.stringify(b, null, 2)); } catch {}
   const file = path.join(final, 'final.mp4');
   try { const castMap = saveFromStory(story, { style, voices, seriesId: opts.seriesId || null }); if (opts.seriesId) { addEpisode(opts.seriesId, { story, castMap, folder: final }); step('done', `Saved as episode ${series.episode} of "${series.title}"`); } } catch (e) { step('done', '⚠ Could not save the characters / series: ' + e.message); }
-  step('done', `Done in ${fmt((Date.now() - T.start) / 1000)}`, { file, folder: final, duration: tl.duration, title: story.title });
-  return { id, file, folder: final, story, duration: tl.duration };
+  step('done', `Done in ${fmt((Date.now() - T.start) / 1000)}`, { file, folder: final, duration: clean.duration, title: story.title });
+  return { id, file, folder: final, story, duration: clean.duration };
+  }
 }
 
 function writeSubtitles(tl, file) {

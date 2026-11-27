@@ -1,0 +1,186 @@
+<h2>Welcome — what this app does</h2>
+<p><b>Auto Video Studio</b> turns a story into a finished animated video: the AI writes (or adapts) the story, Hindi / English voices speak every line, the characters act it out on 2D or 3D stages with camera cuts, music and sound effects, and you get an MP4 with subtitles. You can check and change everything before the video is rendered.</p>
+<p><b>The usual path:</b> <b>New Video</b> → choose genre, story, length, language, style → <b>Add &amp; start</b> → in <b>Queue</b>: <b>Review plan</b> (characters, backgrounds, props) → <b>Open editor</b> (move people, camera, dialogue, sound) → <b>Render video</b> → the video appears in <b>Library</b>, where you can make <b>Shorts</b>, a <b>YouTube</b> thumbnail / texts and upload it.</p>
+<div class="tip">Tip: every screen in the app has short grey notes under the options. This help book explains every option in detail. Use the list on the left to jump to a topic.</div>
+
+<h2>First start, updates and data</h2>
+<ul>
+<li><b>First-time setup</b> copies (or downloads, ~400 MB once) the 3D models, the voice engines and the Hindi voices. Wait until it says it is done.</li>
+<li><b>Licence:</b> sign in with your licence key (one key = one PC). Your admin can log a PC out remotely.</li>
+<li><b>Updates:</b> the installed version (AutoVideoStudio-Setup.exe) updates itself. When "Update available" shows at the top right, click it; the app restarts on the new version. The ZIP version does not auto-update.</li>
+<li><b>Your files</b> live in <code>Documents\AutoVideo\</code>: <code>Videos\</code> (finished videos, one folder each), <code>data\</code> (backgrounds, characters, voices, models), <code>series\</code>, <code>studio\</code> (Prompt Studio stories), <code>brand\</code>, <code>cast.json</code> (saved story characters), <code>settings.json</code>, <code>queue.json</code>.</li>
+</ul>
+
+<h2>Settings — story AI keys</h2>
+<p>The story is written by an AI through an API key. Keys are stored encrypted on this PC only.</p>
+<ul>
+<li><b>Google Gemini</b> (aistudio.google.com → Get API key): good stories, Google Search for real news topics, can paint new backgrounds (picture models need billing switched on). The free plan has a small daily limit per model; the app tries several Gemini models before giving up.</li>
+<li><b>Groq</b> (console.groq.com/keys): free, fast, about 1,000 requests a day, no card. Recommended as the main or backup AI — especially for long movies.</li>
+<li>OpenRouter, Mistral, Cerebras, or any OpenAI-compatible server (LM Studio / Ollama) also work.</li>
+<li><b>Primary</b> = the AI used first. <b>Fallback</b> on = if it fails (quota, busy), the next AI with a key is tried. Switch fallback off if you never want another provider to be used.</li>
+<li><b>Test</b> checks a key in one click. Error <code>429 no quota left</code> means that key's daily limit is used up — wait for the reset (about 1:30 pm India time for Gemini) or use another provider.</li>
+</ul>
+
+<h2>New Video — step by step</h2>
+<ol>
+<li><b>Format:</b> <i>Single video</i>, or <i>Series</i> (episodes that continue with the same characters — see "Series").</li>
+<li><b>Genre:</b> sets the story type, music mood and the default look. <b>＋ Add genre</b> makes your own (e.g. Korean Drama: name, what kind of stories, music mood). × deletes your own genres.</li>
+<li><b>Story:</b>
+  <ul><li><i>AI writes it from my idea</i> — type one idea per line (one line = one video), or leave it empty and the AI invents one.</li>
+  <li><i>Find topics</i> — <b>Real recent stories (news)</b>: recent real incidents for the genre (Gemini + Google Search, or Google News headlines turned into topics by your AI); <b>AI creates new ideas</b>: 15–20 fresh ideas. Click a topic (several = several videos). Real stories keep the facts and change private people's names.</li>
+  <li><i>My full story</i> — paste your own story (any language, any length). The AI keeps your events and dialogue, and only splits it into scenes with actions and camera.</li></ul></li>
+<li><b>Minutes:</b> 0.5 to 120 (2 hours). Longer than 12 minutes is written like a film: plan → acts → scenes → screenplay. The final length follows the real voices.</li>
+<li><b>Number of videos:</b> several videos one after another in the queue.</li>
+<li><b>Characters in the story:</b> an exact number (1–10) or a range. <b>Main character (hero)</b>: a saved character or "AI creates one". <b>Main characters</b>: how many big roles. Click <b>saved characters</b> to use them again (same look and voice).</li>
+<li><b>Show me the characters first:</b> the AI plans the story and its people; a window lets you rename them, change roles, mark main characters, swap in a saved character ("Played by"), remove or add people. Then the script is written with exactly those people (so every line uses the right names).</li>
+<li><b>Language:</b> Hindi (Devanagari on screen), Hinglish (Roman on screen) or English (English voices, English text everywhere; English voices download once, ~130 MB).</li>
+<li><b>Backgrounds:</b> <i>Existing</i> = your library backgrounds of the chosen style; <i>New (AI paints)</i> = a new picture for every place, saved to your library (Gemini if Gemini is your AI, otherwise a free painter).</li>
+<li><b>Style:</b> <i>Bean Night</i> (dark doodle, bean characters, speech bubbles), <i>Flat 2D Explainer</i> (big heads, flat colours), <i>2D Cartoon Stage</i> (your painted backgrounds), and three 3D styles (Toon, Anime, Realistic). The timeline editor works with the three 2D stage styles.</li>
+<li><b>Look:</b> colour grading (film, dreamy, noir, horror…). <b>Subtitles:</b> On / Off and the style (you can change everything later in Library → Subtitles).</li>
+<li><b>Show me the plan</b> (on): stop after the script for the Plan board. <b>Open the timeline editor before rendering</b> (on): stop after the voices for the editor. <b>Add my branding</b>: logo / intro / outro (only shown when set up in Settings).</li>
+<li><b>Story source:</b> your API key (automatic) or <i>Paste from Gemini app</i>: copy the prompt, paste it in gemini.google.com, copy the whole answer back.</li>
+<li><b>Add to queue</b> or <b>Add &amp; start ▶</b>. The right side shows the estimated time on this PC.</li>
+</ol>
+
+<h2>Queue</h2>
+<ul>
+<li>Steps of every job: Story → Voices → Music &amp; sound → Render → Save. The bar and "about … left" are live.</li>
+<li><b>Waiting for you → Review plan</b>: the Plan board is ready. <b>Ready to edit → Open editor</b>: the timeline editor is ready.</li>
+<li><b>Resume after a crash / shutdown:</b> the render is saved in 2-minute parts. If the PC switches off or the app closes, open the app and press <b>Start</b>: it continues from the last finished part (story, voices and sound are not made again). While a video is being made the PC does not go to sleep.</li>
+<li>Gemini busy: the job retries automatically. <b>Retry</b> restarts a failed job; <b>✕</b> removes it; ↑ ↓ change the order.</li>
+</ul>
+
+<h2>Plan board (before voices and render)</h2>
+<ul>
+<li><b>Characters:</b> ⭐ = main character; change the name (the dialogue changes too) or role; <b>Played by</b> a saved character = its look and voice; <b>Height</b> slider; which scenes they are in and how many lines they speak.</li>
+<li><b>Scenes and backgrounds:</b> the picture used for every scene. Pick another library background, or <b>✨ Paint a new one…</b> and describe the place.</li>
+<li><b>Props, vehicles and animals:</b> swap them (car → bike, coffee → laddu, cup → phone, dog → cat).</li>
+<li><b>Make the video ▶</b> continues; <b>Later</b> keeps it waiting in the queue.</li>
+</ul>
+
+<h2>Timeline editor</h2>
+<p>Opens after the voices, before the render. Everything you change here goes into the final video.</p>
+<ul>
+<li><b>Preview:</b> the real picture, live. ▶ Play / ⏸, ⏪ 1s / 1s ⏩, the slider, <b>Wide view</b> (tick to drag people and see the floor lines and places; untick to see the real camera angles).</li>
+<li><b>Keys:</b> ← → move 1 second, Shift + ← → 10 seconds, Space play / pause. <b>Snap to 1 s</b> keeps clicks and walks on whole seconds. <b>Zoom</b> the timeline; jump with the scene list or type a time (e.g. <code>1:05:30</code>).</li>
+<li><b>Tracks:</b> ruler (every second), Scenes, Camera, Dialogue, Walks. Click a block to edit it on the right; the red line is the playhead.</li>
+<li><b>Scene panel</b> (scene at the playhead): background (any library picture), zoom / move left-right / up-down; for every person: place (auto, standing, or any seat / bed / desk of that background), facing left / right, hidden, height, width.</li>
+<li><b>Move people:</b> in Wide view drag a person to where they stand when the scene starts.</li>
+<li><b>Walks:</b> <i>Add walk ➜</i>, then click in the preview where that person should walk to; it starts at the playhead. Click the walk block to change the start, length, run, or delete it. Each person can have their own walks.</li>
+<li><b>Camera:</b> click a camera block → angle (wide, two-shot, speaker, over the shoulder, close-up, reaction), on whom, listener → <i>Use this angle</i> or <i>Change only from the playhead</i>. Your changes are purple; set exact From / To seconds; <i>Remove my change</i> to undo.</li>
+<li><b>Dialogue:</b> click a line → edit Hinglish / Hindi / English and the emotion → <i>Save text &amp; make new voices</i> (timing is rebuilt; check your camera changes after it). Mute a line or change its volume.</li>
+<li><b>Sound:</b> voices / music / effects volume (0 = mute), music style, or <i>Choose music…</i> for your own MP3 / WAV → <i>Update sound</i>.</li>
+<li><b>🎞 Preview MP4:</b> <i>this scene</i> or <i>next 30 s</i> makes a real MP4 with sound in a minute or two, so you can check lip-sync, walks and camera before the long final render.</li>
+<li><b>Save</b> / <b>Close</b> keep your changes; <b>Render video ▶</b> makes the final video.</li>
+</ul>
+
+<h2>Library — finished videos</h2>
+<ul>
+<li>Click a video to play it. <b>Folder</b> opens it in Explorer (final.mp4, subtitles.srt, story.json, TO-DO.txt, shorts\, thumbnail.jpg…).</li>
+<li><b>Subtitles:</b> edit any line's text and timing, the style (font, size, colours, outline, box, karaoke, names, CAPITALS), and <b>drag the subtitle up / down on the video</b>. <i>Save &amp; burn</i> makes the video again in minutes (no re-render). Your branding is added again automatically.</li>
+<li><b>📱 Shorts</b> and <b>▶ YouTube</b>: see the next two topics.</li>
+</ul>
+
+<h2>Shorts (9:16 for YouTube Shorts and Reels)</h2>
+<ol>
+<li>Library → <b>📱 Shorts</b> on a video.</li>
+<li><b>Pick the moment:</b> the chips are the liveliest parts (many lines, questions, strong emotions); click one, or play the video and press <i>Use the video's current time</i>.</li>
+<li><b>Length:</b> 15, 30, 45 or 60 seconds.</li>
+<li><b>Framing:</b> <i>Crop to fill</i> (people look bigger; move the yellow box with <i>Crop position</i>) or <i>Fit + blurred background</i> (the whole picture, nothing cut).</li>
+<li><b>Text:</b> a title on top (optional) and big subtitles in the lower third.</li>
+<li><b>Make the Short</b>. Shorts are saved in the video's <code>shorts\</code> folder (▶ Play, Open shorts folder).</li>
+</ol>
+
+<h2>YouTube kit — thumbnail, texts, upload</h2>
+<ol>
+<li><b>Thumbnail:</b> click a ⭐ moment (strong emotions) or type a time → <i>Use this time</i>; write 1–2 lines of BIG text, colours, size, place (left / right / top / bottom), a corner badge (e.g. EP 2), darken behind the text → <b>Save thumbnail</b> (thumbnail.jpg, 1280×720).</li>
+<li><b>Title, description, tags:</b> <b>✨ Write with AI</b> gives 5 titles, a description with chapters (timestamps from the scenes) and hashtags, and 15–25 tags. Edit anything, pick a title, <b>Save</b>, or <b>Copy</b> to paste in YouTube Studio yourself.</li>
+<li><b>Upload / schedule</b> (after the one-time setup below): title, who can see it (Private, Unlisted, Public, or <b>Scheduled</b> with a date and time), category, made for kids, use my thumbnail → <b>Upload to YouTube</b>. The link appears when it is done. Custom thumbnails need a verified YouTube account (phone verification in YouTube).</li>
+</ol>
+
+<h2>YouTube upload — one-time setup</h2>
+<p>YouTube only allows apps to upload with your own free Google "OAuth client". It takes about 10 minutes, once:</p>
+<ol>
+<li>Open <code>console.cloud.google.com</code> with the Google account of your channel → create a project (any name).</li>
+<li><b>APIs &amp; Services → Library</b> → search <b>YouTube Data API v3</b> → <b>Enable</b>.</li>
+<li><b>APIs &amp; Services → OAuth consent screen</b> → External → app name (e.g. "Auto Video Studio"), your email → save. Under <b>Test users</b> add your own Gmail address. (Leaving the app in "Testing" is fine.)</li>
+<li><b>APIs &amp; Services → Credentials → Create credentials → OAuth client ID</b> → Application type <b>Desktop app</b> → Create. Copy the <b>Client ID</b> and <b>Client secret</b>.</li>
+<li>In this app: <b>Settings → YouTube</b> → paste both → <b>Save keys</b> → <b>Connect my channel</b>. A browser opens: choose your channel, allow (if Google warns "app not verified", click Advanced → continue — it is your own app). The page says "YouTube connected".</li>
+</ol>
+<div class="tip">The daily YouTube API quota allows about 6 uploads per day per project. In "Testing" mode Google may ask you to connect again after 7 days — just press Connect again.</div>
+
+<h2>Branding — logo, intro and outro</h2>
+<ul>
+<li><b>Settings → Branding:</b> choose a <b>logo</b> (PNG with transparency is best), its corner, size and opacity; an <b>intro</b> and an <b>outro</b> (a short video, or a picture shown for the seconds you set).</li>
+<li><b>Use branding on new videos</b> turns it on; in New Video <b>Add my branding</b> can switch it off for one video.</li>
+<li>It is added after the subtitles (and again after a subtitle re-burn). Chapters in the YouTube description include the intro time.</li>
+</ul>
+
+<h2>Characters</h2>
+<ul>
+<li><b>Story characters</b> (top of the Characters tab): every character from your videos and series, with colours and voice. Change the <b>voice</b> or <b>height</b>, or delete. Pick them again in New Video, Prompt Studio or the Plan board.</li>
+<li><b>3D characters</b> (for the 3D styles): import <code>.vrm .glb .gltf .fbx</code> (humanoid rig) with + Import or drag and drop. Set name, gender, age, tags / role (the AI casts by these), a fixed voice, which styles may use it, and <b>Height in videos</b> (lower it if a model looks too tall).</li>
+<li><b>Old FBX</b> (error "FBX version not supported, FileVersion: 6100"): click <b>Convert to the new format</b> — the app converts it to GLB once (downloads a free 4 MB converter).</li>
+</ul>
+
+<h2>Backgrounds</h2>
+<ul>
+<li>Import your own pictures (16:9, no people) for the 2D stage styles, or let the AI paint them (New Video → Backgrounds → New).</li>
+<li>Drag the <b>green</b> line (where feet stand at the front) and the <b>blue</b> line (back row); set the character height.</li>
+<li><b>Places:</b> add seats, desks, judge bench, witness box, counter, bed, jail cell, blackboard, door, climb point, window — characters with matching roles start there, and "sit" / "go_to" use them. For desks / counters click the top edge too.</li>
+<li>Tags like <code>bean</code> or <code>flat</code> keep a background with its style.</li>
+</ul>
+
+<h2>Series</h2>
+<ul>
+<li>New Video → Format <b>Series</b> → <i>＋ New series</i> (name optional) → make episode 1. Everything is saved in <code>Documents\AutoVideo\series\</code>.</li>
+<li>Next time pick the series in the list: the app shows the next episode number and the characters. The AI gets the story so far and the last ending, keeps every character (name, look, voice) and adds new characters to the series. "Episodes to make now" queues several episodes in order.</li>
+<li>The title card shows "Episode N".</li>
+</ul>
+
+<h2>Prompt Studio (prompts for Flow / Veo / Kling)</h2>
+<ul>
+<li>Writes a Story Bible (characters with consistency tags, locations, props, style), then scenes, then shots with image prompts, video prompts and dialogue — for AI video tools.</li>
+<li>Same tools as New Video: <b>Find topics</b>, hero / main characters / total characters, saved characters, <b>Start a series</b> and <b>▶ Next episode</b> (same characters with the exact same tags).</li>
+<li><b>NEXT ▶</b> writes the next batch of shots; <b>REDO</b> rewrites one scene; More scary / emotional / faster change the tone of the next batches. Exports: only prompts, voiceover script, character sheet, thumbnails and titles.</li>
+<li>Story AI can be <b>Paste from Gemini app</b>: each step shows <i>Copy prompt</i>; paste Gemini's answer back.</li>
+<li><b>🎬 Make the video in this app</b> sends the story to New Video's video maker.</li>
+</ul>
+
+<h2>Long movies (up to 2 hours)</h2>
+<ul>
+<li>A 2-hour film needs about 60 AI requests (Groq free is enough), 20–40 minutes for the story and voices, and 2–6 hours to render on a normal PC. Keep 5–10 GB free disk space.</li>
+<li>Try 20–30 minutes first. Use the Plan board and the editor's <b>Preview MP4</b> before the long final render.</li>
+<li>The render continues after a crash or shutdown (Queue → Start).</li>
+</ul>
+
+<h2>What the characters can act</h2>
+<p>The AI uses these actions automatically; you can also write them in your own story or JSON:</p>
+<ul>
+<li>Moving: enter, exit, run away, walk to someone, go to a place (desk, counter, bed…), sit, stand, lie down, sleep (walks to the bed), faint, climb, swim, hold hands, escort by the arm.</li>
+<li>Gestures: wave, nod, laugh, point, think, shock, cry, angry, clap, namaste, salute, hands up, phone, scroll phone, drink / sip, read, write, examine, torch, gavel, cower.</li>
+<li>Daily life: cook, chop, eat, serve, sweep, aarti, pray, dance, knock, shiver, type, give (coffee, money, laddu, gift), hug, push, slap, fight, a group beating, pickpocket.</li>
+<li>Police: car chase, foot chase, catch, handcuff, jail, court (judge, witness box).</li>
+<li>Vehicles: car, police jeep, ambulance, auto, van, bike, scooter, cycle, horse, boat, train, plane, helicopter. Animals: dog (also on a leash), cat, cow, horse, goat, elephant, monkey, tiger, birds. Crowds that watch, cheer, dance, walk past or queue.</li>
+<li>Festivals and events: Holi, Diwali, birthday, baraat, garba, Raksha Bandhan, Eid, Christmas; fire, explosion, rain, storm, fog, snow, under water.</li>
+<li>Bean Night extras: speech bubbles, inner voice (black figure with red glow), battery meter, big words ("GO!"), worry notes, dream cloud.</li>
+</ul>
+<p>Anything the app cannot animate yet is told by the narrator and listed in the video's <code>TO-DO.txt</code>.</p>
+
+<h2>Troubleshooting</h2>
+<ul>
+<li><b>No quota left (429):</b> that AI key's daily limit is used up. Add a free Groq key in Settings (fallback on), or wait for the reset.</li>
+<li><b>Real topics fail:</b> with Groq chosen, real topics come from Google News headlines; check the internet connection.</li>
+<li><b>New backgrounds not painted:</b> Gemini pictures need billing on; otherwise the free painter is used; if both fail the closest library background is used and the queue says so.</li>
+<li><b>No voice / English voices missing:</b> Settings → Re-check models / voices; English voices download with the first English video.</li>
+<li><b>Render stopped:</b> open the app → Queue → Start (it continues from the last part).</li>
+<li><b>A character looks too tall:</b> Characters → Height, or the Plan board / editor height slider.</li>
+<li><b>Old FBX error:</b> Characters → Convert to the new format.</li>
+<li><b>Disk full:</b> delete old videos in Library, and empty <code>Documents\AutoVideo\Videos\.work\</code> of jobs you removed.</li>
+</ul>
+
+<h2>Team and licence (admins)</h2>
+<ul>
+<li>One licence key works on one PC. The admin panel creates keys, sees which PC uses which key, and can log a PC out remotely.</li>
+<li><b>Publish team data</b> shares your backgrounds, characters and settings with the team; team members see "New team data → Update".</li>
+</ul>

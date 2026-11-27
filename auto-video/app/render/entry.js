@@ -20,17 +20,17 @@ async function run(job) {
   let encErr = null;
   const enc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => (encErr = e) });
   enc.configure(cfg);
-  const N = tl.durationInFrames;
-  for (let f = 0; f < N; f++) {
+  const N = tl.durationInFrames; const [F0, F1] = job.range ? [Math.max(0, job.range[0]), Math.min(N, job.range[1])] : [0, N]; /* range: one part of a long video (resumable) or a draft preview */
+  for (let f = F0; f < F1; f++) {
     if (encErr) throw encErr;
     const t = f / FPS; eng.renderAt(t); compose(ctx, gl, tl, t, f);
-    const vf = new VideoFrame(out, { timestamp: Math.round((f * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
-    enc.encode(vf, { keyFrame: f % (FPS * 2) === 0 }); vf.close();
+    const vf = new VideoFrame(out, { timestamp: Math.round(((f - F0) * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
+    enc.encode(vf, { keyFrame: (f - F0) % (FPS * 2) === 0 }); vf.close();
     while (enc.encodeQueueSize > 4) await new Promise((ok) => enc.addEventListener('dequeue', ok, { once: true }));
-    if (f % 15 === 0) { window.av.progress(f, N, (performance.now() - t0) / 1000); await new Promise((ok) => setTimeout(ok, 0)); }
+    if (f % 15 === 0) { window.av.progress(f - F0, F1 - F0, (performance.now() - t0) / 1000); await new Promise((ok) => setTimeout(ok, 0)); }
   }
   await enc.flush(); muxer.finalize(); await pending;
-  window.av.done({ frames: N, seconds: (performance.now() - t0) / 1000 });
+  window.av.done({ frames: F1 - F0, seconds: (performance.now() - t0) / 1000 });
 }
 window.av.onJob((job) => run(job).catch((e) => window.av.fail(String(e && e.stack || e))));
 window.av.ready();
