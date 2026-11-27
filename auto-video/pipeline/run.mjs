@@ -69,12 +69,12 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   const cast = assignActors(story.characters, actorStyle);
   let stageBgs = null;
   if (isStage && bgMode === 'new') { // new backgrounds painted by Gemini for this story (saved in the library, reused next time)
-    const gk = (opts.chain || []).find((p) => p.provider === 'gemini')?.key || chainKey(opts);
+    const gk = (opts.chain || []).find((p) => p.provider === 'gemini')?.key || chainKey(opts); const painters = (opts.chain || [])[0]?.provider === 'gemini' || (!opts.chain?.length && gk) ? ['gemini', 'free'] : ['free']; /* the chosen story AI decides: Gemini paints only when Gemini is chosen */
+    step('story', painters[0] === 'gemini' ? 'Backgrounds: Gemini paints them (free painter if Gemini cannot)' : 'Backgrounds: free painter (Pollinations FLUX, no key)');
     const descs = [...new Set(story.scenes.map((sc) => (/^new\s*:/i.test(sc.background || '') ? sc.background.replace(/^new\s*:\s*/i, '').trim() : '')).filter(Boolean))].slice(0, 5); const made = {};
     for (const [i, d] of descs.entries()) { check(); const sc0 = story.scenes.find((sc) => sc.background.replace(/^new\s*:\s*/i, '').trim() === d); stage('story', i, descs.length, `Painting background ${i + 1}/${descs.length}: ${d.slice(0, 50)}`);
-      if (!gk) { step('story', '⚠ New backgrounds need a Gemini key — using the closest existing ones'); break; }
-      try { const r = await makeStoryBackground({ desc: d, style, time: sc0?.time_of_day === 'night' ? 'night' : sc0?.time_of_day || 'day', key: gk, chain: opts.chain || [], onLog: (m) => step('story', m) }); made[d] = r.bg.id; step('story', `${r.reused ? 'Reused' : 'New'} background: ${r.bg.name}`); }
-      catch (e) { step('story', `⚠ Could not paint "${d.slice(0, 50)}": ${e.message} — using the closest existing background`); if (/billing|quota|may not use/.test(e.message)) break; } }
+      try { const r = await makeStoryBackground({ painters, desc: d, style, time: sc0?.time_of_day === 'night' ? 'night' : sc0?.time_of_day || 'day', key: gk, chain: opts.chain || [], onLog: (m) => step('story', m) }); made[d] = r.bg.id; step('story', `${r.reused ? 'Reused' : 'New'} background: ${r.bg.name}`); }
+      catch (e) { step('story', `⚠ Could not paint "${d.slice(0, 50)}": ${e.message} — using the closest existing background`); if (/not reachable|no painter/.test(e.message)) break; } }
     for (const sc of story.scenes) { const d = (sc.background || '').replace(/^new\s*:\s*/i, '').trim(); if (made[d]) sc.background = made[d]; } story.newBackgrounds = (story.newBackgrounds || []).filter((d) => !made[d.trim()]); }
   if (isStage) { const all = [...new Map([...styleBgs(), ...listBackgrounds().filter((b) => story.scenes.some((sc) => sc.background === b.id))].map((b) => [b.id, b])).values()]; if (!all.length) throw new Error('2D Cartoon Stage needs backgrounds. Add some in the Backgrounds tab.');
     const used = new Map(); stageBgs = {};

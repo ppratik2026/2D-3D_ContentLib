@@ -10,6 +10,7 @@ export const PROVIDERS = {
   cerebras:   { label: 'Cerebras', base: 'https://api.cerebras.ai/v1', keyUrl: 'https://cloud.cerebras.ai', free: 'Free trial limits (may change)' },
   custom:     { label: 'Custom (OpenAI-compatible)', base: '', keyUrl: '', free: 'Any OpenAI-compatible server, e.g. a local LM Studio / Ollama URL' },
 };
+export const GROQ_VISION = 'meta-llama/llama-4-scout-17b-16e-instruct';
 const SKIP = /(tts|whisper|guard|image|audio|live|embed|vision|aqa|native-audio|computer|robotics|veo|imagen|learnlm|moderation|rerank|transcribe|ocr|banana|thinking-exp)/i;
 const baseOf = (p) => (p.provider === 'custom' ? String(p.baseUrl || '').replace(/\/+$/, '') : PROVIDERS[p.provider].base);
 const sleep = (s) => new Promise((ok) => setTimeout(ok, s * 1000));
@@ -69,7 +70,8 @@ export async function chat(p, { system, user, temperature = 0.9, json = true, ma
     if (c?.finishReason === 'MAX_TOKENS') { const e = new Error('reply was cut off (too long)'); e.status = 'cut'; throw e; }
     return text;
   }
-  const body = { model: p.model, messages: [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: user }], temperature, max_tokens: Math.min(maxTokens, p.provider === 'groq' ? 32000 : maxTokens) };
+  const content = images.length ? [{ type: 'text', text: user }, ...images.map((im) => ({ type: 'image_url', image_url: { url: `data:${im.mime || 'image/jpeg'};base64,${im.b64}` } }))] : user; /* pictures: OpenAI-style vision message */
+  const body = { model: p.model, messages: [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content }], temperature, max_tokens: Math.min(maxTokens, p.provider === 'groq' ? (images.length ? 8000 : 32000) : maxTokens) };
   if (json) body.response_format = { type: 'json_object' };
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${p.key}` }; if (p.provider === 'openrouter') { headers['HTTP-Referer'] = 'https://github.com/ppratik2026/2D-3D_ContentLib'; headers['X-Title'] = 'Auto Video Studio'; }
   const r = await fetch(`${baseOf(p)}/chat/completions`, { method: 'POST', headers, body: JSON.stringify(body) });
@@ -85,7 +87,8 @@ const isQuota = (e) => e.status === 429 && /quota|billing|credits|insufficient|d
 
 // chain: [{provider, model, key, baseUrl}] → parsed JSON from the first that works
 export async function askJSON(chain, { system, user, temperature = 0.9, onLog = () => {}, validate = (x) => x, search = false, images = [] }) {
-  if (search || images.length) chain = chain.filter((p) => p.provider === 'gemini'); /* Google Search and pictures: Gemini only */
+  if (search) chain = chain.filter((p) => p.provider === 'gemini'); /* Google Search: Gemini only */
+  if (images.length) chain = chain.filter((p) => p.provider === 'gemini' || p.provider === 'groq').map((p) => (p.provider === 'groq' ? { ...p, model: GROQ_VISION } : p)).filter((p, i, a) => a.findIndex((x) => x.provider === p.provider && x.model === p.model) === i); /* pictures: Gemini or a Groq vision model */
   const tried = []; if (!chain.length) throw Object.assign(new Error('No story AI configured. Add a key in Settings → Story AI, or use "Paste from Gemini app".'), { retryable: false });
   for (const [ci, p] of chain.entries()) {
     const name = `${PROVIDERS[p.provider]?.label || p.provider} ${p.model}`; let last = null, fails = 0, jsonMode = true;
@@ -135,4 +138,17 @@ export async function makeImage(key, prompt, { onLog = () => {} } = {}) {
   }
   const why = !last ? 'no Gemini picture model is available for this key' : last.status === 429 ? 'no free picture quota on this key (Gemini picture models usually need billing turned on in Google AI Studio)' : last.status === 400 || last.status === 403 ? 'this key may not use Gemini picture models (turn on billing in Google AI Studio)' : last.message;
   throw new Error(why);
+}
+
+// free pictures without a key (Pollinations, FLUX model) — used when the story AI is not Gemini, or Gemini cannot paint
+export async function makeImageFree(prompt, { onLog = () => {}, seed = Math.floor(Math.random() * 1e6) } = {}) {
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt.slice(0, 1500))}?width=1920&height=1080&nologo=true&model=flux&seed=${seed}`;
+  let last = null;
+  for (let i = 0; i < 3; i++) {
+    try { const r = await fetch(url, { headers: { 'User-Agent': 'AutoVideoStudio' } }); if (!r.ok) throw Object.assign(new Error(`free painter HTTP ${r.status}`), { status: r.status });
+      const type = r.headers.get('content-type') || ''; const buf = Buffer.from(await r.arrayBuffer()); if (!/image/.test(type) || buf.length < 5000) throw new Error('free painter sent no picture');
+      return { b64: buf.toString('base64'), mime: /png/.test(type) ? 'image/png' : 'image/jpeg', model: 'pollinations-flux' }; }
+    catch (e) { last = e; if (i < 2) { onLog(`Free painter busy (${e.message}), retrying in ${15 * (i + 1)}s…`); await sleep(15 * (i + 1)); } }
+  }
+  throw new Error('free picture service not reachable: ' + (last?.message || ''));
 }

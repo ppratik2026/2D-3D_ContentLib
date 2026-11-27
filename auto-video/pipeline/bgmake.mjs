@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { BG_DIR, PLACES } from './backgrounds.mjs';
-import { makeImage, askJSON } from './ai.mjs';
+import { makeImage, makeImageFree, askJSON } from './ai.mjs';
 
 export const THEMES = {
   bean2d: { tag: 'bean', look: 'dark night 2D doodle cartoon background: very dark grey-blue walls and floor, flat simple shapes with thin light-grey outlines, a few warm glowing lamps, muted colours, side view like a stage, clean vector look, no gradients except soft lamp glow', height: 0.4, near: 0.91, far: 0.874 },
@@ -39,10 +39,13 @@ Reply with ONLY JSON: {"floorNear":0.9,"floorFar":0.85,"personHeight":0.45,"time
 }
 
 // desc → saved background (reuses an earlier AI background made for the same description)
-export async function makeStoryBackground({ desc, style, time = 'day', key, chain = [], onLog = () => {} }) {
+// painters: 'gemini' (Gemini picture models, needs billing on the key) and/or 'free' (Pollinations FLUX, no key)
+export async function makeStoryBackground({ desc, style, time = 'day', key, chain = [], painters = ['gemini', 'free'], onLog = () => {} }) {
   const th = THEMES[style] || THEMES.cartoon2d; const want = String(desc).trim().toLowerCase();
   for (const id of fs.readdirSync(BG_DIR)) { try { const b = JSON.parse(fs.readFileSync(path.join(BG_DIR, id, 'background.json'), 'utf8')); if (b.ai && b.ai.desc === want && b.ai.style === style && (b.time || 'day') === time) return { bg: b, reused: true }; } catch {} }
-  const img = await makeImage(key, bgPrompt(desc, style, time), { onLog });
+  let img = null, err = null;
+  for (const pt of painters) { try { if (pt === 'gemini') { if (!key) continue; img = await makeImage(key, bgPrompt(desc, style, time), { onLog }); } else img = await makeImageFree(bgPrompt(desc, style, time), { onLog }); break; } catch (e) { err = e; onLog(`${pt === 'gemini' ? 'Gemini' : 'Free painter'}: ${e.message}`); } }
+  if (!img) throw err || new Error('no painter available');
   let id = 'bg_ai_' + slug(desc), k = 1; while (fs.existsSync(path.join(BG_DIR, id))) id = `bg_ai_${slug(desc)}_${++k}`;
   const ext = /png/.test(img.mime) ? '.png' : '.jpg'; fs.mkdirSync(path.join(BG_DIR, id), { recursive: true }); fs.writeFileSync(path.join(BG_DIR, id, 'image' + ext), Buffer.from(img.b64, 'base64'));
   const m = await markPicture(chain, img.b64, img.mime, style, onLog);

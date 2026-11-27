@@ -23,7 +23,8 @@ ${shape}`;
   if (mode !== 'real') value = (await askJSON(chain, { user, temperature: 1.0, onLog, validate })).value;
   else {
     let first = null;
-    if (chain.some((p) => p.provider === 'gemini')) { try { value = (await askJSON(chain, { user, search: true, temperature: 0.4, onLog, validate })).value; } catch (e) { first = e; onLog('Gemini + Google Search not available right now (' + (e.quota ? 'no quota left' : 'error') + ') — reading Google News instead…'); } }
+    if (chain[0]?.provider === 'gemini') { try { /* Google Search only when Gemini is the chosen story AI */ value = (await askJSON(chain, { user, search: true, temperature: 0.4, onLog, validate })).value; } catch (e) { first = e; onLog('Gemini + Google Search not available right now (' + (e.quota ? 'no quota left' : 'error') + ') — reading Google News instead…'); } }
+    else onLog('Reading recent Google News headlines…');
     if (!value) { // free fallback: Google News headlines (no key) → any story AI turns them into topics
       const news = await newsHeadlines(category, extra, onLog);
       if (!news.length) throw first || new Error('Could not read Google News right now.');
