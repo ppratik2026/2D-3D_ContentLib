@@ -55,8 +55,11 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   if (series) step('plan', `Series "${series.title}" · episode ${series.episode} · ${series.characters.length} saved characters`);
   if (vlang === 'en' && !englishReady()) { stage('story', 0, 1, 'Downloading English voices (one time, ~130 MB)'); await ensureEnglish((p) => stage('story', p.index, p.count, `English voices: ${p.label}${p.total > 1 ? ' ' + Math.round((p.got / p.total) * 100) + '%' : ''}`)); }
 
+  let story, tl, voices;
+  if (opts.resumeEdit) { // back from the timeline editor: everything up to the voices is done
+    story = JSON.parse(fs.readFileSync(path.join(work, 'story.json'), 'utf8')); tl = JSON.parse(fs.readFileSync(path.join(work, 'edit_timeline.json'), 'utf8')); voices = tl.voicesMap || {};
+    stage('story', 1, 1, 'Story'); stage('voice', 1, 1, 'Voices ready'); } else {
   // 1. story
-  let story;
   if (opts.storyJson) { story = JSON.parse(JSON.stringify(opts.storyJson)); stage('story', 1, 1, 'Pasted story'); }
   else if (opts.demo) { story = JSON.parse(fs.readFileSync(path.join(ROOT, 'pipeline', opts.demoFile || 'demo-story.json'), 'utf8')); for (const sc of story.scenes) sc.beats = normalizeBeats(sc.beats, story.characters, sc); }
   else {
@@ -100,7 +103,7 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   step('story', `Story ready: "${story.title}" (${story.scenes.length} scenes, ${story.characters.length} characters)`, { title: story.title });
 
   // 2. voices
-  const tl = buildTimeline(story, { style, look, subs, stage: !!stageBgs });
+  tl = buildTimeline(story, { style, look, subs, stage: !!stageBgs }); tl.buildOpts = { style, look, subs, category, language };
   tl.categoryLabel = CATEGORIES[category].label; if (series) tl.episodeLabel = (language === 'hindi' ? 'एपिसोड ' : 'Episode ') + series.episode; tl.cast = cast; if (stageBgs) { tl.mode = 'stage'; tl.backgrounds = stageBgs; tl.flat = style === 'flat2d' || style === 'bean2d'; tl.bean = style === 'bean2d'; }
   const soft = opts.gl === 'swiftshader' || (renderer === 'remotion' && (process.env.REMOTION_GL || (process.platform === 'linux' && !process.env.DISPLAY ? 'swiftshader' : 'angle')) === 'swiftshader');
   tl.perf = { aa: !soft, simpleMat: style === 'toon', noLamps: style !== 'realistic' };
@@ -110,16 +113,21 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   if (story.characters.some((c) => c.id === 'narrator') && !pinned.narrator) pinned.narrator = 'm_psi'; // calm storyteller voice
   for (const ch of story.characters) if (ch.voice && !pinned[ch.id] && !pinUsed.has(ch.voice) && /^en_/.test(ch.voice) === (vlang === 'en')) { pinned[ch.id] = ch.voice; pinUsed.add(ch.voice); } /* saved characters keep their voice */
   if (vlang === 'en' && pinned.narrator === 'm_psi') pinned.narrator = 'en_m_michael';
-  const voices = castVoices(story.characters, pinned, vlang);
+  voices = castVoices(story.characters, pinned, vlang);
   stage('voice', 0, tl.lines.length, `Voices 0/${tl.lines.length} lines`);
   await speakAll(tl.lines, voices, path.join(work, 'voice'), (m) => step('voice', m), (d, n) => stage('voice', d, n, `Voices ${d}/${n} lines`));
   finalize(tl); check();
   step('voice', `Voices ready (${tl.lines.length} lines). Video length ${fmt(tl.duration)}`, { duration: tl.duration });
+  tl.voicesMap = voices; tl.voiceDir = path.join(work, 'voice');
+  if (opts.edit && tl.mode === 'stage') { // timeline editor before the render
+    fs.writeFileSync(path.join(work, 'edit_timeline.json'), JSON.stringify(tl)); mixAll(tl, CATEGORIES[category].mood, path.join(pubDir, 'mix.wav'));
+    step('voice', 'Ready to edit — open the editor', { title: story.title }); return { edit: true, id, story, duration: tl.duration }; }
+  }
 
   // 3. sound
   const mixFile = path.join(pubDir, 'mix.wav');
   stage('sound', 0, 1, 'Music, ambience and effects');
-  mixAll(tl, CATEGORIES[category].mood, mixFile);
+  mixAll(tl, CATEGORIES[category]?.mood || 'drama', mixFile);
   stage('sound', 1, 1, 'Music, ambience, effects and dialogue mixed');
 
   // 4. render
@@ -159,4 +167,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const a = {}; for (let i = 2; i < process.argv.length; i++) { const k = process.argv[i]; if (k.startsWith('--')) { const v = process.argv[i + 1]; if (!v || v.startsWith('--')) a[k.slice(2)] = true; else { a[k.slice(2)] = v; i++; } } }
   a.renderer = 'remotion';
   makeVideo(a, (e) => console.log(`[${fmt(e.elapsed)}] ${e.step}: ${e.msg}`)).catch((e) => { console.error('ERROR:', e.message); process.exit(1); });
+}
+
+// timeline editor: changed dialogue → new voices for the changed lines and new timing (positions, background and audio edits stay)
+export async function rebuildTimeline(work, prev, onLog = () => {}) {
+  const story = JSON.parse(fs.readFileSync(path.join(work, 'story.json'), 'utf8'));
+  let k = 0; for (const sc of story.scenes) for (const b of sc.beats || []) if (b.type === 'line') { const l = prev.lines[k++]; if (l) { for (const f of ['hindi', 'hinglish', 'english', 'emotion']) if (l[f] != null) b[f] = l[f]; } }
+  fs.writeFileSync(path.join(work, 'story.json'), JSON.stringify(story, null, 2));
+  const o = prev.buildOpts || {}; const tl = buildTimeline(story, { style: o.style, look: o.look, subs: o.subs, stage: true });
+  for (const f of ['buildOpts', 'categoryLabel', 'episodeLabel', 'cast', 'mode', 'backgrounds', 'flat', 'bean', 'perf', 'edits', 'mix', 'voicesMap', 'voiceDir']) if (prev[f] !== undefined) tl[f] = prev[f];
+  await speakAll(tl.lines, tl.voicesMap || {}, tl.voiceDir || path.join(work, 'voice'), onLog); finalize(tl);
+  return tl;
 }

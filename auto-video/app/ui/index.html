@@ -58,6 +58,7 @@
         <div class="row top"><label>Main character (hero)<select id="leadSel"><option value="">AI creates one for this genre</option></select></label><label>Main characters (big roles)<select id="mainsSel"><option value="0">Auto</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label></div>
         <div class="small muted">Also use these saved characters (click to pick). Everyone not picked is created by the AI to fit the genre and saved to your library after the video.</div>
         <div id="castPick" class="chips cast"></div>
+        <label class="check"><input type="checkbox" id="editBefore" checked> Open the timeline editor before rendering (move people, walks, camera, background, dialogue, sound — then Render)</label>
         <label class="check"><input type="checkbox" id="reviewPlan" checked> Show me the plan before the video is made (characters, the background of every scene, props — swap anything, then press Make video)</label>
         <label class="check"><input type="checkbox" id="reviewCast" checked> Show me the characters first (AI plans the story and its characters → I check, swap or add them → then the script is written)</label>
         <div class="row">
@@ -300,9 +301,20 @@
   <h3>Scenes and backgrounds</h3><div id="plScenes" class="plscenes"></div>
   <h3>Props, vehicles and animals</h3><div id="plProps" class="cmrows"></div>
 </div></div>
+<div id="edModal" class="modal ed" hidden><div class="card edcard">
+  <div class="qhead"><div><b>Timeline editor</b> <span id="edMsg" class="small muted"></span></div><div class="btns"><button id="edSave" class="ghost">Save</button><button id="edClose" class="ghost">Close (keeps changes)</button><button id="edRender" class="primary">Render video ▶</button></div></div>
+  <div class="edgrid">
+    <div><div class="edview"><canvas id="edGl" width="1280" height="720" hidden></canvas><canvas id="edOut" width="1280" height="720"></canvas><canvas id="edOv" width="960" height="540"></canvas></div>
+      <div class="edbar"><button id="edBack" class="ghost">⏪ 2s</button><button id="edPlay" class="primary">▶ Play</button><button id="edFwd" class="ghost">2s ⏩</button><input type="range" id="edScrub" min="0" step="0.01" value="0"><span id="edTime" class="small"></span><label class="check"><input type="checkbox" id="edWide" checked> Wide view (drag people)</label></div>
+      <div id="edTracks" class="edtracks"></div>
+      <div id="edAudio" class="edaudio"></div></div>
+    <div id="edSide" class="edside"></div>
+  </div></div></div>
 <div id="player" class="modal" hidden><div class="card wide"><video id="playerVideo" controls></video><div class="btns"><button id="playerClose" class="ghost">Close</button></div></div></div>
 
 <script src="../build/preview.js"></script>
+<script src="../build/editor.js"></script>
+<script type="module" src="editor.js"></script>
 <script type="module" src="ui.js"></script>
 <script type="module" src="studio.js"></script>
 </body></html>

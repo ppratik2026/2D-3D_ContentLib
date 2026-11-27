@@ -50,7 +50,7 @@ async function add(start) {
   const mode = src();
   const picked = TOPICS.filter((_, i) => topicSel.has(i));
   if (mode2 === 'find' && !picked.length) { $('#topicMsg').className = 'small warn'; $('#topicMsg').textContent = 'Find topics and click one (or more) first.'; return; }
-  const o = { review: $('#reviewPlan').checked, format: FMT, seriesId: FMT === 'series' ? $('#seriesSel').value || null : null, seriesTitle: $('#seriesTitle').value.trim(), language: LANG, bgMode: BGM, subsOn: SUBSON, castIds: [...castSel].filter((x) => x !== $('#leadSel').value), leadId: $('#leadSel').value || null, mains: +$('#mainsSel').value || 0, topics: mode2 === 'find' ? picked : [],
+  const o = { edit: $('#editBefore').checked, review: $('#reviewPlan').checked, format: FMT, seriesId: FMT === 'series' ? $('#seriesSel').value || null : null, seriesTitle: $('#seriesTitle').value.trim(), language: LANG, bgMode: BGM, subsOn: SUBSON, castIds: [...castSel].filter((x) => x !== $('#leadSel').value), leadId: $('#leadSel').value || null, mains: +$('#mainsSel').value || 0, topics: mode2 === 'find' ? picked : [],
     category: cat, idea: mode2 === 'find' ? '' : $('#idea').value, minutes: $('#min').value, count: FMT === 'series' ? $('#epCount').value : $('#count').value, style: $('#style').value, look: $('#look').value, subs: $('#subs').value, chars: $('#chars').value, demo: mode === 'demo', storyAI: mode === 'api' ? $('#storySrc').value : null, start };
   if (mode2 === 'mine') { o.myStory = $('#myStory').value.trim(); o.idea = ''; o.count = 1; if (!o.myStory && mode !== 'paste' && mode !== 'demo') { $('#storyInfo').className = 'small warn'; $('#storyInfo').textContent = 'Paste your story first.'; return; } }
   if (mode === 'paste') { if (!pasteOk) { $('#pasteMsg').className = 'small warn'; $('#pasteMsg').textContent = 'Paste Gemini\'s answer first.'; return; } o.pasted = $('#pasted').value; }
@@ -128,7 +128,7 @@ async function loadCastPick() { CAST = await api.call('cast:list'); castSel = ne
 $('#castPick').onclick = (e) => { const c = e.target.closest('.chip'); if (!c?.dataset.id) return; toggleIn(castSel, c.dataset.id); c.classList.toggle('on'); };
 
 // ---------- queue ----------
-const STATUS = { review: 'Waiting for you', queued: 'Queued', running: 'Rendering', done: 'Ready ✓', error: 'Error', cancelled: 'Cancelled' };
+const STATUS = { edit: 'Ready to edit', review: 'Waiting for you', queued: 'Queued', running: 'Rendering', done: 'Ready ✓', error: 'Error', cancelled: 'Cancelled' };
 const STAGE_NAMES = { story: 'Story', voice: 'Voices', sound: 'Music & sound', render: '3D render', save: 'Save MP4' };
 const WEIGHT = { story: 0.06, voice: 0.04, sound: 0.02, render: 0.85, save: 0.03 };
 function overall(j) { if (j.status === 'done') return 1; if (!j.stages) return 0; let p = 0;
@@ -156,18 +156,18 @@ function renderQueue(q) {
         ${j.status === 'queued' && j.retryAt ? `<button data-a="retryNow" data-id="${j.id}">Retry now</button>` : ''}
         ${j.status === 'running' || j.status === 'queued' ? `<button data-a="cancel" data-id="${j.id}">Cancel</button>` : ''}
         ${j.status === 'error' || j.status === 'cancelled' ? `<button data-a="retry" data-id="${j.id}">Retry</button>` : ''}
-        ${j.status === 'review' ? `<button data-a="plan" data-id="${j.id}" class="primary">Review plan</button>` : ''}
+        ${j.status === 'review' ? `<button data-a="plan" data-id="${j.id}" class="primary">Review plan</button>` : ''}${j.status === 'edit' ? `<button data-a="edit" data-id="${j.id}" class="primary">Open editor</button>` : ''}
         ${j.status === 'done' ? `<button data-a="open" data-id="${esc(j.folder)}">Open folder</button>` : ''}
         ${j.status !== 'running' ? `<button data-a="remove" data-id="${j.id}">✕</button>` : ''}</div></div>`; }).join('');
 }
 $('#qList').onclick = async (e) => { const b = e.target.closest('button'); if (!b) return; const id = b.dataset.id, a = b.dataset.a;
-  if (a === 'open') return api.call('library:open', id.split(/[\\/]/).pop()); if (a === 'plan') return openPlan(id);
+  if (a === 'open') return api.call('library:open', id.split(/[\\/]/).pop()); if (a === 'plan') return openPlan(id); if (a === 'edit') return window.AVOpenEditor(id);
   const map = { up: ['queue:move', { id, dir: 1 }], down: ['queue:move', { id, dir: -1 }], cancel: ['queue:cancel', id], retry: ['queue:retry', id], retryNow: ['queue:retryNow', id], remove: ['queue:remove', id] };
   renderQueue(await api.call(...map[a])); };
 $('#qStart').onclick = async () => renderQueue(await api.call('queue:start'));
 $('#qPause').onclick = async () => renderQueue(await api.call('queue:pause'));
 $('#qClear').onclick = async () => renderQueue(await api.call('queue:clearDone'));
-api.on('queue', renderQueue);
+api.on('queue', renderQueue); window.AVRenderQueue = renderQueue;
 
 // ---------- library ----------
 async function loadLibrary() {

@@ -52,7 +52,13 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
   const bgMat = new THREE.MeshBasicMaterial({ toneMapped: false }); bgMat.userData.outlineParameters = { visible: false };
   bgMat.alphaTest = 0.5; bgMat.transparent = false; // backgrounds with see-through windows (PNG alpha) show the moving view behind
   const bg = new THREE.Mesh(new THREE.PlaneGeometry(AR, 1), bgMat); bg.position.set(AR / 2, 0.5, -100); scene.add(bg);
-  const B = (sc) => tl.backgrounds?.[sc.background] || { groundNear: 0.93, groundFar: 0.74, heightNear: 0.62, seats: [] };
+  const B0 = (sc) => tl.backgrounds?.[sc.background] || { groundNear: 0.93, groundFar: 0.74, heightNear: 0.62, seats: [] };
+  const bgEdit = (sc) => { const e = tl.edits?.bg?.[sc.index]; return e && (e.zoom > 1.001 || e.dx || e.dy) ? { z: Math.max(1, Number(e.zoom) || 1), dx: Number(e.dx) || 0, dy: Number(e.dy) || 0 } : null; };
+  const bCache = new Map();
+  const B = (sc) => { const b0 = B0(sc); const e = bgEdit(sc); if (!e) return b0; const key = sc.index + '|' + sc.background + '|' + e.z + '|' + e.dx + '|' + e.dy; if (bCache.has(key)) return bCache.get(key);
+    const tx = (x) => (x - 0.5) * e.z + 0.5 + e.dx, ty = (y) => (y == null ? y : (y - 0.5) * e.z + 0.5 + e.dy);
+    const b = { ...b0, groundNear: ty(b0.groundNear), groundFar: ty(b0.groundFar), heightNear: b0.heightNear * e.z, seats: (b0.seats || []).map((m) => ({ ...m, x: tx(m.x), y: ty(m.y), ...(m.cover != null ? { cover: ty(m.cover) } : {}), ...(m.tableY != null ? { tableY: ty(m.tableY) } : {}), ...(m.w ? { w: m.w * e.z } : {}) })) };
+    bCache.set(key, b); return b; };
   const marks = (b) => (b.seats || []).map((m, i) => ({ type: 'seat', ...m, i }));
   const farScaleOf = (b) => Math.max(0.45, 1 - (b.groundNear - b.groundFar) * 1.9);
   const heightAt = (b, feetY) => b.heightNear * (1 + (farScaleOf(b) - 1) * Math.min(1, Math.max(0, (b.groundNear - feetY) / Math.max(0.01, b.groundNear - b.groundFar))));
@@ -203,10 +209,11 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       out[id] = { x: x + (two && i % 2 ? 0.06 : 0), row }; });
     return out;
   }
+  const C_OK = (w) => !!actors[w.char];
   const plan = new Map(); // per scene: things that do not depend on t
   function planOf(sc) {
     if (plan.has(sc)) return plan.get(sc);
-    const b = B(sc); const ms = marks(b); const ev = [...sc.events].sort((x, y) => x.t0 - y.t0);
+    const b = B(sc); const ms = marks(b); const ev = [...sc.events, ...(tl.edits?.walks || []).filter((w) => w.scene === sc.index && C_OK(w) && sc.cast.includes(w.char)).map((w) => ({ kind: 'walk_to', char: w.char, toX: w.toX, toRow: w.toRow, run: w.run, face: w.face, t0: sc.start + w.at, t1: sc.start + w.at + Math.max(0.4, w.dur || 2) }))].sort((x, y) => x.t0 - y.t0); /* editor walks are relative to the scene start */
     const vkeys = [...new Set(ev.map((e) => e.vehicle).concat(ev.map((e) => e.chaser)).filter(Boolean))].filter((k) => vehicles[k]);
     const chase = ev.some((e) => e.kind === 'car_chase' || e.kind === 'foot_chase');
     const involved = new Set(ev.filter((e) => e.kind === 'car_chase' || e.kind === 'foot_chase').flatMap((e) => [e.char, ...(e.chasers || [])]));
@@ -237,6 +244,10 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       C[id] = { visible: sc.initial.includes(id), x: an ? an.x : s.x, row: s.row, home: s, feetY: an ? an.y : null, face: s.x < 0.5 ? 1 : -1, walk: 0, run: 0, sit: an && SIT_TYPES.has(an.type) ? 1 : 0, lie: 0, anchor: an || null, inV: null, inK: 0, cuffed: false, grab: null, struggle: 0 };
       if (an && an.type === 'bed') C[id].lie = 1;
       if (p.inside[id]) { C[id].inV = p.inside[id]; C[id].inK = 1; C[id].visible = false; }
+      const pe = tl.edits?.pos?.[sc.index]?.[id]; if (pe && !p.inside[id]) { const cc = C[id]; // timeline editor: where this person is at the start of the scene
+        if (pe.seat != null && pe.seat >= 0) { const m = p.ms[pe.seat]; if (m) { cc.anchor = m; cc.x = m.x; cc.feetY = m.y; cc.sit = SIT_TYPES.has(m.type) ? 1 : 0; cc.lie = m.type === 'bed' ? 1 : 0; } }
+        else { if (pe.seat === -1) { cc.anchor = null; cc.feetY = null; cc.sit = 0; cc.lie = 0; } if (pe.x != null) cc.x = pe.x; if (pe.row != null) cc.row = pe.row; cc.home = { x: cc.x, row: cc.row }; }
+        if (pe.face) cc.face = pe.face; if (pe.hidden) cc.visible = false; }
     }
     const feet = (c) => c.feetY ?? rowY(b, c.row);
     const vFeet = (v) => rowY(b, v.row);
@@ -287,7 +298,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
         case 'enter': c.visible = true; free(c); go(c, side(c.home.x), c.home.x, false); c.leaving = !done; break;
         case 'exit': case 'run_exit': { if (c.anchor && c.anchor.type === 'door' && e.kind === 'exit') { const m = c.anchor; c.walk = done ? 0 : 1; c.back = true; c.x = m.x; c.feetY = lerp(m.y, m.y - 0.035, k); c.walkDist = k * 1.2; c.fade = sm(0.55, 1, k); if (done) c.visible = false; break; }
           c.leaving = true; const x0 = c.x, fy = c.feetY; free(c); c.feetY = fy; go(c, x0, side(x0), e.kind === 'run_exit'); if (done) c.visible = false; break; }
-        case 'walk_to': { const tc = e.target && C[e.target]; const x0 = c.x; const x1 = tc ? tc.x + (x0 < tc.x ? -0.11 : 0.11) : c.home.x; free(c); c.row = tc ? tc.row : c.home.row; go(c, x0, x1, false); if (done && tc) c.face = tc.x > c.x ? 1 : -1; break; }
+        case 'walk_to': { const tc = e.target && C[e.target]; const x0 = c.x; if (e.toX != null) { const r0 = c.row; free(c); c.visible = true; go(c, x0, e.toX, !!e.run); if (e.toRow != null) c.row = lerp(r0, e.toRow, k); if (done && e.face) c.face = e.face; break; } /* editor: walk to a spot */ const x1 = tc ? tc.x + (x0 < tc.x ? -0.11 : 0.11) : c.home.x; free(c); c.row = tc ? tc.row : c.home.row; go(c, x0, x1, false); if (done && tc) c.face = tc.x > c.x ? 1 : -1; break; }
         case 'go_to': { const m = p.ms.find((x) => x.type === e.place) || p.ms.find((x) => x.type === 'seat'); if (!m) break; const x0 = c.x, y0 = feet(c); c.anchor = null; c.lie = 0;
           const kw = sm(0, 0.75, k); c.x = lerp(x0, m.x, kw); c.feetY = lerp(y0, m.y, kw); if (kw < 1 && Math.abs(m.x - x0) > 0.005) { c.face = m.x > x0 ? 1 : -1; c.walk = 1; } else c.walk = 0;
           c.sit = SIT_TYPES.has(m.type) ? sm(0.75, 1, k) : 0; c.lie = m.type === 'bed' ? sm(0.75, 1, k) : 0; if (done) c.anchor = m; break; }
@@ -457,6 +468,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     const S = stateAt(sc, t);
     if (tex) { const f = fit[sc.background]; tex.offset.x = f.ox + S.scroll * f.rx; }
     for (const [id, g] of Object.entries(coverGroups)) g.visible = id === sc.background;
+    { const e = bgEdit(sc); const g = coverGroups[sc.background]; if (e) { bg.scale.set(e.z, e.z, 1); bg.position.set(AR / 2 + e.dx * AR, 0.5 - e.dy, -100); if (g) { g.scale.set(e.z, e.z, 1); g.position.set((AR / 2) * (1 - e.z) + e.dx * AR, 0.5 * (1 - e.z) - e.dy, 0); } } else { bg.scale.set(1, 1, 1); bg.position.set(AR / 2, 0.5, -100); if (g) { g.scale.set(1, 1, 1); g.position.set(0, 0, 0); } } } /* editor: background zoom / move */
     const tint = TINT[sc.time_of_day] || TINT.day; hemi.color.set(tint[0]); hemi.intensity = tint[1]; key.color.set(tint[0]); key.intensity = tint[2];
     const line = lineAt(t);
     // vehicles
@@ -480,7 +492,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       if (c.jump) py += c.jump * 0.05 * sc_ * 1.7; if (S.FX.moving && !c.walk) py += Math.abs(Math.sin(t * 9 + px * 7)) * 0.0025;
       if (sc.weather === 'underwater' && !c.inV) { py += 0.01 + Math.sin(t * 1.3 + px * 5) * 0.006; }
       if (!show) continue; h.visible = true; vis.push(id);
-      const childK = a.height / 1.7; h.scale.setScalar((sc_ * 1.7 * childK) / a.height); h.position.set(px, py, pz); h.rotation.y = 0;
+      const childK = a.height / 1.7; h.scale.setScalar((sc_ * 1.7 * childK) / a.height); const wk = Number(a.ch?.width) || 1; if (wk !== 1) h.scale.x *= Math.max(0.7, Math.min(1.4, wk)); h.position.set(px, py, pz); h.rotation.y = 0;
       // lying down: roll the body flat, head towards the left
       pivot.rotation.z = c.swim ? -c.face * Math.PI / 2 * 0.92 : c.lie * Math.PI / 2; pivot.position.set(c.swim ? -c.face * 0.8 : c.lie * 0.85, c.swim ? 0.15 : c.lie * 0.12, 0);
     }
@@ -598,8 +610,8 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     // speed lines
     for (let i = 0; i < speed.length; i++) { const l = speed[i]; l.visible = !!S.chasing; if (!l.visible) continue; const sp = S.chasing.kind === 'car' ? 3.2 : 1.8; const y = 0.15 + ((i * 0.618) % 1) * 0.75; l.position.x = AR + 0.3 - ((t * sp + i * 0.37) % 1) * (AR + 0.6); l.position.y = y; }
     // camera: wide / two-shot / speaker / vehicle / hands (cuts, like TV cartoons)
-    let shot = { type: 'wide' }; for (const x of tl.shots) if (t >= x.t0 && t < x.t1) shot = x;
-    let zoom = 1 + 0.04 * sm(sc.start, sc.end ?? sc.start + 20, t), cx = AR / 2, cy = 0.5;
+    let shot = { type: 'wide' }; if (!tl._forceWide) { for (const x of tl.shots) if (t >= x.t0 && t < x.t1) shot = x; for (const x of tl.edits?.cams || []) if (t >= x.t0 && t < x.t1) shot = x; } /* editor camera choices win */
+    let zoom = tl._forceWide ? 1 : 1 + 0.04 * sm(sc.start, sc.end ?? sc.start + 20, t), cx = AR / 2, cy = 0.5;
     if ((shot.type === 'speaker' || shot.type === 'two') && shot.char && vis.includes(shot.char)) {
       const hp = headPos(actors[shot.char]);
       if (shot.type === 'speaker') { zoom = 1.75; cx = hp.x; cy = hp.y - 0.12; }
@@ -705,5 +717,14 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
         const f = (i + 1) / 4; put(d, lerp(tp.x, cx_ - side * H_ * 0.45, f), lerp(tp.y + 6 * px, cy_ - H_ * 0.4, f), (14 + i * 9) * px, k); } }
   }
   function doorWorld(m, seat) { if (m.doors) { const sx = m.seats[Math.min(seat, m.seats.length - 1)][0]; return m.doors.reduce((b_, d) => (Math.abs(d - sx) < Math.abs(b_ - sx) ? d : b_), m.doors[0]); } return seat > 0 && m.seats[1] ? m.seats[1][0] : m.doorX; }
-  return { renderAt };
+  // timeline editor helpers: forget cached plans after an edit, find the person under the mouse, mouse → stage position
+  let lastVis = []; const _render = renderAt;
+  function editorInfo(t) { const sc = sceneAt(t); const b = B(sc); return { scene: sc.index, b, marks: marks(b).map((m) => ({ type: m.type, x: m.x, y: m.y })), cam: { l: cam.left, r: cam.right, t: cam.top, b: cam.bottom }, AR }; }
+  function pick(nx, ny) { const wx = cam.left + nx * (cam.right - cam.left), wy = cam.top - ny * (cam.top - cam.bottom); let best = null, bd = 1e9;
+    for (const [id, H] of Object.entries(holders)) { if (!H.h.visible) continue; const s = H.h.scale.y; const ht = (actors[id].height || 1.7) * s; const cx = H.h.position.x, y0 = H.h.position.y; if (wy < y0 - 0.02 || wy > y0 + ht + 0.02) continue; const d = Math.abs(wx - cx); if (d < 0.35 * ht && d < bd) { bd = d; best = id; } }
+    return best; }
+  function toStage(nx, ny, t) { const sc = sceneAt(t); const b = B(sc); const wx = cam.left + nx * (cam.right - cam.left), wy = cam.top - ny * (cam.top - cam.bottom); const fy = 1 - wy;
+    return { x: Math.min(1.05, Math.max(-0.05, wx / AR)), row: Math.min(1, Math.max(0, (fy - b.groundNear) / Math.min(-0.001, b.groundFar - b.groundNear))), feetY: fy }; }
+  function invalidate() { plan.clear(); bCache.clear(); for (const k of Object.keys(odo)) delete odo[k]; }
+  return { renderAt: _render, pick, toStage, invalidate, editorInfo, characters: () => Object.keys(actors) };
 }

@@ -170,20 +170,25 @@ function hum(dur) { const n = Math.ceil(dur * SR), o = new Float32Array(n); let 
 function bubbles(dur) { const o = new Float32Array(Math.ceil(dur * SR)); for (let t = 0; t < dur; t += 0.15 + rnd() * 0.4) { let ph = 0; const k = new Float32Array(Math.floor(0.06 * SR)); const f0 = 400 + rnd() * 700; for (let i = 0; i < k.length; i++) { ph += 2 * Math.PI * f0 * (1 + i / k.length) / SR; k[i] = Math.sin(ph) * Math.exp(-i / k.length * 4); } add(o, k, t, 0.25); } const lo = new Float32Array(o.length); let a = 0; for (let i = 0; i < lo.length; i++) { a += 0.005 * (noise() - a); lo[i] = a * 4; } for (let i = 0; i < o.length; i++) o[i] += lo[i]; return o; }
 function sting() { const o = new Float32Array(Math.floor(3 * SR)); for (const m of [50, 57, 62, 66]) add(o, tone(mtof(m), 3, { type: 'bell', decay: 1.1 }), 0, 0.15); return o; }
 
+// tl.mix (timeline editor): { voice, music, sfx: volumes 0..1.5 (0 = mute), mutedLines: [line ids], lineVol: {id: v}, mood, musicWav: file, musicFrom }
 export function mixAll(tl, mood, outFile) {
-  const dur = tl.duration, n = Math.ceil(dur * SR), mix = new Float32Array(n);
+  const dur = tl.duration, n = Math.ceil(dur * SR), mix = new Float32Array(n); const MX = tl.mix || {}; const vol = (k) => (MX[k] == null ? 1 : Math.max(0, Math.min(1.5, Number(MX[k]))));
+  if (MX.mood) mood = MX.mood;
   // dialogue + duck curve
   const duck = new Float32Array(n).fill(1);
   for (const l of tl.lines) {
     const w = readWav(l.file); const ratio = w.rate / SR; const s = new Float32Array(Math.floor(w.samples.length / ratio));
     for (let i = 0; i < s.length; i++) s[i] = w.samples[Math.floor(i * ratio)];
-    add(mix, s, l.start, 0.95);
+    if ((MX.mutedLines || []).includes(l.id)) continue;
+    add(mix, s, l.start, 0.95 * vol('voice') * (MX.lineVol?.[l.id] ?? 1));
     const a = Math.floor((l.start - 0.25) * SR), b = Math.floor((l.end + 0.35) * SR);
     for (let i = Math.max(0, a); i < Math.min(n, b); i++) duck[i] = 0.32;
   }
   lowpass(duck, 0.0004);
-  const music = makeMusic(mood, dur);
-  for (let i = 0; i < n; i++) { const t = i / SR; const fade = Math.min(1, t / 1.5, (dur - t) / 2.5); mix[i] += music[i] * duck[i] * fade * 0.8; }
+  let music; if (MX.musicWav) { try { const w = readWav(MX.musicWav); const r = w.rate / SR; music = new Float32Array(n); const len = Math.floor(w.samples.length / r); for (let i = 0; i < n; i++) music[i] = w.samples[Math.floor((i % Math.max(1, len)) * r)] * 0.7; } catch { music = null; } } /* your own music file (loops) */
+  music ||= makeMusic(mood, dur); const mv = vol('music');
+  for (let i = 0; i < n; i++) { const t = i / SR; const fade = Math.min(1, t / 1.5, (dur - t) / 2.5); mix[i] += music[i] * duck[i] * fade * 0.8 * mv; }
+  const base = mix.slice(); /* everything added after this line is ambience / effects */
   // ambience per scene
   for (const sc of tl.scenes) {
     const d = sc.end - sc.start + 0.6; const fade = (x) => { for (let i = 0; i < x.length; i++) { const tt = i / SR; x[i] *= Math.min(1, tt / 0.6, (x.length / SR - tt) / 0.6); } return x; };
@@ -240,6 +245,7 @@ export function mixAll(tl, mood, outFile) {
     if (c.kind === 'snore') add(mix, snore(c.t1 - c.t), c.t, 0.35);
     if (c.kind === 'sit' || c.kind === 'stand') { const s = new Float32Array(Math.floor(0.3 * SR)); for (let i = 0; i < s.length; i++) s[i] = noise() * Math.sin(Math.PI * i / s.length); add(mix, lowpass(s, 0.1), c.t + 0.3, 0.25); }
   }
+  const fv = vol('sfx'); if (fv !== 1) for (let i = 0; i < n; i++) mix[i] = base[i] + (mix[i] - base[i]) * fv;
   let m = 1e-6; for (const v of mix) m = Math.max(m, Math.abs(v)); const g = Math.min(1, 0.9 / m); for (let i = 0; i < n; i++) mix[i] *= g;
   writeWav(outFile, [mix], SR);
 }

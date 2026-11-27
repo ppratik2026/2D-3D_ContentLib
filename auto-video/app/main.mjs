@@ -14,11 +14,12 @@ app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 if (process.argv.includes('--cpu')) app.commandLine.appendSwitch('use-angle', 'swiftshader');
 
-const { PUBLIC, OUTPUT, STATE, CHARS } = await import('../pipeline/paths.mjs');
+const { PUBLIC, OUTPUT, STATE, CHARS, JOBS } = await import('../pipeline/paths.mjs');
 const { CATEGORIES, STYLES, LOOKS, SUBTITLE_STYLES, MUSIC_MOODS, saveCategory, deleteCategory } = await import('../pipeline/config.mjs');
 const review = await import('../pipeline/review.mjs');
 const { estimate, fmt } = await import('../pipeline/estimate.mjs');
-const { makeVideo, newJobId } = await import('../pipeline/run.mjs');
+const { makeVideo, newJobId, rebuildTimeline } = await import('../pipeline/run.mjs');
+const { mixAll } = await import('../pipeline/audio.mjs');
 const { setupStatus, runSetup } = await import('../pipeline/setup.mjs');
 const lib = await import('../pipeline/library.mjs');
 const bgs = await import('../pipeline/backgrounds.mjs');
@@ -148,6 +149,7 @@ async function pump() {
           Object.assign(job.stages[e.stage.name], { state: e.stage.total && e.stage.done >= e.stage.total ? 'done' : 'active', done: e.stage.done, total: e.stage.total, label: e.stage.label }); }
         broadcast(); },
       { signal: abort.signal });
+    if (r.edit) { Object.assign(job, { status: 'edit', title: r.story.title, msg: 'Ready to edit — open the editor', progress: 0 }); job.stages.story.state = job.stages.voice.state = 'done'; running = null; abort = null; broadcast(true); pump(); return; }
     if (r.review) { Object.assign(job, { status: 'review', plan: r.plan, story: r.story, title: r.story.title, msg: 'Plan ready — check characters, backgrounds and props', progress: 0 }); job.stages.story.state = 'done'; running = null; abort = null; broadcast(true); pump(); return; }
     STAGES.forEach((k) => (job.stages[k].state = 'done'));
     Object.assign(job, { status: 'done', folder: r.folder, file: r.file, title: r.story.title, progress: 1, finished: Date.now(), elapsed: (Date.now() - job.started) / 1000 });
@@ -224,6 +226,8 @@ async function importChars(paths, meta, e) { const out = [];
   for (const f of paths) { let src = f; if (fbx.needsConvert(f)) { try { src = await fbx.convertFbx(f, (m) => e?.sender.send('busy', { title: 'Importing ' + path.basename(f), label: m })); } finally { e?.sender.send('busy', null); } }
     out.push(lib.importCharacter(src, { ...meta, name: meta.name || path.basename(f, path.extname(f)) })); }
   return out; }
+const edWork = (id) => path.join(OUTPUT, '.work', id);
+const edSave = (id, tl) => { const t = { ...tl }; delete t._forceWide; fs.writeFileSync(path.join(edWork(id), 'edit_timeline.json'), JSON.stringify(t)); };
 const H = {
   options: () => ({ categories: CATEGORIES, moods: MUSIC_MOODS, styles: STYLES, looks: LOOKS, subs: SUBTITLE_STYLES, englishReady: englishReady() }),
   'story:cast': async (o, e) => { const chain = await buildChain(o.storyAI); if (!chain.length) return { ok: false, msg: 'Add a story AI key in Settings → Story AI first.' };
@@ -233,6 +237,19 @@ const H = {
       const r = await planCast({ category: o.category, minutes: Number(o.minutes) || 2, idea, chain, language: o.language, fixed, plan: { lead: o.leadId || null, mains: Number(o.mains) || 0 }, series: se, chars: o.chars || 'auto', onLog: (m) => { try { e.sender.send('topics:log', m); } catch {} } });
       for (const c of r.characters) { const f = fixed.find((x) => x.id === c.id || x.name.toLowerCase() === c.name.toLowerCase()); if (f?.castId) c.castId = f.castId; }
       return { ok: true, ...r, idea }; } catch (err) { return { ok: false, msg: err.message }; } },
+  // ---- timeline editor (job paused after the voices) ----
+  'editor:get': (id) => { const j = queue.find((x) => x.id === id); if (!j || j.status !== 'edit') throw new Error('This video is not waiting for the editor');
+    const work = edWork(id); const tl = JSON.parse(fs.readFileSync(path.join(work, 'edit_timeline.json'), 'utf8')); const style = j.opts.style; const tag = style === 'bean2d' ? 'bean' : style === 'flat2d' ? 'flat' : null;
+    const all = bgs.listBackgrounds().map((b) => ({ ...b, url: 'av://data/' + b.file.split('/').map(encodeURIComponent).join('/'), tag: (b.tags || []).includes('bean') ? 'bean' : (b.tags || []).includes('flat') ? 'flat' : null }));
+    return { tl, audio: `av://data/jobs/${encodeURIComponent(id)}/mix.wav?${Date.now()}`, backgrounds: all.filter((b) => b.tag === tag).concat(all.filter((b) => b.tag !== tag)), moods: MUSIC_MOODS, mood: CATEGORIES[j.opts.category]?.mood || 'drama' }; },
+  'editor:save': (o) => { edSave(o.id, o.tl); return true; },
+  'editor:remix': (o) => { edSave(o.id, o.tl); const j = queue.find((x) => x.id === o.id); mixAll(o.tl, CATEGORIES[j?.opts.category]?.mood || 'drama', path.join(JOBS, o.id, 'mix.wav')); return `av://data/jobs/${encodeURIComponent(o.id)}/mix.wav?${Date.now()}`; },
+  'editor:revoice': async (o, e) => { const work = edWork(o.id); const tl = await rebuildTimeline(work, o.tl, (m) => e.sender.send('busy', { title: 'New voices', label: m })); tl.story.characters = o.tl.story.characters; e.sender.send('busy', null); edSave(o.id, tl);
+    const j = queue.find((x) => x.id === o.id); mixAll(tl, CATEGORIES[j?.opts.category]?.mood || 'drama', path.join(JOBS, o.id, 'mix.wav')); return { tl, audio: `av://data/jobs/${encodeURIComponent(o.id)}/mix.wav?${Date.now()}` }; },
+  'editor:music': async (o, e) => { const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), { properties: ['openFile'], filters: [{ name: 'Music', extensions: ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'] }] }); if (r.canceled) return null;
+    const out = path.join(edWork(o.id), 'music.wav'); await new Promise((ok, fail) => { const p = spawn(ffmpegPath, ['-v', 'error', '-y', '-i', r.filePaths[0], '-ac', '1', '-ar', '24000', '-c:a', 'pcm_s16le', out]); p.on('error', fail); p.on('close', (c) => (c === 0 ? ok() : fail(new Error('Could not read that music file')))); });
+    return { file: out, name: path.basename(r.filePaths[0]) }; },
+  'editor:render': (o) => { edSave(o.id, o.tl); const j = queue.find((x) => x.id === o.id); if (!j) throw new Error('job not found'); j.opts = { ...j.opts, resumeEdit: true }; Object.assign(j, { status: 'queued', msg: 'Edited — rendering', session: SESSION }); autoRun = true; broadcast(true); pump(); return queueView(); },
   'genre:add': (o) => { const key = saveCategory(o); return { key, categories: CATEGORIES }; },
   'genre:delete': (key) => { deleteCategory(key); return CATEGORIES; },
   'review:get': (id) => { const j = queue.find((x) => x.id === id); if (!j?.plan) throw new Error('No plan for this job');
@@ -281,7 +298,7 @@ const H = {
     if (o.format === 'series' && !seriesId) seriesId = seriesLib.createSeries({ title: o.seriesTitle || topics[0]?.title || ideas[0] || storyJson?.title || 'My series', category: o.category, style: o.style, language: o.language, bgMode: o.bgMode, subsOn: o.subsOn, topic: topics[0] || null }).id;
     const ideaOf = (i) => (topics.length ? topicIdea(topics[o.format === 'series' ? Math.min(i, topics.length - 1) : i] || topics[0]) + (o.idea && i === 0 ? ' ' + o.idea : '') : null);
     const count = o.format !== 'series' && topics.length ? topics.length : n;
-    for (let i = 0; i < (storyJson || o.myStory ? 1 : count); i++) { const opts = { language: o.language || 'hinglish', subsOn: o.subsOn, bgMode: o.bgMode || 'existing', castIds: Array.isArray(o.castIds) ? o.castIds : [], leadId: o.leadId || null, mains: Number(o.mains) || 0, castPlan: Array.isArray(o.castPlan) ? o.castPlan : null, review: !!o.review, planTitle: o.planTitle || '', planLogline: o.planLogline || '', seriesId, format: o.format || 'single', category: o.category, idea: storyJson ? storyJson.title : (o.format === 'series' && topics.length && i > 0 ? (ideas[i] || '') : ideaOf(i) ?? ideas[i] ?? (n > 1 ? '' : o.idea || '')), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs === 'mine' ? (readSettings().subStyle ? 'classic' : 'auto') : o.subs, subStyle: o.subs === 'mine' ? readSettings().subStyle || null : null, demo: !!o.demo, storyJson, storyAI: o.storyAI || 'auto', chars: o.chars || 'auto', myStory: storyJson ? '' : o.myStory || '' };
+    for (let i = 0; i < (storyJson || o.myStory ? 1 : count); i++) { const opts = { language: o.language || 'hinglish', subsOn: o.subsOn, bgMode: o.bgMode || 'existing', castIds: Array.isArray(o.castIds) ? o.castIds : [], leadId: o.leadId || null, mains: Number(o.mains) || 0, castPlan: Array.isArray(o.castPlan) ? o.castPlan : null, review: !!o.review, edit: !!o.edit, planTitle: o.planTitle || '', planLogline: o.planLogline || '', seriesId, format: o.format || 'single', category: o.category, idea: storyJson ? storyJson.title : (o.format === 'series' && topics.length && i > 0 ? (ideas[i] || '') : ideaOf(i) ?? ideas[i] ?? (n > 1 ? '' : o.idea || '')), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs === 'mine' ? (readSettings().subStyle ? 'classic' : 'auto') : o.subs, subStyle: o.subs === 'mine' ? readSettings().subStyle || null : null, demo: !!o.demo, storyJson, storyAI: o.storyAI || 'auto', chars: o.chars || 'auto', myStory: storyJson ? '' : o.myStory || '' };
       const est = estimate({ style: opts.style, minutes: opts.minutes, renderer: readSettings().renderer });
       queue.push({ id: newJobId(o.category) + (count > 1 ? `_${i + 1}` : ''), title: seriesId ? `${seriesLib.getSeries(seriesId).title} · episode ${seriesLib.getSeries(seriesId).episodes.length + 1 + i}` : undefined, opts, status: 'queued', progress: 0, estimate: est, created: Date.now(), msg: 'Queued', session: SESSION }); }
     if (o.start) autoRun = true; broadcast(true); pump(); return queueView(); },
@@ -377,6 +394,20 @@ function createWindow() {
     const dir = process.argv[shots + 1]; const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); await wait(2500);
     if (process.argv.includes('--mystory-ui')) { await win.webContents.executeJavaScript(`document.querySelector('#storyMode [data-m=mine]').click(); const t=document.querySelector('#myStory'); t.value='Inspector Arjun: "Raka, gaadi roko!"\\n\\n'+'Raka laal car me highway par bhaag raha tha. '.repeat(120); t.dispatchEvent(new Event('input'));`); await wait(2000); fs.writeFileSync(path.join(dir, 'mystory_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
     if (process.argv.includes('--subed-ui')) { await win.webContents.executeJavaScript(`document.querySelector('[data-tab=library]').click()`); await wait(2000); await win.webContents.executeJavaScript(`document.querySelector('[data-subs]').click()`); await wait(2500); await win.webContents.executeJavaScript(`(()=>{const v=document.querySelector('#seVideo'); v.currentTime=13.4; document.querySelector('#sePreset').value='youtube'; document.querySelector('#sePreset').onchange();})()`); await wait(2500); fs.writeFileSync(path.join(dir, 'subed_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
+    if (process.argv.includes('--edit-ui')) { const js = (c) => win.webContents.executeJavaScript(c); const shot = async (n) => fs.writeFileSync(path.join(dir, n), (await win.webContents.capturePage()).toPNG());
+      await H['queue:add']({ category: 'romance', minutes: 1, count: 1, style: process.argv.includes('--bean') ? 'bean2d' : 'flat2d', look: 'auto', subs: 'auto', demo: true, edit: true, start: true, ...(process.argv.includes('--bean') ? { demoFile: 'demo-bean1.json' } : {}) });
+      for (let i = 0; i < 120 && !queue.some((j) => j.status === 'edit'); i++) await wait(1000); const j = queue.find((x) => x.status === 'edit'); if (!j) { console.log('NO EDIT JOB', queue.map((x) => x.status + ' ' + (x.error || ''))); app.quit(); return; }
+      await js(`document.querySelector('[data-tab=queue]').click()`); await wait(600); await shot('ed_queue.png');
+      await js(`window.AVOpenEditor(${JSON.stringify(j.id)})`); await wait(4000); await shot('ed_open.png');
+      await js(`document.querySelector('#edScrub').value = 30; document.querySelector('#edScrub').oninput({ target: document.querySelector('#edScrub') }); 1`); await wait(1500); await shot('ed_t30.png');
+      await js(`document.querySelector('.blk.cam:nth-of-type(4)')?.click(); 1`); await wait(1000); await shot('ed_cam.png');
+      await js(`document.querySelector('.blk.line')?.click(); 1`); await wait(1000); await shot('ed_line.png');
+      if (process.argv.includes('--render')) { const t = JSON.parse(fs.readFileSync(path.join(edWork(j.id), 'edit_timeline.json'), 'utf8')); const sc = t.scenes[1]; const ids = sc.cast.filter((x) => x !== 'narrator');
+        t.edits = { pos: { 1: { [ids[0]]: { x: 0.2, row: 0.1, seat: -1 } } }, bg: { 1: { zoom: 1.25, dx: 0.05, dy: 0.04 } }, walks: [{ scene: 1, char: ids[0], toX: 0.75, toRow: 0.2, at: 1.5, dur: 3 }], cams: [{ t0: sc.start + 6, t1: sc.start + 10, type: 'cu', char: ids[0] }] };
+        t.mix = { music: 0.3, sfx: 0.5, mutedLines: [t.lines[0].id] }; t.story.characters.find((c) => c.id === ids[0]).width = 1.2;
+        await js(`(async () => { await window.api.call('editor:remix', { id: ${JSON.stringify(j.id)}, tl: ${JSON.stringify(t)} }); return 1; })()`);
+        H['editor:render']({ id: j.id, tl: t }); for (let i = 0; i < 600 && j.status !== 'done' && j.status !== 'error'; i++) await wait(1000); console.log('EDIT RENDER', j.status, j.error || '', j.folder || '', JSON.stringify({ s1: sc.start, cam: sc.start + 6 })); }
+      app.quit(); return; }
     if (process.argv.includes('--plan-ui')) { const js = (c) => win.webContents.executeJavaScript(c); await H['queue:add']({ category: 'romance', minutes: 1, count: 1, style: 'flat2d', look: 'auto', subs: 'auto', demo: true, review: true, start: true });
       for (let i = 0; i < 60 && !queue.some((j) => j.status === 'review'); i++) await wait(1000); const j = queue.find((x) => x.status === 'review');
       await js(`document.querySelector('[data-tab=queue]').click()`); await wait(800); fs.writeFileSync(path.join(dir, 'plan_queue.png'), (await win.webContents.capturePage()).toPNG());

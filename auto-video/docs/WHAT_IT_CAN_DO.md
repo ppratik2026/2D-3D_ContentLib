@@ -66,6 +66,17 @@ Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren)
 
 3D loader reads FBX 7 and newer. Old FBX files (FBX 6.x, the error "FBX version not supported, FileVersion: 6100") are converted to GLB automatically when you import them; for one imported earlier, open it in the Characters tab and click **Convert to the new format**. The free FBX2glTF converter (~4 MB) downloads the first time.
 
+## Timeline editor (v1.12)
+
+With *Open the timeline editor before rendering* (New Video, on by default) the job stops after the voices: Queue → **Ready to edit → Open editor**. (2D stage styles: Flat 2D, Bean Night, 2D Cartoon Stage.)
+- **Preview:** the real video picture, live. Play / pause, ±2 s, scrub, *Play this scene*, *Play line*, *Play it* (a walk). Untick *Wide view* to see the real camera angles while playing.
+- **Tracks:** Scenes, Camera, Dialogue, Walks — click a block to edit it; the red line is the playhead.
+- **Scene panel** (the scene at the playhead): change the background, zoom / move it (left-right, up-down); for every person: place (auto / standing / any seat, bed, desk… of the background), facing left / right, hidden, height and width. **Drag people** in the preview (Wide view) to where they stand when the scene starts. **Add walk ➜** then click in the preview: that person walks there from the playhead time (edit the start, length, run, or delete it later); several people can each have their walks.
+- **Camera:** click a camera block → angle (wide, two-shot, speaker, over the shoulder, close-up, reaction close-up…), on whom and the listener → *Use this angle*, or *Change only from the playhead*. Your changes show in purple; *Remove my change* goes back.
+- **Dialogue:** click a line → edit Hinglish / Hindi / English text and emotion → *Save text & make new voices* (timing is rebuilt); mute a line or change its volume.
+- **Sound:** voices, music and effects levels (0 = mute), music style, or your own music file (mp3 / wav, loops) → *Update sound*.
+- **Render video ▶** makes the final MP4 with all changes (subtitles can still be edited later in the Library).
+
 ## Plan board, your own genres, character height, subtitle drag (v1.11)
 
 - **Plan board:** with *Show me the plan before the video is made* (New Video, on by default) the job stops after the script, in the Queue as **Waiting for you → Review plan**. The window lists every character (main ⭐, name, role, *played by* a saved character = its look and voice, height slider, scenes and lines), every scene with its background picture (pick any library background or *Paint a new one*), and every prop, vehicle and animal (swap e.g. car → bike, coffee → laddu, cup → phone). Renaming a character changes the name in the dialogue too (Roman text). **Make the video ▶** continues with voices and render.
