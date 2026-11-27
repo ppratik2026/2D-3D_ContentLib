@@ -37,6 +37,11 @@ export function updateCharacter(id, patch) {
   const f = metaFile(id); if (!fs.existsSync(f)) throw new Error('Built-in characters cannot be edited');
   const c = { ...JSON.parse(fs.readFileSync(f, 'utf8')), ...patch, id }; fs.writeFileSync(f, JSON.stringify(c, null, 2)); return c;
 }
+// an imported character whose file had to be converted (old FBX → GLB): swap in the new file
+export function replaceCharacterFile(id, file) {
+  const f = metaFile(id); const c = JSON.parse(fs.readFileSync(f, 'utf8')); const dir = path.join(CHARS, id); const name = path.basename(file);
+  fs.copyFileSync(file, path.join(dir, name)); c.file = `characters/${id}/${name}`; c.type = 'glb'; c.converted = true; fs.writeFileSync(f, JSON.stringify(c, null, 2)); return c;
+}
 export function deleteCharacter(id) { if (!id.startsWith('my_')) throw new Error('Built-in characters cannot be deleted'); fs.rmSync(path.join(CHARS, id), { recursive: true, force: true }); }
 
 export const actorsFor = (style) => listCharacters().filter((c) => (c.styles || []).includes(style));

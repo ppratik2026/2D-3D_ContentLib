@@ -22,6 +22,7 @@ const { setupStatus, runSetup } = await import('../pipeline/setup.mjs');
 const lib = await import('../pipeline/library.mjs');
 const bgs = await import('../pipeline/backgrounds.mjs');
 const tts = await import('../pipeline/tts.mjs');
+const fbx = await import('../pipeline/fbxconvert.mjs');
 const castLib = await import('../pipeline/cast.mjs');
 const seriesLib = await import('../pipeline/series.mjs');
 const { findTopics, topicIdea } = await import('../pipeline/topics.mjs');
@@ -209,6 +210,11 @@ function libraryList() {
   }).sort((a, b) => b.created - a.created);
 }
 const studio = () => import('../pipeline/studio.mjs'); const slog = (e) => (m) => { try { e.sender.send('studio:log', m); } catch {} };
+// old FBX (6.x) is converted to GLB on import so the 3D loader can read it
+async function importChars(paths, meta, e) { const out = [];
+  for (const f of paths) { let src = f; if (fbx.needsConvert(f)) { try { src = await fbx.convertFbx(f, (m) => e?.sender.send('busy', { title: 'Importing ' + path.basename(f), label: m })); } finally { e?.sender.send('busy', null); } }
+    out.push(lib.importCharacter(src, { ...meta, name: meta.name || path.basename(f, path.extname(f)) })); }
+  return out; }
 const H = {
   options: () => ({ categories: CATEGORIES, styles: STYLES, looks: LOOKS, subs: SUBTITLE_STYLES, englishReady: englishReady() }),
   'topics:find': async (o, e) => { const chain = await buildChain(o.storyAI); if (!chain.length) return { ok: false, msg: 'Add a Gemini key in Settings → Story AI first.' };
@@ -295,8 +301,10 @@ const H = {
   'library:delete': (dir) => { fs.rmSync(path.join(OUTPUT, dir), { recursive: true, force: true }); return libraryList(); },
   'chars:list': () => lib.listCharacters().map((c) => ({ ...c, url: 'av://data/' + c.file.split('/').map(encodeURIComponent).join('/') })),
   'chars:import': async (meta, e) => { const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), { properties: ['openFile', 'multiSelections'], filters: [{ name: '3D characters', extensions: ['vrm', 'glb', 'gltf', 'fbx'] }] });
-    return r.canceled ? [] : r.filePaths.map((f) => lib.importCharacter(f, meta || {})); },
-  'chars:importPaths': (paths) => paths.map((f) => lib.importCharacter(f, {})),
+    return r.canceled ? [] : importChars(r.filePaths, meta || {}, e); },
+  'chars:importPaths': (paths, e) => importChars(paths, {}, e),
+  'chars:convert': async (id, e) => { const c = lib.listCharacters().find((x) => x.id === id); if (!c || c.builtin) throw new Error('Not an imported character');
+    const src = path.join(PUBLIC, c.file); const glb = await fbx.convertFbx(src, (m) => e.sender.send('busy', { title: 'Old FBX file', label: m })); const n = lib.replaceCharacterFile(id, glb); e.sender.send('busy', null); return n; },
   'chars:update': ({ id, patch }) => lib.updateCharacter(id, patch),
   'chars:delete': (id) => lib.deleteCharacter(id),
   'chars:openFolder': () => shell.openPath(CHARS),

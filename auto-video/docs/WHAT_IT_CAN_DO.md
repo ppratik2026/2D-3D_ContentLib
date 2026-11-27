@@ -62,6 +62,10 @@ Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren)
 | Monkey / tiger | monkey jumps and chatters; tiger (stripes) roars and runs |
 | Snow | weather "snow" — snowfall with wind |
 
+## Old FBX characters (v1.9.1)
+
+3D loader reads FBX 7 and newer. Old FBX files (FBX 6.x, the error "FBX version not supported, FileVersion: 6100") are converted to GLB automatically when you import them; for one imported earlier, open it in the Characters tab and click **Convert to the new format**. The free FBX2glTF converter (~4 MB) downloads the first time.
+
 ## New Video: single video or series, topics, language, backgrounds, characters (v1.9)
 
 - **Format:** *Single video* or *Series (episodes)*. A series is saved in `Documents\AutoVideo\series\<name>\` with every episode's story, its characters (names, looks, voices) and the backgrounds it used. Pick the series again and press *Add* to make the next episode: the AI gets the story so far and the last episode's ending, keeps every character the same, and new characters are added to the series. "Episodes to make now" queues several episodes one after another.
