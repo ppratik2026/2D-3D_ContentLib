@@ -12,11 +12,15 @@ $('#tabs').onclick = (e) => { const b = e.target.closest('button'); if (!b) retu
 const fill = (sel, obj, auto) => { sel.innerHTML = (auto ? '<option value="auto">Auto (based on category)</option>' : '') + Object.entries(obj).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join(''); };
 async function initNew() {
   O = await api.call('options');
-  $('#cats').innerHTML = Object.entries(O.categories).map(([k, v]) => `<span class="chip${k === cat ? ' on' : ''}" data-k="${k}">${esc(v.label)}</span>`).join('');
-  $('#cats').onclick = (e) => { const k = e.target.dataset.k; if (!k) return; cat = k; $$('#cats .chip').forEach((c) => c.classList.toggle('on', c.dataset.k === k)); };
+  drawCats(); $('#gMood').innerHTML = (O.moods || ['drama']).map((m) => `<option>${m}</option>`).join('');
   fill($('#style'), O.styles); fill($('#look'), O.looks, true); fill($('#subs'), O.subs, true); ensureMine(); loadSeriesList(); loadCastPick(); langNote();
   for (const id of ['#min', '#style', '#count']) $(id).oninput = est; est();
 }
+function drawCats() { $('#cats').innerHTML = Object.entries(O.categories).map(([k, v]) => `<span class="chip${k === cat ? ' on' : ''}" data-k="${k}">${esc(v.label)}${v.custom ? ` <b data-del="${k}" title="delete">×</b>` : ''}</span>`).join('') + '<span class="chip" data-add="1">＋ Add genre</span>'; }
+$('#cats').onclick = async (e) => { if (e.target.dataset.del) { if (!confirm('Delete this genre?')) return; O.categories = await api.call('genre:delete', e.target.dataset.del); if (!O.categories[cat]) cat = 'drama'; drawCats(); return; }
+  const c = e.target.closest('.chip'); if (!c) return; if (c.dataset.add) { $('#genreAdd').hidden = false; $('#gName').focus(); return; } const k = c.dataset.k; cat = k; $$('#cats .chip').forEach((x) => x.classList.toggle('on', x.dataset.k === k)); };
+$('#gCancel').onclick = () => { $('#genreAdd').hidden = true; };
+$('#gSave').onclick = async () => { const label = $('#gName').value.trim(); if (!label) return; const r = await api.call('genre:add', { label, hint: $('#gHint').value.trim() || `a ${label} story`, mood: $('#gMood').value }); O.categories = r.categories; cat = r.key; $('#genreAdd').hidden = true; $('#gName').value = $('#gHint').value = ''; drawCats(); };
 async function est() {
   const m = $('#min').value, n = Math.max(1, +$('#count').value || 1); $('#minv').textContent = m + ' min';
   const e = await api.call('estimate', { style: $('#style').value, minutes: m });
@@ -46,7 +50,7 @@ async function add(start) {
   const mode = src();
   const picked = TOPICS.filter((_, i) => topicSel.has(i));
   if (mode2 === 'find' && !picked.length) { $('#topicMsg').className = 'small warn'; $('#topicMsg').textContent = 'Find topics and click one (or more) first.'; return; }
-  const o = { format: FMT, seriesId: FMT === 'series' ? $('#seriesSel').value || null : null, seriesTitle: $('#seriesTitle').value.trim(), language: LANG, bgMode: BGM, subsOn: SUBSON, castIds: [...castSel].filter((x) => x !== $('#leadSel').value), leadId: $('#leadSel').value || null, mains: +$('#mainsSel').value || 0, topics: mode2 === 'find' ? picked : [],
+  const o = { review: $('#reviewPlan').checked, format: FMT, seriesId: FMT === 'series' ? $('#seriesSel').value || null : null, seriesTitle: $('#seriesTitle').value.trim(), language: LANG, bgMode: BGM, subsOn: SUBSON, castIds: [...castSel].filter((x) => x !== $('#leadSel').value), leadId: $('#leadSel').value || null, mains: +$('#mainsSel').value || 0, topics: mode2 === 'find' ? picked : [],
     category: cat, idea: mode2 === 'find' ? '' : $('#idea').value, minutes: $('#min').value, count: FMT === 'series' ? $('#epCount').value : $('#count').value, style: $('#style').value, look: $('#look').value, subs: $('#subs').value, chars: $('#chars').value, demo: mode === 'demo', storyAI: mode === 'api' ? $('#storySrc').value : null, start };
   if (mode2 === 'mine') { o.myStory = $('#myStory').value.trim(); o.idea = ''; o.count = 1; if (!o.myStory && mode !== 'paste' && mode !== 'demo') { $('#storyInfo').className = 'small warn'; $('#storyInfo').textContent = 'Paste your story first.'; return; } }
   if (mode === 'paste') { if (!pasteOk) { $('#pasteMsg').className = 'small warn'; $('#pasteMsg').textContent = 'Paste Gemini\'s answer first.'; return; } o.pasted = $('#pasted').value; }
@@ -58,6 +62,25 @@ async function add(start) {
   renderQueue(await api.call('queue:add', o)); if (mode === 'paste') { $('#pasted').value = ''; $('#pasteMsg').textContent = ''; pasteOk = false; } $('[data-tab=queue]').click();
 }
 $('#addQ').onclick = () => add(false); $('#addStart').onclick = () => add(true);
+// ---------- Plan board (after the script, before voices / render) ----------
+let PL = null;
+async function openPlan(id) { const d = await api.call('review:get', id); PL = { id, ...d, edits: { characters: d.plan.characters.map((c) => ({ id: c.id, name: c.name, role: c.role, castId: c.castId || '', size: c.size || 1 })), scenes: d.plan.scenes.map((x) => ({ n: x.n, background: x.background })), props: d.plan.props.map((p) => ({ ...p, to: p.value })) } };
+  $('#plTitle').textContent = 'Plan — ' + (d.plan.title || ''); drawPlan(); $('#planModal').hidden = false; }
+function drawPlan() { const P = PL.plan, E = PL.edits; const bgUrl = (id) => PL.backgrounds.find((b) => b.id === id)?.url || '';
+  $('#plChars').innerHTML = '<div class="plchar small muted"><span>Main</span><span>Name</span><span>Role</span><span>Played by (saved look + voice)</span><span>Height</span><span>Scenes · lines</span></div>' + P.characters.map((c, i) => { const e = E.characters[i]; return `<div class="plchar" data-i="${i}"><span>${c.main ? '⭐' : ''}</span><input data-k="name" value="${esc(e.name)}"><input data-k="role" value="${esc(e.role)}">
+    <select data-k="castId"><option value="">${c.castId ? 'New look' : 'New (as written)'}</option>${PL.cast.map((x) => `<option value="${esc(x.id)}"${x.id === e.castId ? ' selected' : ''}>${esc(x.name)}${x.role ? ' — ' + esc(x.role) : ''}</option>`).join('')}</select>
+    <input type="range" data-k="size" min="0.7" max="1.3" step="0.02" value="${e.size}" title="height"><span class="small muted">${c.scenes.join(', ')} · ${c.lines} lines</span></div>`; }).join('');
+  $('#plScenes').innerHTML = P.scenes.map((sc, i) => { const e = E.scenes[i]; const isNew = /^new\s*:/i.test(e.background); return `<div class="plscene" data-i="${i}"><b>${sc.n}</b><div><div>${esc(sc.summary)}</div><div class="small muted">${esc(sc.time)}${sc.weather !== 'none' ? ' · ' + esc(sc.weather) : ''}</div></div>
+    ${isNew ? '<div class="small muted" style="width:220px">✨ new picture will be painted</div>' : `<img src="${esc(bgUrl(e.background))}" alt="">`}
+    <div><select data-k="bg">${PL.backgrounds.map((b) => `<option value="${esc(b.id)}"${b.id === e.background ? ' selected' : ''}>${esc(b.name)}</option>`).join('')}${PL.canPaint ? `<option value="__new"${isNew ? ' selected' : ''}>✨ Paint a new one…</option>` : ''}</select>${isNew ? `<input data-k="desc" placeholder="describe the place" value="${esc(e.background.replace(/^new\s*:\s*/i, ''))}">` : ''}</div></div>`; }).join('');
+  const opts = P.options; $('#plProps').innerHTML = P.props.length ? P.props.map((p, i) => `<div class="plprop" data-i="${i}"><span class="small muted">${{ vehicle: 'Vehicle', animal: 'Animal', item: 'Given item', hand: 'In the hand' }[p.kind]}</span><b>${esc(p.value)}</b><select data-k="to">${(opts[p.kind === 'vehicle' ? 'vehicles' : p.kind === 'animal' ? 'animals' : p.kind === 'item' ? 'items' : 'hand'] || []).map((v) => `<option${v === E.props[i].to ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select><span class="small muted">scenes ${p.scenes.join(', ')}</span></div>`).join('') : '<div class="small muted">No special props in this story.</div>'; }
+$('#plChars').oninput = (e) => { const r = e.target.closest('.plchar'); if (!r?.dataset.i) return; const c = PL.edits.characters[+r.dataset.i]; c[e.target.dataset.k] = e.target.type === 'range' ? +e.target.value : e.target.value; };
+$('#plScenes').oninput = (e) => { const r = e.target.closest('.plscene'); if (!r) return; const sc = PL.edits.scenes[+r.dataset.i];
+  if (e.target.dataset.k === 'bg') { sc.background = e.target.value === '__new' ? 'new: ' + (PL.plan.scenes[+r.dataset.i].summary || 'a place') : e.target.value; drawPlan(); } else if (e.target.dataset.k === 'desc') sc.background = 'new: ' + e.target.value; };
+$('#plProps').oninput = (e) => { const r = e.target.closest('.plprop'); if (r) PL.edits.props[+r.dataset.i].to = e.target.value; };
+$('#plClose').onclick = () => { $('#planModal').hidden = true; };
+$('#plOk').onclick = async () => { $('#plOk').disabled = true; try { renderQueue(await api.call('review:approve', { id: PL.id, edits: PL.edits })); $('#planModal').hidden = true; } finally { $('#plOk').disabled = false; } };
+window.AVPlanPreview = openPlan; // dev screenshots
 // ---------- character check before the script ----------
 let cmRows = [], cmDone = null;
 function cmDraw() { const opt = (sel) => '<option value="">New character</option>' + CAST.map((c) => `<option value="${esc(c.id)}"${c.id === sel ? ' selected' : ''}>Saved: ${esc(c.name)}${c.role ? ' — ' + esc(c.role) : ''}</option>`).join('');
@@ -105,7 +128,7 @@ async function loadCastPick() { CAST = await api.call('cast:list'); castSel = ne
 $('#castPick').onclick = (e) => { const c = e.target.closest('.chip'); if (!c?.dataset.id) return; toggleIn(castSel, c.dataset.id); c.classList.toggle('on'); };
 
 // ---------- queue ----------
-const STATUS = { queued: 'Queued', running: 'Rendering', done: 'Ready ✓', error: 'Error', cancelled: 'Cancelled' };
+const STATUS = { review: 'Waiting for you', queued: 'Queued', running: 'Rendering', done: 'Ready ✓', error: 'Error', cancelled: 'Cancelled' };
 const STAGE_NAMES = { story: 'Story', voice: 'Voices', sound: 'Music & sound', render: '3D render', save: 'Save MP4' };
 const WEIGHT = { story: 0.06, voice: 0.04, sound: 0.02, render: 0.85, save: 0.03 };
 function overall(j) { if (j.status === 'done') return 1; if (!j.stages) return 0; let p = 0;
@@ -133,11 +156,12 @@ function renderQueue(q) {
         ${j.status === 'queued' && j.retryAt ? `<button data-a="retryNow" data-id="${j.id}">Retry now</button>` : ''}
         ${j.status === 'running' || j.status === 'queued' ? `<button data-a="cancel" data-id="${j.id}">Cancel</button>` : ''}
         ${j.status === 'error' || j.status === 'cancelled' ? `<button data-a="retry" data-id="${j.id}">Retry</button>` : ''}
+        ${j.status === 'review' ? `<button data-a="plan" data-id="${j.id}" class="primary">Review plan</button>` : ''}
         ${j.status === 'done' ? `<button data-a="open" data-id="${esc(j.folder)}">Open folder</button>` : ''}
         ${j.status !== 'running' ? `<button data-a="remove" data-id="${j.id}">✕</button>` : ''}</div></div>`; }).join('');
 }
 $('#qList').onclick = async (e) => { const b = e.target.closest('button'); if (!b) return; const id = b.dataset.id, a = b.dataset.a;
-  if (a === 'open') return api.call('library:open', id.split(/[\\/]/).pop());
+  if (a === 'open') return api.call('library:open', id.split(/[\\/]/).pop()); if (a === 'plan') return openPlan(id);
   const map = { up: ['queue:move', { id, dir: 1 }], down: ['queue:move', { id, dir: -1 }], cancel: ['queue:cancel', id], retry: ['queue:retry', id], retryNow: ['queue:retryNow', id], remove: ['queue:remove', id] };
   renderQueue(await api.call(...map[a])); };
 $('#qStart').onclick = async () => renderQueue(await api.call('queue:start'));
@@ -164,9 +188,10 @@ let chars = [], sel = null;
 async function loadCastList() { const list = await api.call('cast:list'); VOICES ||= await api.call('voice:list');
   $('#castList').innerHTML = list.length ? list.map((c) => `<div class="castc" data-id="${esc(c.id)}"><b>${esc(c.name)}</b><div class="small muted">${esc([c.role, c.gender, c.age].filter(Boolean).join(' · '))}${(c.series || []).length ? ' · series' : ''} · used ${c.used || 0}×</div>
     <div class="sw">${['skin_color', 'top_color', 'bottom_color', 'hair_color', 'hat_color'].filter((k) => c[k]).map((k) => `<i title="${k}" style="background:${esc(c[k])}"></i>`).join('')}${c.hat && c.hat !== 'none' ? `<small>${esc(c.hat)}</small>` : ''}</div>
+    <label class="small">Height <input type="range" data-size="${esc(c.id)}" min="0.7" max="1.3" step="0.02" value="${c.size || 1}"></label>
     <select data-voice="${esc(c.id)}"><option value="">Voice: auto</option>${VOICES.map((v) => `<option value="${v.id}"${v.id === c.voice ? ' selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
     <div class="btns"><button class="danger" data-castdel="${esc(c.id)}">Delete</button></div></div>`).join('') : '<div class="small muted">None yet — make a video and its characters appear here.</div>'; }
-$('#castList').onchange = async (e) => { const id = e.target.dataset.voice; if (id) await api.call('cast:update', { id, patch: { voice: e.target.value } }); };
+$('#castList').onchange = async (e) => { const id = e.target.dataset.voice; if (id) await api.call('cast:update', { id, patch: { voice: e.target.value } }); const sz = e.target.dataset.size; if (sz) await api.call('cast:update', { id: sz, patch: { size: +e.target.value } }); };
 $('#castList').onclick = async (e) => { const id = e.target.dataset.castdel; if (id && confirm('Delete this saved character?')) { await api.call('cast:delete', id); loadCastList(); loadCastPick(); } };
 async function loadChars() { loadCastList(); chars = await api.call('chars:list');
   $('#chList').innerHTML = chars.map((c) => `<div class="ch${sel === c.id ? ' on' : ''}" data-id="${c.id}"><div class="t">${esc(c.name)}</div><div class="tags">${c.gender === 'female' ? 'Female' : 'Male'} · ${esc(c.age)} · ${esc((c.styles || []).join('/'))}</div>
@@ -178,17 +203,17 @@ async function fillVoices(c) { VOICES ||= await api.call('voice:list'); const v 
 $('#chPlay').onclick = async () => { const c = chars.find((y) => y.id === sel); const v = document.querySelector('#chForm [name=voice]').value || (VOICES || []).find((x) => c && x.gender === c.gender && x.age === c.age)?.id || (VOICES || []).find((x) => c && x.gender === c.gender)?.id;
   if (!v) return; $('#chPlay').textContent = '…'; try { audio.src = await api.call('voice:sample', v); await audio.play(); } finally { $('#chPlay').textContent = '▶ Play'; } };
 async function pick(id) { sel = id; const c = chars.find((x) => x.id === id); $$('.ch').forEach((x) => x.classList.toggle('on', x.dataset.id === id)); if (!c) return;
-  const f = $('#chForm'); f.name.value = c.name; f.gender.value = c.gender; f.age.value = c.age; f.tags.value = (c.tags || []).join(', ');
+  const f = $('#chForm'); f.name.value = c.name; f.gender.value = c.gender; f.age.value = c.age; f.tags.value = (c.tags || []).join(', '); f.size.value = c.size || 1;
   for (const s of ['toon', 'anime', 'realistic']) f['st_' + s].checked = (c.styles || []).includes(s);
   await fillVoices(c);
-  [...f.elements].forEach((el) => (el.disabled = !!c.builtin && el.name !== 'voice' && el.type !== 'submit')); $('#chDelete').hidden = !!c.builtin;
+  [...f.elements].forEach((el) => (el.disabled = !!c.builtin && el.name !== 'voice' && el.name !== 'size' && el.type !== 'submit')); $('#chDelete').hidden = !!c.builtin;
   $('#chInfo').textContent = 'Loading…';
   const r = await window.AVPreview.show($('#chCanvas'), c);
   $('#chInfo').innerHTML = r.ok ? `✓ Works · ${r.rig || ''} · lip-sync: ${r.lipSync ? 'yes' : 'no (head moves only)'}${c.builtin ? ' · built-in (read-only)' : ''}` : `<span class="warn">✗ ${esc(r.error)}</span>${/FBX version not supported|FileVersion: [0-6]\d{3}/i.test(r.error || '') && !c.builtin ? ' <button type="button" class="primary" id="chConvert">Convert to the new format</button><div class="small muted">This FBX is the old 6.x format. The app converts it to GLB (one time, downloads a free 4 MB converter).</div>' : ''}`;
   const cb = $('#chConvert'); if (cb) cb.onclick = async () => { cb.disabled = true; cb.textContent = 'Converting…'; try { await api.call('chars:convert', c.id); await loadChars(); pick(c.id); } catch (err) { $('#chInfo').innerHTML = `<span class="warn">✗ ${esc(String(err.message || err).replace(/^Error invoking remote method[^:]*: (Error: )?/, ''))}</span>`; } }; }
 $('#chList').onclick = (e) => { const d = e.target.closest('.ch'); if (d) pick(d.dataset.id); };
 $('#chForm').onsubmit = async (e) => { e.preventDefault(); const f = e.target; const styles = ['toon', 'anime', 'realistic'].filter((s) => f['st_' + s].checked);
-  const c = chars.find((x) => x.id === sel); await api.call('chars:update', { id: sel, patch: c.builtin ? { voice: f.voice.value } : { name: f.name.value, gender: f.gender.value, age: f.age.value, tags: f.tags.value.split(',').map((x) => x.trim()).filter(Boolean), styles, voice: f.voice.value } }); loadChars(); };
+  const c = chars.find((x) => x.id === sel); await api.call('chars:update', { id: sel, patch: c.builtin ? { voice: f.voice.value, size: +f.size.value } : { size: +f.size.value, name: f.name.value, gender: f.gender.value, age: f.age.value, tags: f.tags.value.split(',').map((x) => x.trim()).filter(Boolean), styles, voice: f.voice.value } }); loadChars(); };
 $('#chDelete').onclick = async () => { if (confirm('Delete this character?')) { await api.call('chars:delete', sel); sel = null; loadChars(); } };
 $('#chImport').onclick = async () => { const r = await api.call('chars:import', {}); if (r.length) { sel = r[0].id; loadChars(); } };
 $('#chFolder').onclick = () => api.call('chars:openFolder');
@@ -347,6 +372,9 @@ seF('seLines').onclick = (e) => { const row = e.target.closest('.seline'); if (!
 for (const id of Object.values(SE_MAP)) seF(id).addEventListener('input', () => { const langBefore = SE.style.lang; seRead(); if (SE.style.lang !== langBefore) seLines(); seDraw(); });
 seF('sePreset').onchange = () => { const k = seF('sePreset').value; if (!k) return; SE.style = { ...SE.presets[k] }; seFill(); seLines(); };
 seF('seVideo').ontimeupdate = seDraw;
+seF('seOv').addEventListener('mousedown', (e) => { if (!SE || !e.target.closest('.t')) return; e.preventDefault(); const box = seF('seVideo').getBoundingClientRect();
+  const move = (ev) => { const y = Math.min(0.97, Math.max(0.03, (ev.clientY - box.top) / box.height)); const pos = y < 0.38 ? 'top' : y > 0.62 ? 'bottom' : 'middle'; seF('sePos').value = pos; seF('seMargin').value = pos === 'top' ? Math.max(1, Math.min(30, y * 100 - 3)) : pos === 'bottom' ? Math.max(1, Math.min(30, (1 - y) * 100 - 3)) : 5; seRead(); seDraw(); };
+  const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); }; window.addEventListener('mousemove', move); window.addEventListener('mouseup', up); }); /* drag the subtitle up / down */
 function seDraw() { if (!SE) return; const st = SE.style, v = seF('seVideo'), ov = seF('seOv'); const t = v.currentTime || 0; const i = SE.lines.findIndex((l) => t >= l.start && t < l.end + 0.15);
   if (i !== SE.cur) { SE.cur = i; document.querySelectorAll('.seline').forEach((r) => r.classList.toggle('on', +r.dataset.i === i)); }
   const l = SE.lines[i]; if (!l || st.off) { ov.innerHTML = ''; return; }

@@ -100,7 +100,7 @@ function normalizeOutline(o, totalSec) {
     let id = String(c.id || c.name || 'c' + i).toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16) || 'c' + i; while (ids.has(id)) id += i; ids.add(id);
     const col = (v, d) => (HEX.test(String(v || '')) ? '#' + String(v).replace('#', '') : d);
     return { id, name: String(c.name || id), gender: c.gender === 'female' ? 'female' : 'male', age: ['child', 'young', 'adult', 'old'].includes(c.age) ? c.age : 'adult',
-      role: String(c.role || ''), model: String(c.model || ''), ...Object.fromEntries(['look', 'skin_color', 'hat', 'hat_color', 'castId', 'voice'].filter((k) => c[k]).map((k) => [k, String(c[k])])), top_color: col(c.top_color, ['#2f5d8a', '#b23a48', '#3f7d4e', '#7a4fa0', '#c98a2b'][i % 5]), bottom_color: col(c.bottom_color, '#2b2b30'), hair_color: col(c.hair_color, '#1c1612'), personality: String(c.personality || '') };
+      role: String(c.role || ''), model: String(c.model || ''), ...Object.fromEntries(['look', 'skin_color', 'hat', 'hat_color', 'castId', 'voice', 'size'].filter((k) => c[k]).map((k) => [k, String(c[k])])), top_color: col(c.top_color, ['#2f5d8a', '#b23a48', '#3f7d4e', '#7a4fa0', '#c98a2b'][i % 5]), bottom_color: col(c.bottom_color, '#2b2b30'), hair_color: col(c.hair_color, '#1c1612'), personality: String(c.personality || '') };
   });
   const idList = o.characters.map((c) => c.id);
   o.scenes = (o.scenes || []).filter(Boolean).map((s) => ({

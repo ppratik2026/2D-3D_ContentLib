@@ -19,6 +19,7 @@ import { listBackgrounds, pickBackground } from './backgrounds.mjs';
 import { getCast, toStoryChar, saveFromStory } from './cast.mjs';
 import { seriesContext, addEpisode } from './series.mjs';
 import { makeStoryBackground } from './bgmake.mjs';
+import { buildPlan } from './review.mjs';
 import { englishReady, ensureEnglish } from './setup.mjs';
 
 export function loadEnv() {
@@ -87,6 +88,10 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
       sc.background = b.id; used.set(b.id, (used.get(b.id) || 0) + 1); stageBgs[b.id] = b; if (!sc.time_of_day || sc.time_of_day === 'day') sc.time_of_day = b.time || sc.time_of_day; } }
   if (stageBgs) { const all = styleBgs(); for (const sc of story.scenes) for (const bt of sc.beats || []) if (bt.action === 'dream') { const b = all.find((x) => x.id === bt.background) || pickBackground(all, { place: bt.background || sc.location, text: String(bt.background || ''), used: new Map() }); if (b) { bt.background = b.id; stageBgs[b.id] = b; } } } /* the place seen inside a dream cloud */
   fs.writeFileSync(path.join(work, 'story.json'), JSON.stringify(story, null, 2));
+  if (opts.review && !opts.approved) { // Plan board: stop here so the user can check characters, backgrounds and props
+    const plan = buildPlan(story, { backgrounds: stageBgs || {}, style }); fs.writeFileSync(path.join(work, 'plan.json'), JSON.stringify(plan, null, 2));
+    stage('story', 1, 1, 'Plan ready — waiting for you'); step('story', `Plan ready: "${story.title}" — check the characters, backgrounds and props`, { title: story.title });
+    return { review: true, id, story, plan }; }
   // what the app could not show yet → a to-do list next to the video
   const notes = [];
   if (story.unsupported?.length) { notes.push('Actions the story needs that the app cannot animate yet (the narrator tells them instead):', ...story.unsupported.map((a) => '  - ' + a), ''); step('story', `⚠ Not animated yet (narrator tells them): ${story.unsupported.join(', ')}`); }

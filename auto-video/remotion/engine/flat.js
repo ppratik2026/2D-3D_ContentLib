@@ -35,7 +35,7 @@ function outfit(ch) { // colours and extras from the role
 
 export function createFlatActor(scene, ch) {
   const kid = ch.age === 'child', old = ch.age === 'old', fem = ch.gender === 'female';
-  const H = kid ? 1.15 : old ? 1.55 : fem ? 1.6 : 1.68; const k = H / 1.68; const O = outfit(ch);
+  const H = (kid ? 1.15 : old ? 1.55 : fem ? 1.6 : 1.68) * Math.max(0.6, Math.min(1.4, Number(ch.size) || 1)); const k = H / 1.68; /* size: user height adjust */ const O = outfit(ch);
   const skin = SKINS[Math.floor(hash(ch.id + 'skin') * SKINS.length)]; const hairC = old ? '#d9d9de' : ch.hair_color || '#1c1612';
   const root = new THREE.Group(); const body = new THREE.Group(); root.add(body); // body: bob / lean / sit offset
   const legLen = 0.56 * k, thigh = legLen * 0.5, shin = legLen * 0.5, armU = 0.25 * k, armL = 0.24 * k, torsoH = 0.5 * k, torsoW = 0.36 * k, headR = 0.235 * k * (kid ? 1.1 : 1);

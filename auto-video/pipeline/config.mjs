@@ -18,6 +18,22 @@ export const CATEGORIES = {
   mystery:      { label: 'Mystery',             mood: 'crime',        look: 'film',    subs: 'cinematic', hint: 'a puzzling mystery where the characters discover a hidden truth' },
 };
 
+// your own genres (Korean drama, Turkish drama…): saved in categories.json next to settings, merged into CATEGORIES
+import fs from 'fs';
+import path from 'path';
+import { STATE } from './paths.mjs';
+const CAT_FILE = path.join(STATE, 'categories.json');
+export const BUILTIN_CATEGORIES = Object.keys(CATEGORIES);
+export const MUSIC_MOODS = ['romance', 'drama', 'comedy', 'crime', 'horror', 'thriller', 'kids', 'motivational'];
+function loadCustom() { try { const c = JSON.parse(fs.readFileSync(CAT_FILE, 'utf8')); for (const [k, v] of Object.entries(c)) if (!BUILTIN_CATEGORIES.includes(k)) CATEGORIES[k] = { ...v, custom: true }; } catch {} }
+loadCustom();
+export function saveCategory({ label, hint, mood = 'drama', look = 'film', subs = 'classic' }) {
+  const key = 'c_' + String(label || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30); if (key === 'c_') throw new Error('Give the genre a name');
+  const c = (() => { try { return JSON.parse(fs.readFileSync(CAT_FILE, 'utf8')); } catch { return {}; } })();
+  c[key] = { label: String(label).slice(0, 40), mood: MUSIC_MOODS.includes(mood) ? mood : 'drama', look, subs, hint: String(hint || `a ${label} story`).slice(0, 400) };
+  fs.writeFileSync(CAT_FILE, JSON.stringify(c, null, 2)); CATEGORIES[key] = { ...c[key], custom: true }; return key; }
+export function deleteCategory(key) { const c = (() => { try { return JSON.parse(fs.readFileSync(CAT_FILE, 'utf8')); } catch { return {}; } })(); delete c[key]; fs.writeFileSync(CAT_FILE, JSON.stringify(c, null, 2)); if (CATEGORIES[key]?.custom) delete CATEGORIES[key]; }
+
 // Visual styles. `secPerFrame` = measured render time per frame on a 4-core CPU with no GPU (software WebGL).
 // `npm run bench` re-measures these on your PC and stores them in bench.json.
 export const STYLES = {

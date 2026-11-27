@@ -66,6 +66,13 @@ Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren)
 
 3D loader reads FBX 7 and newer. Old FBX files (FBX 6.x, the error "FBX version not supported, FileVersion: 6100") are converted to GLB automatically when you import them; for one imported earlier, open it in the Characters tab and click **Convert to the new format**. The free FBX2glTF converter (~4 MB) downloads the first time.
 
+## Plan board, your own genres, character height, subtitle drag (v1.11)
+
+- **Plan board:** with *Show me the plan before the video is made* (New Video, on by default) the job stops after the script, in the Queue as **Waiting for you → Review plan**. The window lists every character (main ⭐, name, role, *played by* a saved character = its look and voice, height slider, scenes and lines), every scene with its background picture (pick any library background or *Paint a new one*), and every prop, vehicle and animal (swap e.g. car → bike, coffee → laddu, cup → phone). Renaming a character changes the name in the dialogue too (Roman text). **Make the video ▶** continues with voices and render.
+- **Your own genres:** ＋ Add genre (e.g. Korean Drama, Turkish Drama): name, what kind of stories, music mood. They work like the built-in genres (story AI, topics, series); × deletes one.
+- **Character height:** Characters tab → 3D characters → *Height in videos*; saved story characters → *Height*; and per video in the Plan board.
+- **Subtitles:** in the subtitle editor drag the subtitle up / down on the video; colours, size, outline and box as before.
+
 ## New Video: single video or series, topics, language, backgrounds, characters (v1.9)
 
 - **Format:** *Single video* or *Series (episodes)*. A series is saved in `Documents\AutoVideo\series\<name>\` with every episode's story, its characters (names, looks, voices) and the backgrounds it used. Pick the series again and press *Add* to make the next episode: the AI gets the story so far and the last episode's ending, keeps every character the same, and new characters are added to the series. "Episodes to make now" queues several episodes one after another.

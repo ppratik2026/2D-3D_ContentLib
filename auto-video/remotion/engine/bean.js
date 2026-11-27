@@ -25,7 +25,7 @@ function look(ch) { // skin, hat and hair from the character
 }
 
 export function createBeanActor(scene, ch) {
-  const kid = ch.age === 'child', old = ch.age === 'old'; const H = kid ? 1.2 : 1.72; const k = H / 1.72; const L = look(ch);
+  const kid = ch.age === 'child', old = ch.age === 'old'; const H = (kid ? 1.2 : 1.72) * Math.max(0.6, Math.min(1.4, Number(ch.size) || 1)); const k = H / 1.72; /* size: user height adjust */ const L = look(ch);
   const skin = L.skin, dark = shade(skin, 0.8), darker = shade(skin, 0.68);
   const root = new THREE.Group(); const body = new THREE.Group(); root.add(body);
   const legLen = (kid ? 0.38 : 0.47) * k, thigh = legLen * 0.5, shin = legLen * 0.5; const W = (kid ? 0.66 : 0.64) * k; const capH = H - legLen; // the bean

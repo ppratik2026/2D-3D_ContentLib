@@ -18,7 +18,7 @@ const metaFile = (id) => path.join(CHARS, id, 'character.json');
 export function listCharacters() {
   const custom = [];
   for (const id of fs.existsSync(CHARS) ? fs.readdirSync(CHARS) : []) { try { custom.push({ ...JSON.parse(fs.readFileSync(metaFile(id), 'utf8')), builtin: false }); } catch {} }
-  const builtin = BUILTIN.filter((c) => fs.existsSync(path.join(ASSETS, path.basename(c.file)))).map((c) => ({ ...c, builtin: true }));
+  const ov = builtinOverrides(); const builtin = BUILTIN.filter((c) => fs.existsSync(path.join(ASSETS, path.basename(c.file)))).map((c) => ({ ...c, ...(ov[c.id] || {}), builtin: true }));
   return [...custom, ...builtin];
 }
 export function importCharacter(src, meta = {}) {
@@ -33,8 +33,11 @@ export function importCharacter(src, meta = {}) {
     gender: meta.gender || 'male', age: meta.age || 'adult', styles: meta.styles || ['toon', 'anime', 'realistic'], tags: meta.tags || [], notes: meta.notes || '' };
   fs.writeFileSync(metaFile(id), JSON.stringify(c, null, 2)); return c;
 }
+// built-in characters: only the voice and the height can be changed (kept in characters/_builtin.json)
+const OV_FILE = () => path.join(CHARS, '_builtin.json');
+function builtinOverrides() { try { return JSON.parse(fs.readFileSync(OV_FILE(), 'utf8')); } catch { return {}; } }
 export function updateCharacter(id, patch) {
-  const f = metaFile(id); if (!fs.existsSync(f)) throw new Error('Built-in characters cannot be edited');
+  const f = metaFile(id); if (!fs.existsSync(f)) { if (!BUILTIN.some((c) => c.id === id)) throw new Error('Character not found'); const ov = builtinOverrides(); ov[id] = { ...(ov[id] || {}), ...(patch.voice !== undefined ? { voice: patch.voice } : {}), ...(patch.size !== undefined ? { size: Number(patch.size) || 1 } : {}) }; fs.writeFileSync(OV_FILE(), JSON.stringify(ov, null, 2)); return { id, ...ov[id] }; }
   const c = { ...JSON.parse(fs.readFileSync(f, 'utf8')), ...patch, id }; fs.writeFileSync(f, JSON.stringify(c, null, 2)); return c;
 }
 // an imported character whose file had to be converted (old FBX → GLB): swap in the new file
@@ -64,7 +67,7 @@ export function assignActors(characters, style) {
       }
     }
     used.set(pick.id, (used.get(pick.id) || 0) + 1);
-    out[ch.id] = { actor: pick.id, file: pick.file, type: pick.type, name: pick.name };
+    out[ch.id] = { actor: pick.id, file: pick.file, type: pick.type, name: pick.name, size: Number(pick.size) || 1 };
   }
   return out;
 }

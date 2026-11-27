@@ -8,7 +8,7 @@ const FILE = path.join(STATE, 'cast.json');
 const read = () => { try { return JSON.parse(fs.readFileSync(FILE, 'utf8')); } catch { return []; } };
 const write = (list) => fs.writeFileSync(FILE, JSON.stringify(list, null, 2));
 const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 20) || 'char';
-export const LOOK_FIELDS = ['name', 'gender', 'age', 'role', 'look', 'skin_color', 'hat', 'hat_color', 'top_color', 'bottom_color', 'hair_color', 'personality'];
+export const LOOK_FIELDS = ['name', 'gender', 'age', 'role', 'look', 'skin_color', 'hat', 'hat_color', 'top_color', 'bottom_color', 'hair_color', 'personality', 'size'];
 
 export function listCast() { return read().sort((a, b) => (b.updated || '').localeCompare(a.updated || '')); }
 export function getCast(ids = []) { const all = read(); return ids.map((id) => all.find((c) => c.id === id)).filter(Boolean); }

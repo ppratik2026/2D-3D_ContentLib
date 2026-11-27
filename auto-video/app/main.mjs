@@ -15,7 +15,8 @@ app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 if (process.argv.includes('--cpu')) app.commandLine.appendSwitch('use-angle', 'swiftshader');
 
 const { PUBLIC, OUTPUT, STATE, CHARS } = await import('../pipeline/paths.mjs');
-const { CATEGORIES, STYLES, LOOKS, SUBTITLE_STYLES } = await import('../pipeline/config.mjs');
+const { CATEGORIES, STYLES, LOOKS, SUBTITLE_STYLES, MUSIC_MOODS, saveCategory, deleteCategory } = await import('../pipeline/config.mjs');
+const review = await import('../pipeline/review.mjs');
 const { estimate, fmt } = await import('../pipeline/estimate.mjs');
 const { makeVideo, newJobId } = await import('../pipeline/run.mjs');
 const { setupStatus, runSetup } = await import('../pipeline/setup.mjs');
@@ -147,6 +148,7 @@ async function pump() {
           Object.assign(job.stages[e.stage.name], { state: e.stage.total && e.stage.done >= e.stage.total ? 'done' : 'active', done: e.stage.done, total: e.stage.total, label: e.stage.label }); }
         broadcast(); },
       { signal: abort.signal });
+    if (r.review) { Object.assign(job, { status: 'review', plan: r.plan, story: r.story, title: r.story.title, msg: 'Plan ready — check characters, backgrounds and props', progress: 0 }); job.stages.story.state = 'done'; running = null; abort = null; broadcast(true); pump(); return; }
     STAGES.forEach((k) => (job.stages[k].state = 'done'));
     Object.assign(job, { status: 'done', folder: r.folder, file: r.file, title: r.story.title, progress: 1, finished: Date.now(), elapsed: (Date.now() - job.started) / 1000 });
   } catch (e) {
@@ -223,7 +225,7 @@ async function importChars(paths, meta, e) { const out = [];
     out.push(lib.importCharacter(src, { ...meta, name: meta.name || path.basename(f, path.extname(f)) })); }
   return out; }
 const H = {
-  options: () => ({ categories: CATEGORIES, styles: STYLES, looks: LOOKS, subs: SUBTITLE_STYLES, englishReady: englishReady() }),
+  options: () => ({ categories: CATEGORIES, moods: MUSIC_MOODS, styles: STYLES, looks: LOOKS, subs: SUBTITLE_STYLES, englishReady: englishReady() }),
   'story:cast': async (o, e) => { const chain = await buildChain(o.storyAI); if (!chain.length) return { ok: false, msg: 'Add a story AI key in Settings → Story AI first.' };
     const { planCast } = await import('../pipeline/story.mjs'); const se = o.seriesId ? seriesLib.seriesContext(o.seriesId) : null;
     const fixed = [...(se ? se.characters : []), ...castLib.getCast([...(o.leadId ? [o.leadId] : []), ...(o.castIds || [])]).map(castLib.toStoryChar)];
@@ -231,6 +233,16 @@ const H = {
       const r = await planCast({ category: o.category, minutes: Number(o.minutes) || 2, idea, chain, language: o.language, fixed, plan: { lead: o.leadId || null, mains: Number(o.mains) || 0 }, series: se, chars: o.chars || 'auto', onLog: (m) => { try { e.sender.send('topics:log', m); } catch {} } });
       for (const c of r.characters) { const f = fixed.find((x) => x.id === c.id || x.name.toLowerCase() === c.name.toLowerCase()); if (f?.castId) c.castId = f.castId; }
       return { ok: true, ...r, idea }; } catch (err) { return { ok: false, msg: err.message }; } },
+  'genre:add': (o) => { const key = saveCategory(o); return { key, categories: CATEGORIES }; },
+  'genre:delete': (key) => { deleteCategory(key); return CATEGORIES; },
+  'review:get': (id) => { const j = queue.find((x) => x.id === id); if (!j?.plan) throw new Error('No plan for this job');
+    const style = j.opts.style; const tag = style === 'bean2d' ? 'bean' : style === 'flat2d' ? 'flat' : null;
+    const list = bgs.listBackgrounds().map((b) => ({ id: b.id, name: b.name, tag: (b.tags || []).includes('bean') ? 'bean' : (b.tags || []).includes('flat') ? 'flat' : null, url: 'av://data/' + b.file.split('/').map(encodeURIComponent).join('/') }));
+    return { plan: j.plan, backgrounds: list.filter((b) => b.tag === tag).concat(list.filter((b) => b.tag !== tag)), cast: castLib.listCast(), canPaint: ['bean2d', 'flat2d', 'cartoon2d'].includes(style) }; },
+  'review:approve': (o) => { const j = queue.find((x) => x.id === o.id); if (!j?.story) throw new Error('No plan for this job');
+    const story = review.applyPlan(j.story, o.edits || {}); const paint = story.scenes.some((sc) => /^new\s*:/i.test(sc.background || ''));
+    j.opts = { ...j.opts, storyJson: story, approved: true, ...(paint ? { bgMode: 'new' } : {}) }; Object.assign(j, { status: 'queued', msg: 'Plan approved — making the video', plan: null, story: null, session: SESSION });
+    if (o.start !== false) autoRun = true; broadcast(true); pump(); return queueView(); },
   'topics:find': async (o, e) => { const chain = await buildChain(o.storyAI); if (!chain.length && o.mode !== 'real') return { ok: false, msg: 'Add a story AI key (Gemini or the free Groq) in Settings → Story AI first.' };
     try { const topics = await findTopics({ category: o.category, mode: o.mode, chain, language: o.language, series: !!o.series, extra: o.extra || '', onLog: (m) => { try { e.sender.send('topics:log', m); } catch {} } }); return { ok: true, topics }; } catch (err) { return { ok: false, msg: err.message }; } },
   'cast:list': () => castLib.listCast(),
@@ -269,7 +281,7 @@ const H = {
     if (o.format === 'series' && !seriesId) seriesId = seriesLib.createSeries({ title: o.seriesTitle || topics[0]?.title || ideas[0] || storyJson?.title || 'My series', category: o.category, style: o.style, language: o.language, bgMode: o.bgMode, subsOn: o.subsOn, topic: topics[0] || null }).id;
     const ideaOf = (i) => (topics.length ? topicIdea(topics[o.format === 'series' ? Math.min(i, topics.length - 1) : i] || topics[0]) + (o.idea && i === 0 ? ' ' + o.idea : '') : null);
     const count = o.format !== 'series' && topics.length ? topics.length : n;
-    for (let i = 0; i < (storyJson || o.myStory ? 1 : count); i++) { const opts = { language: o.language || 'hinglish', subsOn: o.subsOn, bgMode: o.bgMode || 'existing', castIds: Array.isArray(o.castIds) ? o.castIds : [], leadId: o.leadId || null, mains: Number(o.mains) || 0, castPlan: Array.isArray(o.castPlan) ? o.castPlan : null, planTitle: o.planTitle || '', planLogline: o.planLogline || '', seriesId, format: o.format || 'single', category: o.category, idea: storyJson ? storyJson.title : (o.format === 'series' && topics.length && i > 0 ? (ideas[i] || '') : ideaOf(i) ?? ideas[i] ?? (n > 1 ? '' : o.idea || '')), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs === 'mine' ? (readSettings().subStyle ? 'classic' : 'auto') : o.subs, subStyle: o.subs === 'mine' ? readSettings().subStyle || null : null, demo: !!o.demo, storyJson, storyAI: o.storyAI || 'auto', chars: o.chars || 'auto', myStory: storyJson ? '' : o.myStory || '' };
+    for (let i = 0; i < (storyJson || o.myStory ? 1 : count); i++) { const opts = { language: o.language || 'hinglish', subsOn: o.subsOn, bgMode: o.bgMode || 'existing', castIds: Array.isArray(o.castIds) ? o.castIds : [], leadId: o.leadId || null, mains: Number(o.mains) || 0, castPlan: Array.isArray(o.castPlan) ? o.castPlan : null, review: !!o.review, planTitle: o.planTitle || '', planLogline: o.planLogline || '', seriesId, format: o.format || 'single', category: o.category, idea: storyJson ? storyJson.title : (o.format === 'series' && topics.length && i > 0 ? (ideas[i] || '') : ideaOf(i) ?? ideas[i] ?? (n > 1 ? '' : o.idea || '')), minutes: Number(o.minutes) || 1, style: o.style, look: o.look, subs: o.subs === 'mine' ? (readSettings().subStyle ? 'classic' : 'auto') : o.subs, subStyle: o.subs === 'mine' ? readSettings().subStyle || null : null, demo: !!o.demo, storyJson, storyAI: o.storyAI || 'auto', chars: o.chars || 'auto', myStory: storyJson ? '' : o.myStory || '' };
       const est = estimate({ style: opts.style, minutes: opts.minutes, renderer: readSettings().renderer });
       queue.push({ id: newJobId(o.category) + (count > 1 ? `_${i + 1}` : ''), title: seriesId ? `${seriesLib.getSeries(seriesId).title} · episode ${seriesLib.getSeries(seriesId).episodes.length + 1 + i}` : undefined, opts, status: 'queued', progress: 0, estimate: est, created: Date.now(), msg: 'Queued', session: SESSION }); }
     if (o.start) autoRun = true; broadcast(true); pump(); return queueView(); },
@@ -365,6 +377,12 @@ function createWindow() {
     const dir = process.argv[shots + 1]; const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); await wait(2500);
     if (process.argv.includes('--mystory-ui')) { await win.webContents.executeJavaScript(`document.querySelector('#storyMode [data-m=mine]').click(); const t=document.querySelector('#myStory'); t.value='Inspector Arjun: "Raka, gaadi roko!"\\n\\n'+'Raka laal car me highway par bhaag raha tha. '.repeat(120); t.dispatchEvent(new Event('input'));`); await wait(2000); fs.writeFileSync(path.join(dir, 'mystory_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
     if (process.argv.includes('--subed-ui')) { await win.webContents.executeJavaScript(`document.querySelector('[data-tab=library]').click()`); await wait(2000); await win.webContents.executeJavaScript(`document.querySelector('[data-subs]').click()`); await wait(2500); await win.webContents.executeJavaScript(`(()=>{const v=document.querySelector('#seVideo'); v.currentTime=13.4; document.querySelector('#sePreset').value='youtube'; document.querySelector('#sePreset').onchange();})()`); await wait(2500); fs.writeFileSync(path.join(dir, 'subed_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
+    if (process.argv.includes('--plan-ui')) { const js = (c) => win.webContents.executeJavaScript(c); await H['queue:add']({ category: 'romance', minutes: 1, count: 1, style: 'flat2d', look: 'auto', subs: 'auto', demo: true, review: true, start: true });
+      for (let i = 0; i < 60 && !queue.some((j) => j.status === 'review'); i++) await wait(1000); const j = queue.find((x) => x.status === 'review');
+      await js(`document.querySelector('[data-tab=queue]').click()`); await wait(800); fs.writeFileSync(path.join(dir, 'plan_queue.png'), (await win.webContents.capturePage()).toPNG());
+      if (j) { await js(`window.AVPlanPreview(${JSON.stringify(j.id)})`); await wait(1500); fs.writeFileSync(path.join(dir, 'plan.png'), (await win.webContents.capturePage()).toPNG());
+        if (process.argv.includes('--approve')) { H['review:approve']({ id: j.id, edits: { scenes: [{ n: 1, background: 'bg_flat_cafe_out' }, { n: 2, background: 'bg_flat_cafe_in' }], characters: [{ id: j.plan.characters[0].id, name: 'Kabir', size: 0.85 }] } }); for (let i = 0; i < 400 && j.status !== 'done' && j.status !== 'error'; i++) await wait(1000); console.log('APPROVED JOB', j.status, j.error || '', j.folder || ''); } }
+      app.quit(); return; }
     if (process.argv.includes('--new-ui')) { const js = (c) => win.webContents.executeJavaScript(c); const shot = async (n) => fs.writeFileSync(path.join(dir, n), (await win.webContents.capturePage()).toPNG());
       await js(`document.querySelector('#storyMode [data-m=find]').click(); document.querySelector('#fmt [data-f=series]').click(); document.querySelector('#lang [data-l=english]').click(); document.querySelector('#bgMode [data-b=new]').click()`); await wait(1200); await shot('new_1.png');
       await js(`document.querySelector('#seriesSel').value = document.querySelector('#seriesSel option:nth-child(2)')?.value || ''; document.querySelector('#seriesSel').onchange(); document.querySelector('#castPick').scrollIntoView()`); await wait(1200); await shot('new_2.png');

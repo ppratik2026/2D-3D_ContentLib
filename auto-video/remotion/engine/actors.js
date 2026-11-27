@@ -110,7 +110,7 @@ function retargetVRM(kit, clip, vrm) {
 // cast: { file, type: 'vrm'|'glb'|'fbx' }   ch: story character (colours, age, gender)
 export async function createActor(kit, scene, ch, cast, opts = {}) {
   const child = ch.age === 'child';
-  const height = child ? 1.25 : ch.gender === 'female' ? 1.62 : 1.76;
+  const height = (child ? 1.25 : ch.gender === 'female' ? 1.62 : 1.76) * Math.max(0.6, Math.min(1.4, (Number(cast.size) || 1) * (Number(ch.size) || 1))); /* height adjust (Characters tab / Plan board) */
   const a = { id: ch.id, name: ch.name, ch, bones: {}, face: [], problems: [] };
   if (cast.type === 'vrm') {
     const g = await kit.loader.loadAsync(kit.url(cast.file)); const vrm = g.userData.vrm; if (!vrm) throw new Error('Not a valid VRM: ' + cast.file);
