@@ -95,6 +95,11 @@
           <div class="row"><label>Duration<select id="stDur"></select></label><label>Style<select id="stStyle"></select></label></div>
           <div class="row"><label>Language<select id="stLang"></select></label><label>Aspect<select id="stAspect"><option value="16:9">16:9 (long video)</option><option value="9:16">9:16 (shorts)</option></select></label><label>Audience<select id="stAud"></select></label></div>
           <label>Topic (optional — empty = AI chooses)<textarea id="stTopic" rows="2" placeholder="e.g. a lighthouse keeper on a Gujarat coast"></textarea></label>
+          <div class="row"><label>Find topics<select id="stTopicMode"><option value="real">Real recent stories (news)</option><option value="ai">AI creates new ideas</option></select></label><label>Focus<input id="stTopicExtra" placeholder="optional"></label><button id="stFind" class="ghost" type="button">Find 20 topics</button></div>
+          <div id="stTopicMsg" class="small muted"></div><div id="stTopics" class="topics"></div>
+          <div class="row top"><label>Main character (hero)<select id="stLead"><option value="">AI creates one</option></select></label><label>Main characters<select id="stMains"><option value="0">Auto</option><option>1</option><option>2</option><option>3</option><option>4</option></select></label><label>Characters in total<select id="stTotal"><option value="0">Auto</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>10</option><option>12</option></select></label></div>
+          <div class="small muted">Use saved characters (click):</div><div id="stCast" class="chips cast"></div>
+          <label class="check"><input type="checkbox" id="stSeries"> Start a series (then use "Next episode" on the story)</label>
           <label>Story AI<select id="stAI"></select></label>
           <div class="btns"><button id="stCreate" class="primary">Create story</button><button id="stLib" class="ghost">Edit libraries</button></div>
           <div id="stLog" class="small muted"></div>
@@ -278,6 +283,13 @@
   <div class="small muted">Change a name or role, swap in a saved character (same look and voice as before), tick the main characters (the first ticked one is the hero), remove or add characters. The script is written with exactly these people.</div>
   <div id="cmRows" class="cmrows"></div>
   <div class="btns"><button id="cmAdd" class="ghost" type="button">+ Add character</button><span style="flex:1"></span><button id="cmCancel" class="ghost" type="button">Cancel</button><button id="cmOk" class="primary" type="button">Write the script &amp; add to queue</button></div>
+</div></div>
+<div id="pasteModal" class="modal" hidden><div class="card wide">
+  <h3>Paste from Gemini app</h3>
+  <div class="small muted">1. Click <b>Copy prompt</b> → 2. open gemini.google.com, paste it and send → 3. copy Gemini's whole answer → 4. paste it below → 5. <b>Use this answer</b>.</div>
+  <div class="btns"><button id="pmCopy" class="primary" type="button">Copy prompt</button><span id="pmInfo" class="small muted"></span></div>
+  <textarea id="pmAnswer" rows="12" placeholder="Paste Gemini's answer (JSON) here"></textarea>
+  <div class="btns"><span style="flex:1"></span><button id="pmCancel" class="ghost" type="button">Cancel</button><button id="pmOk" class="primary" type="button">Use this answer</button></div>
 </div></div>
 <div id="player" class="modal" hidden><div class="card wide"><video id="playerVideo" controls></video><div class="btns"><button id="playerClose" class="ghost">Close</button></div></div></div>
 

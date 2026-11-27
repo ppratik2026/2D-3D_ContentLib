@@ -6,7 +6,7 @@ import { askJSON } from './ai.mjs';
 const LANG = { hindi: 'Hindi (Devanagari)', hinglish: 'Roman Hinglish', english: 'English' };
 
 export async function findTopics({ category, mode = 'ai', chain = [], language = 'hinglish', count = 20, series = false, extra = '', onLog = () => {} }) {
-  const cat = CATEGORIES[category] || CATEGORIES.drama; const n = Math.max(5, Math.min(25, count));
+  const cat = CATEGORIES[category] || (category ? { label: String(category).replace(/_/g, ' '), hint: `a ${String(category).replace(/_/g, ' ')} story` } : CATEGORIES.drama); /* Prompt Studio genres too */ const n = Math.max(5, Math.min(25, count));
   const lang = LANG[language] || LANG.hinglish;
   const what = series ? 'a SERIES (many episodes with the same main characters)' : 'one short animated video (1–3 minutes)';
   const shape = `Reply with ONLY this JSON: {"topics":[{"title":"short catchy title in ${lang}","summary":"2 short sentences: what happens, who, the hook","place":"city / state or setting","date":"month year or empty","source":"news site name or empty"}]}`;

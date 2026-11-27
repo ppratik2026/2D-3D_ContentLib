@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { STATE } from './paths.mjs';
-import { askJSON } from './ai.mjs';
+import { askJSON, parseJSON } from './ai.mjs';
 
 const LIB_SRC = path.join(path.dirname(fileURLToPath(import.meta.url)), 'studio');
 export const STUDIO = path.join(STATE, 'studio'); const LIB = path.join(STUDIO, 'library'), PROJ = path.join(STUDIO, 'projects'), USED = path.join(STUDIO, 'used_stories.json');
@@ -68,6 +68,7 @@ ${L.schema}
 ${PLACEHOLDER_RULES}
 ${withExample ? `\nEXAMPLE OUTPUT (format reference only — never copy its story; it shows the long texts written out, YOU use placeholders):\n${L.example}\n` : ''}
 LANGUAGE: dialogue, voiceover, titles in "${p.language}"${/^Hindi$/.test(p.language) ? ' (Roman script Hindi like the example, e.g. "Yeh to kaafi purana hai...")' : /Devanagari/.test(p.language) ? ' (Devanagari script)' : ''}; image_prompt / video_prompt / consistency_tag / location_tag ALWAYS in English. Narration speed ~2.2–2.5 words per second (Kids 1.8), so an 8 sec shot has at most ~18–20 words. Silence: dialogue [] and voiceover null.
+SCREENPLAY QUALITY (like a real film / web series, not a summary): every scene has a goal, a conflict and a turn; conversations are covered shot / reverse-shot with reaction shots, each dialogue shot holds 1–2 short lines and the talk continues across shots (6–14 lines per conversation) with interruptions, questions, jokes, silences and subtext; characters have their own voice and want; show feelings through actions and faces; plant details early and pay them off; hook in the first 10 seconds, rising stakes, midpoint surprise, low point, twist, payoff${p.series ? '; end the episode on a hook for the next one' : ''}.
 SAFETY: YouTube-safe, no gore, no explicit content, no real people / brands / copyrighted characters. Audience: ${p.audience}.
 Reply with ONE JSON object only, no markdown.`;
 }
@@ -76,7 +77,7 @@ const SHOT_FIELDS = 'shot_id ("S03-02" = scene 3 shot 2), duration_sec (6–8, d
 
 // ---------- projects ----------
 const pfile = (id) => path.join(PROJ, id, 'project.json');
-export function list() { return fs.readdirSync(PROJ).map((id) => { try { const P = JSON.parse(fs.readFileSync(pfile(id), 'utf8')); return { id, title: P.project?.title, genre: [P.project?.genre_primary, P.project?.genre_secondary].filter(Boolean).join(' + '), duration: P.project?.duration_min, status: status(P), updated: P.updated }; } catch { return null; } }).filter(Boolean).sort((a, b) => (b.updated || '').localeCompare(a.updated || '')); }
+export function list() { return fs.readdirSync(PROJ).map((id) => { try { const P = JSON.parse(fs.readFileSync(pfile(id), 'utf8')); return { id, episode: P.series?.episode || null, title: P.project?.title, genre: [P.project?.genre_primary, P.project?.genre_secondary].filter(Boolean).join(' + '), duration: P.project?.duration_min, status: status(P), updated: P.updated }; } catch { return null; } }).filter(Boolean).sort((a, b) => (b.updated || '').localeCompare(a.updated || '')); }
 export const get = (id) => view(JSON.parse(fs.readFileSync(pfile(id), 'utf8')));
 function save(P) { P.updated = new Date().toISOString(); fs.mkdirSync(path.join(PROJ, P.id), { recursive: true }); fs.writeFileSync(pfile(P.id), JSON.stringify(P, null, 2)); writeExports(P); return view(P); }
 export function remove(id) { if (!/^[A-Z0-9-]+$/.test(id)) throw new Error('bad id'); fs.rmSync(path.join(PROJ, id), { recursive: true, force: true }); }
@@ -100,28 +101,46 @@ const mmss = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Mat
 
 // ---------- generation ----------
 const check = (fn) => (x) => { fn(x); return x; };
-async function ask(chain, P, user, onLog, validate, withExample = false) { return (await askJSON(chain, { system: system(lib(), P.project, withExample), user, temperature: 0.95, onLog, validate })).value; }
+async function ask(chain, P, user, onLog, validate, withExample = false) {
+  if (chain && chain.paste) { // "Paste from Gemini app": the user runs the prompt in the Gemini app and pastes the answer back
+    const text = await chain.paste(`${system(lib(), P.project, withExample)}\n\n${user}`); if (text == null) throw new Error('Cancelled');
+    let j; try { j = parseJSON(text); } catch { throw new Error('Could not read the pasted answer as JSON. Copy Gemini\'s whole answer (from { to }) and try again.'); }
+    return validate(j); }
+  return (await askJSON(chain, { system: system(lib(), P.project, withExample), user, temperature: 0.95, onLog, validate })).value; }
 
+function castText(input) { const c = Array.isArray(input.cast) ? input.cast : []; const lead = c.find((x) => x.id === input.lead) || null; let t = '';
+  if (lead) t += `MAIN CHARACTER (hero): ${lead.name} (${lead.role || ''}).\n`; if (Number(input.mains)) t += `MAIN CHARACTERS: exactly ${input.mains} with big roles (the hero included); the others are small side roles.\n`;
+  if (Number(input.total)) t += `CHARACTERS IN TOTAL: ${input.total}.\n`;
+  if (c.length) t += `USE THESE EXISTING CHARACTERS (same name, gender, age, role, look): ${JSON.stringify(c.map(({ id, castId, voice, ...x }) => x))}\n`; return t; }
+function seriesText(input) { if (!input.continueFrom) return ''; let Q; try { Q = JSON.parse(fs.readFileSync(pfile(input.continueFrom), 'utf8')); } catch { return ''; } const B = Q.story_bible || {}; const ep = (Q.series?.episode || 1) + 1;
+  const last = (Q.scenes || []).slice(-3).map((x) => x.summary).filter(Boolean).join(' ');
+  return `SERIES: this is EPISODE ${ep} of "${Q.series?.title || Q.project.title}". Previous episode "${Q.project.title}": ${B.synopsis || B.logline || ''}${last ? ` It ended with: ${last}` : ''}
+Continue from there with NEW events. Reuse these characters EXACTLY (copy char_id, name and consistency_tag word for word; new characters get new ids): ${JSON.stringify((B.characters || []).map((c) => ({ char_id: c.char_id, name: c.name, role: c.role, age: c.age, gender: c.gender, personality: c.personality, voice: c.voice, consistency_tag: c.consistency_tag })))}
+Reuse these locations when the story returns to them (copy loc_id and location_tag): ${JSON.stringify((B.locations || []).map((l) => ({ loc_id: l.loc_id, library_ref: l.library_ref, location_tag: l.location_tag })))}
+`; }
 export async function create(input, chain, onLog = () => {}) {
   const L = lib(); const used = usedLog(); const gs = [input.genre, input.genre2].filter((g, i) => g && (i === 0 || g !== input.genre));
   const plan = planFor(input.duration); const seed = seedFor(gs, used, L); const style = STYLES[input.style] ? input.style : '3D_Stylized';
   const n = String(fs.readdirSync(PROJ).filter((d) => d.startsWith(gs[0].slice(0, 3).toUpperCase())).length + 1).padStart(2, '0');
   const id = `${gs[0].slice(0, 3).toUpperCase()}-${new Date().toISOString().slice(0, 10)}-${n}`;
   const project = { project_id: id, title: '', genre_primary: gs[0], genre_secondary: gs[1] || null, duration_min: plan.duration_min, style_preset: style, aspect_ratio: input.aspect === '9:16' ? '9:16' : '16:9', language: input.language || 'Hindi', audience: input.audience || 'Family 13+', variety_seed: seed };
-  const P = { id, input, project, plan, tone: [], batches: [], checkpoints: [] };
+  const prev = input.continueFrom ? (() => { try { return JSON.parse(fs.readFileSync(pfile(input.continueFrom), 'utf8')); } catch { return null; } })() : null;
+  const P = { id, input, project, plan, tone: [], batches: [], checkpoints: [], series: prev ? { of: prev.series?.of || prev.id, title: prev.series?.title || prev.project.title, episode: (prev.series?.episode || 1) + 1 } : input.series ? { of: id, title: '', episode: 1 } : null };
+  if (P.series) project.series = true;
   const all = plan.duration_min <= 3;
   onLog(all ? 'Writing the full story (bible, scenes and shots)…' : 'Phase 1: writing the Story Bible…');
   const user = `USER INPUT:
 GENRE: ${gs.join(' + ')} | DURATION: ${plan.duration_min} min | STYLE: ${style} | LANGUAGE: ${project.language} | ASPECT: ${project.aspect_ratio} | AUDIENCE: ${project.audience}
 TOPIC: ${input.topic?.trim() || '(empty — choose your own)'}
 VARIETY SEED (use it; you may adjust the region/era if the topic needs): ${JSON.stringify(seed)}
-PLAN: about ${plan.acts} acts, ${plan.total_scenes} scenes, ${plan.total_shots_estimate} shots, up to ${plan.max_characters} main characters, ${plan.max_locations} locations${plan.chapters ? ', split into chapters of 10–15 min with their own mini-climax' : ''}.
+${castText(input)}${seriesText(input)}PLAN: about ${plan.acts} acts, ${plan.total_scenes} scenes, ${plan.total_shots_estimate} shots, up to ${plan.max_characters} main characters, ${plan.max_locations} locations${plan.chapters ? ', split into chapters of 10–15 min with their own mini-climax' : ''}.
 USED STORIES LOG (do NOT make anything similar): ${used.slice(-40).map((u) => `${u.title} — ${u.logline}`).join(' | ') || 'none'}
 
 ${all ? `Do ALL THREE PHASES now. Return {"project": {...with title "Hindi / English"...}, "story_bible": {...}, "scenes": [ every scene WITH "shots" (fields: ${SHOT_FIELDS}) ], "extras": {youtube_titles (5), thumbnail_prompts (3, with placeholders), description, tags, chapters}}.`
   : `Do PHASE 1 only. Return {"project": {...with title "Hindi / English" and variety_seed...}, "story_bible": {logline, synopsis, theme, characters (consistency_tag FULL and detailed), locations (location_tag FULL), props_master, visual_style_guide (style_prompt copied from style_presets["${style}"], color_palette, lighting_rule, negative_prompt), act_outline (with time_range and scenes ranges), plan {total_scenes, total_shots_estimate, batches}}, "extras": {youtube_titles (5), thumbnail_prompts (3, with placeholders), description, tags}}.`}`;
   const r = await ask(chain, P, user, onLog, check((x) => { if (!x.story_bible?.characters?.length || !x.story_bible?.locations?.length) throw new Error('story bible incomplete'); if (all && !x.scenes?.some((s) => s.shots?.length)) throw new Error('no shots'); }), all);
   P.project = { ...project, ...r.project, project_id: id, duration_min: plan.duration_min, style_preset: style, aspect_ratio: project.aspect_ratio, language: project.language, audience: project.audience };
+  if (P.series && !P.series.title) P.series.title = P.project.title;
   P.story_bible = r.story_bible; P.story_bible.visual_style_guide ||= {}; P.story_bible.visual_style_guide.style_prompt ||= L.genres.style_presets[style]; P.story_bible.visual_style_guide.negative_prompt ||= 'text, watermark, logo, extra fingers, deformed face, blurry, low quality, gore';
   P.story_bible.props_master ||= []; P.extras = r.extras || {};
   if (all) { P.scenes = (r.scenes || []).map((s, i) => ({ ...s, scene_no: i + 1 })); P.batches.push({ from: 1, to: P.scenes.length, at: new Date().toISOString() }); }

@@ -212,6 +212,10 @@ function libraryList() {
     return { dir: d, title: story.title || d, category: story.category, created: st.mtimeMs, sizeMB: +(st.size / 1e6).toFixed(1), video: `av://videos/${encodeURIComponent(d)}/final.mp4` };
   }).sort((a, b) => b.created - a.created);
 }
+// "Paste from Gemini app" for Prompt Studio: the prompt goes to the window, the user pastes Gemini's answer back
+const pastes = new Map(); let pasteN = 0;
+const pasteChain = (e) => ({ paste: (prompt) => new Promise((ok) => { const id = ++pasteN; pastes.set(id, ok); e.sender.send('studio:paste', { id, prompt }); }) });
+const sChain = async (o, e) => (o.ai === 'paste' ? pasteChain(e) : buildChain(o.ai));
 const studio = () => import('../pipeline/studio.mjs'); const slog = (e) => (m) => { try { e.sender.send('studio:log', m); } catch {} };
 // old FBX (6.x) is converted to GLB on import so the 3D loader can read it
 async function importChars(paths, meta, e) { const out = [];
@@ -330,17 +334,18 @@ const H = {
   'studio:options': async () => (await studio()).options(),
   'studio:list': async () => (await studio()).list(),
   'studio:get': async (id) => (await studio()).get(id),
-  'studio:create': async (o, e) => (await studio()).create(o, await buildChain(o.ai), slog(e)),
-  'studio:scenes': async (o, e) => (await studio()).scenes(o.id, await buildChain(o.ai), slog(e)),
-  'studio:next': async (o, e) => (await studio()).next(o.id, await buildChain(o.ai), slog(e)),
-  'studio:redo': async (o, e) => (await studio()).redo(o.id, o.scene, o.note, await buildChain(o.ai), slog(e)),
+  'studio:pasteAnswer': (o) => { const f = pastes.get(o.id); pastes.delete(o.id); f?.(o.text ?? null); return true; },
+  'studio:create': async (o, e) => { if (Array.isArray(o.castIds) && o.castIds.length) o.cast = castLib.getCast(o.castIds).map((c) => ({ id: c.id, name: c.name, gender: c.gender, age: c.age, role: c.role, look: c.look, personality: c.personality })); return (await studio()).create(o, await sChain(o, e), slog(e)); },
+  'studio:scenes': async (o, e) => (await studio()).scenes(o.id, await sChain(o, e), slog(e)),
+  'studio:next': async (o, e) => (await studio()).next(o.id, await sChain(o, e), slog(e)),
+  'studio:redo': async (o, e) => (await studio()).redo(o.id, o.scene, o.note, await sChain(o, e), slog(e)),
   'studio:tone': async (o) => (await studio()).tone(o.id, o.tone),
-  'studio:thumbs': async (o, e) => (await studio()).thumbnails(o.id, await buildChain(o.ai), slog(e)),
+  'studio:thumbs': async (o, e) => (await studio()).thumbnails(o.id, await sChain(o, e), slog(e)),
   'studio:exports': async (id) => { const S = await studio(); return S.exportsOf(S.get(id)); },
   'studio:open': async (id) => { const S = await studio(); return shell.openPath(id ? S.folderOf(id) : S.STUDIO); },
   'studio:library': async () => shell.openPath((await studio()).libraryFolder()),
   'studio:delete': async (id) => { (await studio()).remove(id); return true; },
-  'studio:toVideo': async (o) => { const j = (await studio()).videoJob(o.id); return H['queue:add']({ category: j.category, idea: '', myStory: j.text, minutes: j.minutes, count: 1, style: o.style || 'flat2d', look: 'auto', subs: o.subs || 'auto', chars: 'auto', demo: false, storyAI: o.ai || 'auto', start: true }); },
+  'studio:toVideo': async (o) => { if (o.ai === 'paste') o.ai = 'auto'; /* the video maker needs an API key to turn the story into scenes */ const j = (await studio()).videoJob(o.id); return H['queue:add']({ category: j.category, idea: '', myStory: j.text, minutes: j.minutes, count: 1, style: o.style || 'flat2d', look: 'auto', subs: o.subs || 'auto', chars: 'auto', demo: false, storyAI: o.ai || 'auto', start: true }); },
   'studio:jobInfo': async (id) => { const j = (await studio()).videoJob(id); delete j.text; return j; },
   'update:get': () => upd,
   'update:check': () => checkUpdates(),

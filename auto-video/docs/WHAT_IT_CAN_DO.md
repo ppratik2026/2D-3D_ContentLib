@@ -243,6 +243,8 @@ Multi-angle backgrounds for talk scenes (front / reverse painted views of the sa
 
 ## Prompt Studio (v1.7)
 
+**v1.10:** Prompt Studio has the New Video tools too: *Find topics* (real news or AI ideas; click one to fill the topic), main character (hero), number of main characters and of all characters, saved characters, *Start a series* and **▶ Next episode** on any story (same characters with the exact same consistency tags, same places, continues after the last ending). Story AI can be **Paste from Gemini app (no API)**: every step shows a window with *Copy prompt*; paste Gemini's answer back and the app continues. Stories in both tabs are now written like a real film / web-series screenplay: every scene has a goal, conflict and turn, conversations are real back-and-forth (6–14 short lines with reactions, interruptions and silences, shot / reverse-shot in Studio), each character has an own voice, and the story has a hook, rising stakes, a twist and a payoff.
+
 A new tab that writes a complete, original story as prompts for AI video tools (Flow, Veo, Kling…). It follows the "Animation Story Engine" rules and libraries.
 
 **Input:**

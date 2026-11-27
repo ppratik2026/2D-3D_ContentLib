@@ -10,6 +10,13 @@ Dialogue is spoken by Hindi text-to-speech, so every line has three versions:
 - "hinglish": the same line in Roman Hinglish (e.g. "Do cappuccino, please.").
 - "english": an English translation.
 Keep each line short (max ~14 words). Characters are Indian unless the user says otherwise.
+WRITE IT LIKE A REAL FILM / WEB SERIES SCREENPLAY, not a summary:
+- Every scene has a goal, a conflict and a turn (something changes by its end). Enter late, leave early.
+- Conversations are real back-and-forth: 6–14 short lines per talk, people interrupt, dodge, joke, get angry, go quiet, ask follow-up questions, react ("Kya?!", "Matlab?", a laugh, a sigh). Never one long speech that explains everything.
+- Subtext: people do not say their feelings directly; show them with reactions, pauses and actions between the lines (sip, look_around, think, shock, angry, walk_to, sit/stand, cry, laugh…).
+- Each character has an own voice (a boss talks short, a kid asks questions, a dadi uses proverbs, a friend teases) and a clear want.
+- Build the story in beats: hook in the first 10 seconds, rising stakes, a midpoint surprise, the low point, a twist, an emotional or funny payoff; plant small details early and pay them off later.
+- Use narration only to jump time or show a thought; act out everything else.
 Return ONLY valid JSON, no markdown.`;
 const LANG_RULE = {
   english: 'LANGUAGE: this is an ENGLISH video. Write every spoken line in natural, simple English in "english" and put the SAME English text in "hinglish" and "hindi" too (they are spoken by an English voice). Title (also "title_hindi"), narration, cards, big_text and thoughts items: English only. Characters can still be Indian.',
@@ -61,7 +68,7 @@ The scene seconds must add up to about ${totalSec}.` }], { key, models, onLog })
   const charList = outline.characters.map((c) => `${c.id} (${c.name}, ${c.gender}, ${c.age}, ${c.role})`).join('; ');
   const jobs = outline.scenes.map((sc, i) => async () => {
     onLog(`Gemini: scene ${i + 1}/${outline.scenes.length} dialogue`);
-    const lines = Math.max(3, Math.round(sc.seconds / 4.2));
+    const lines = Math.max(4, Math.round(sc.seconds / 3.4));
     const prev = outline.scenes.slice(0, i).map((s, k) => `${k + 1}. ${s.summary}`).join('\n');
     const res = await gemini([
         { role: 'system', content: sys(language) },
@@ -69,7 +76,7 @@ The scene seconds must add up to about ${totalSec}.` }], { key, models, onLog })
 Characters: ${charList}
 Previous scenes:\n${prev || '(this is the first scene)'}
 Now write scene ${i + 1}: location "${sc.location}" at ${sc.time_of_day}. Present: ${sc.present.join(', ')}. Summary: ${sc.summary}
-Write about ${lines} dialogue lines (scene length about ${sc.seconds} seconds), with simple actions between them.
+Write about ${lines} dialogue lines (scene length about ${sc.seconds} seconds) as a real back-and-forth conversation with reactions, with actions between the lines.
 Allowed actions (use exactly these words): ${ACTIONS.join(', ')}.
 - "enter"/"exit"/"run_exit": a character comes into / leaves the place. Characters already present at the start do not need "enter".
 - "sit"/"stand": sit down on a chair/sofa/bench or stand up. "walk_to" needs "target": another character id.
@@ -197,7 +204,7 @@ ${stage ? `- Places in the background (if the background has them): {"action":"g
 - If no background fits a scene, write "background":"new: short English description of the place" (the app uses the closest one and tells the user which image to make).` : ''}`; }
 export function buildPastePrompt({ category, minutes, idea = '', actors = [], backgrounds = [], chars = 'auto', language = 'hinglish', fixed = [], series = null, bgMode = 'existing', plan = {} }) {
   const cat = CATEGORIES[category] || CATEGORIES.drama; const totalSec = Math.round(minutes * 60);
-  const nScenes = Math.max(2, Math.min(30, Math.round(minutes * 1.6))); const lines = Math.max(6, Math.round(totalSec / 4.2));
+  const nScenes = Math.max(2, Math.min(30, Math.round(minutes * 1.6))); const lines = Math.max(8, Math.round(totalSec / 3.4)); /* denser, real conversations */
   const stage = backgrounds.length > 0 || bgMode === 'new';
   const places = bgMode === 'new' ? (backgrounds.length ? `(earlier episodes used these — reuse one for the same place)\n` + backgrounds.map((b) => `- ${b.id}: ${b.name}`).join('\n') : '(none yet)') : stage ? backgrounds.map((b) => `- ${b.id}: ${b.name}${b.place ? ' (' + b.place.replace(/_/g, ' ') + ')' : ''}, ${b.time}${b.tags?.length ? ', ' + b.tags.join('/') : ''}${b.marks?.length ? ' [has: ' + b.marks.join(', ') + ']' : ''}`).join('\n')
     : Object.entries(LOCATIONS).map(([k, v]) => `- ${k}: ${v}`).join('\n');
