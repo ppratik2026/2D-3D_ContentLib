@@ -1,0 +1,48 @@
+{
+  "id": "bg_bean_classroom",
+  "file": "backgrounds/bg_bean_classroom/image.jpg",
+  "rev": 3,
+  "name": "Bean: classroom",
+  "place": "school",
+  "time": "day",
+  "indoor": true,
+  "tags": [
+    "bean",
+    "school",
+    "classroom",
+    "class",
+    "teacher",
+    "exam"
+  ],
+  "groundNear": 0.91,
+  "groundFar": 0.874,
+  "heightNear": 0.4,
+  "seats": [
+    {
+      "type": "seat",
+      "x": 0.17,
+      "y": 0.88,
+      "face": 1,
+      "tableY": 0.76
+    },
+    {
+      "type": "seat",
+      "x": 0.39,
+      "y": 0.88,
+      "face": 1,
+      "tableY": 0.76
+    },
+    {
+      "type": "seat",
+      "x": 0.61,
+      "y": 0.88,
+      "face": 1,
+      "tableY": 0.76
+    },
+    {
+      "type": "board",
+      "x": 0.84,
+      "y": 0.88
+    }
+  ]
+}

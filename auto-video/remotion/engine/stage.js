@@ -7,6 +7,8 @@ import { OutlineEffect } from 'three/examples/jsm/effects/OutlineEffect.js';
 import { loadActorKit, createActor, poseActor, headPos, handPos, footPos } from './actors.js';
 import { makeVehicle } from './vehicles.js';
 import { createFlatActor, poseFlat, makeFlatCup, makeFlatWallet } from './flat.js';
+import { createBeanActor } from './bean.js';
+import { loadFonts, makeBubble, makeBattery, makeBigText, makeNote, makeAura, makeDreamCloud, makeDot, makeFlatDog } from './doodle.js';
 import { makeAnimal, makeExtra, makeSafa, makeBirds } from './creatures.js';
 import { makeKite, makeCurve, makeFestPack, makeFish, makeWeeds } from './effects.js';
 import { makeFire, makeExplosion, makeSplash, makeProps, makeLine, makeFireworks, makeDiyas, makeLights, makePowder, makeSpark, makeFestProps } from './effects.js';
@@ -25,7 +27,7 @@ const ROLE = [
   ['witness', /accused|thief|chor|criminal|suspect|witness|gawah|culprit|murderer|robber|चोर|गवाह/i],
   ['board', /teacher|professor|sir$|madam|master|principal|शिक्षक/i],
   ['desk', /inspector|officer|doctor|teacher|principal|boss|manager|clerk|judge|sho|commissioner|dcp|acp|receptionist/i],
-  ['counter', /scientist|forensic|lab|chemist|shopkeeper|dukandar|cashier|doctor|pharmacist|receptionist|banker|waiter/i],
+  ['counter', /scientist|forensic|lab|chemist|shopkeeper|dukandar|cashier|doctor|pharmacist|receptionist|banker|waiter|barista|chaiwala|cafe owner|bartender/i],
 ];
 
 export async function createStageEngine({ canvas, width, height, tl, url }) {
@@ -34,6 +36,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
   renderer.setPixelRatio(perf.scale || 1); renderer.setSize(width, height, false); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NoToneMapping;
   renderer.localClippingEnabled = true;
   const outline = new OutlineEffect(renderer, { defaultThickness: tl.flat ? 0.0032 : 0.0012, defaultColor: tl.flat ? [0.086, 0.086, 0.11] : [0.05, 0.04, 0.04] });
+  await loadFonts();
   const scene = new THREE.Scene(); scene.background = new THREE.Color(0x000000);
   const cam = new THREE.OrthographicCamera(0, AR, 1, 0, 0.1, 400); cam.position.set(0, 0, 50); cam.lookAt(0, 0, 0);
   const hemi = new THREE.HemisphereLight(0xffffff, 0x8a8a8a, 1.6); const key = new THREE.DirectionalLight(0xffffff, 1.3); key.position.set(-1, 2, 3); scene.add(hemi, key, key.target);
@@ -86,23 +89,25 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     if (ch.hidden || ch.id === 'narrator') continue;
     roleOf[ch.id] = `${ch.role || ''} ${ch.name || ''}`;
     const cast = (tl.cast && tl.cast[ch.id]) || { file: 'assets/AvatarSample_C.vrm', type: 'vrm' };
-    let a; if (tl.flat) a = createFlatActor(scene, ch); else try { a = await createActor(kit, scene, ch, cast, { simpleMat: grad, toon: grad }); } catch (e) { console.warn(e.message); a = await createActor(kit, scene, ch, ch.gender === 'female' ? { file: 'assets/AvatarSample_A.vrm', type: 'vrm' } : { file: 'assets/AvatarSample_C.vrm', type: 'vrm' }, { simpleMat: grad }); }
+    let a; if (tl.bean) a = createBeanActor(scene, ch); else if (tl.flat) a = createFlatActor(scene, ch); else try { a = await createActor(kit, scene, ch, cast, { simpleMat: grad, toon: grad }); } catch (e) { console.warn(e.message); a = await createActor(kit, scene, ch, ch.gender === 'female' ? { file: 'assets/AvatarSample_A.vrm', type: 'vrm' } : { file: 'assets/AvatarSample_C.vrm', type: 'vrm' }, { simpleMat: grad }); }
     const h = new THREE.Group(); scene.add(h); const pivot = new THREE.Group(); h.add(pivot); pivot.add(a.o); const sh = new THREE.Mesh(new THREE.CircleGeometry(0.32, 24), shadowMat); sh.rotation.x = -Math.PI / 2; sh.scale.set(1, 0.45, 1); sh.position.y = 0.01; h.add(sh);
     const clip = new THREE.Plane(new THREE.Vector3(0, 1, 0), 1e5); a.o.traverse((m) => { if (m.isMesh) (Array.isArray(m.material) ? m.material : [m.material]).forEach((x) => { x.clippingPlanes = [clip]; }); });
+    if (a.shadow) { const au = makeAura('#ff3a26'); au.scale.set(a.height * 1.25, a.height * 1.5, 1); au.position.set(0, a.height * 0.52, -0.3); au.renderOrder = -1; h.add(au); a.aura = au; } /* inner voice: black figure in a red glow */
     actors[ch.id] = a; holders[ch.id] = { h, pivot, sh, clip }; h.visible = false;
   }
   // vehicles
   const vehicles = {};
   for (const v of tl.vehicles || []) { const m = makeVehicle(v.type, v.color, grad); m.front ??= m.type === 'train' ? 8.1 : m.len / 2; m.rear ??= m.type === 'train' ? 26.2 : m.len / 2; m.group.visible = false; scene.add(m.group); vehicles[v.key] = m; }
   // animals, crowd people, baraat extras
-  const animals = {}; for (const a of (tl.animals || []).filter((x) => x.type !== 'birds')) { const m = makeAnimal(a.type, a.seed || 1, { grad }); m.group.visible = false; scene.add(m.group); animals[a.key] = m; }
+  const animals = {}; for (const a of (tl.animals || []).filter((x) => x.type !== 'birds')) { const m = tl.bean && a.type === 'dog' ? makeFlatDog(['#e3b66a', '#f1ede2', '#9a7452', '#c98a4a'][(a.seed || 1) % 4]) : makeAnimal(a.type, a.seed || 1, { grad }); m.group.visible = false; scene.add(m.group); animals[a.key] = m; }
   const extras = []; for (let i = 0; i < Math.min(14, tl.crowdMax || 0); i++) { const e = tl.flat ? flatExtra(i) : makeExtra(i + 1, grad); e.group.visible = false; scene.add(e.group); extras.push(e); }
   // flat style crowd: the same code-drawn people (they face the camera, dance / cheer / clap / watch / walk)
   function flatExtra(i) { const TOPS = ['#d9534f', '#3f7fbf', '#3f9b5a', '#e67ab4', '#f39c32', '#7a4fb3', '#2f8f8f', '#c0583f', '#5aa5c9']; const fem = i % 2 === 1;
     const ch = { id: 'extra' + i + 'x'.repeat(i % 5), name: '', gender: fem ? 'female' : 'male', age: i % 7 === 3 ? 'old' : i % 6 === 5 ? 'child' : 'adult', role: 'crowd', top_color: TOPS[i % TOPS.length], bottom_color: ['#2f3a4f', '#f2c418', '#5a3a2a', '#e8e0d0'][i % 4] };
-    const a = createFlatActor(new THREE.Group(), ch); const g = new THREE.Group(); a.o.parent?.remove(a.o); g.add(a.o);
-    return { flat: true, group: g, set(t, mood_) { const mood = mood_ && mood_.mood ? mood_.mood : mood_; const dist = mood_ && mood_.dist != null ? mood_.dist : t * 0.3; const walk = mood === 'walk'; const name = { dance: 'dance', cheer: (i + Math.floor(t * 0.5)) % 3 ? 'wave' : 'clap', clap: 'clap', watch: i % 4 === 0 ? 'point' : '' }[mood] || '';
-      poseFlat(a, t + i * 0.37, { yaw: walk ? 1.4 : ((i % 3) - 1) * 0.3, walk: walk ? 1 : 0, walkDist: walk ? dist + i * 0.37 : null, gesture: name ? { name, k: 1, ph: ((t + i * 0.3) * 0.5) % 1 } : null, emotion: mood === 'watch' ? 'neutral' : 'happy', mouth: mood === 'cheer' ? Math.abs(Math.sin(t * 6 + i)) * 0.6 : 0 }); } }; }
+    const a = (tl.bean ? createBeanActor : createFlatActor)(new THREE.Group(), ch); const g = new THREE.Group(); a.o.parent?.remove(a.o); g.add(a.o);
+    if (tl.bean && a.materials) { const fog = new THREE.Color('#4a4c56'), f = i % 2 ? 0.58 : 0.4; for (const q of a.materials) q.m.color.copy(q.base).lerp(fog, f); } /* people further back are dimmer (depth) */
+    return { flat: true, group: g, set(t, mood_) { const mood = mood_ && mood_.mood ? mood_.mood : mood_; const dist = mood_ && mood_.dist != null ? mood_.dist : t * 0.3; const walk = mood === 'walk'; const dir = (mood_ && mood_.dir) || 1; const name = { dance: 'dance', cheer: (i + Math.floor(t * 0.5)) % 3 ? 'wave' : 'clap', clap: 'clap', watch: i % 4 === 0 ? 'point' : '', queue: i % 3 === 1 ? 'scroll_phone' : '' }[mood] || '';
+      poseFlat(a, t + i * 0.37, { yaw: walk ? 1.4 * dir : mood === 'queue' ? 1.15 * dir : ((i % 3) - 1) * 0.3, walk: walk ? 1 : 0, walkDist: walk ? dist + i * 0.37 : null, gesture: name ? { name, k: 1, ph: ((t + i * 0.3) * 0.5) % 1 } : null, emotion: mood === 'watch' || mood === 'walk' || mood === 'queue' ? (tl.bean ? 'tired' : 'neutral') : 'happy', mouth: mood === 'cheer' ? Math.abs(Math.sin(t * 6 + i)) * 0.6 : 0 }); } }; }
   const safa = makeSafa(grad); safa.visible = false; scene.add(safa);
   const confetti = []; { const cols = [0xff4d6d, 0xffd166, 0x06d6a0, 0x4cc9f0, 0xf72585, 0xffffff]; for (let i = 0; i < 46; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.012, 0.018), new THREE.MeshBasicMaterial({ color: cols[i % cols.length], side: THREE.DoubleSide, depthTest: false, toneMapped: false })); m.userData.outlineParameters = { visible: false }; m.visible = false; m.position.z = 44; scene.add(m); confetti.push(m); } }
   // cinematic rig (far away from the stage): the speaker faces a perspective camera, the listener's shoulder in front,
@@ -161,6 +166,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
   P.cup = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.035, 0.09, 12), toon('#ffffff'));
   P.drink = P.sip = P.hold_cup = P.cup;
   P.phone = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.15, 0.015), toon('#15151a'));
+  P.scroll_phone = (() => { const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.13, 0.012), toon('#15151a')); const scr = noOutline(new THREE.Mesh(new THREE.PlaneGeometry(0.055, 0.105), new THREE.MeshBasicMaterial({ color: 0xbfe0ff, toneMapped: false }))); scr.position.z = 0.007; g.add(b, scr); return g; })();
   P.file = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.32, 0.02), toon('#d9a441'));
   P.write = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.015), toon('#f1efe6'));
   P.read = P.file;
@@ -241,7 +247,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     function applyLinks() { for (const [f, l] of Object.entries(links)) { const L = C[l.to], F = C[f]; if (!L || !F) continue; L.linkLead = { id: f, mode: l.mode }; F.link = { id: l.to, mode: l.mode };
       if (L.inV || F.inV) continue; if (L.walk || L.run) l.dir = L.face; const dir = l.dir || L.face || 1; const g = gapOf(L);
       F.visible = L.visible; F.anchor = null; F.sit = 0; F.lie = 0; F.walk = L.walk; F.run = L.run; F.walkDist = L.walkDist; F.feetY = L.feetY != null ? L.feetY + (l.mode === 'hand' ? -0.012 : 0.012) : null; F.row = L.row + (l.mode === 'hand' ? 0.05 : -0.04);
-      if (l.mode === 'hand') { F.x = L.x - dir * g * 0.78; F.face = dir; if (L.walk || L.run) F.keepFace = L.keepFace = true; } else { F.x = L.x + dir * g * 0.62; F.face = dir; if (!L.walk && !L.run) L.face = F.x > L.x ? 1 : -1; F.keepFace = L.keepFace = true; } } }
+      if (l.mode === 'hand') { F.x = L.x - dir * g * (tl.bean ? 1.4 : 0.78); F.face = dir; if (L.walk || L.run) F.keepFace = L.keepFace = true; } else { F.x = L.x + dir * g * 0.62; F.face = dir; if (!L.walk && !L.run) L.face = F.x > L.x ? 1 : -1; F.keepFace = L.keepFace = true; } } }
     for (const e of p.ev) {
       if (t < e.t0) break; const until = e._until ?? e.t1; const k = Math.min(1, (t - e.t0) / Math.max(0.01, e.t1 - e.t0)), done = t >= e.t1;
       const c = C[e.char];
@@ -249,11 +255,12 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       const free = (cc) => { cc.anchor = null; cc.feetY = null; cc.sit = 0; cc.lie = 0; cc.swim = 0; cc.climbed = null; };
       applyLinks();
       if (e.char && links[e.char] && !['hold_hands', 'escort', 'gesture', 'let_go', 'beat', 'handcuff'].includes(e.kind)) { const L0 = links[e.char]; delete links[e.char]; if (C[e.char]) C[e.char].link = null; if (C[L0.to]) C[L0.to].linkLead = null; } // the one being led moves on their own
-      if (e.kind === 'gesture') { if (C[e.char] && ['drink', 'sip', 'hold_cup'].includes(e.name)) C[e.char].holding = 'cup'; if (C[e.char] && e.name === 'put_down' && t >= e.t0 + 0.5) C[e.char].holding = null; continue; }
+      if (e.kind === 'gesture') { if (C[e.char] && ['drink', 'sip', 'hold_cup'].includes(e.name)) C[e.char].holding = 'cup'; if (C[e.char] && e.name === 'put_down' && t >= e.t0 + 0.5) C[e.char].holding = C[e.char].sit > 0.5 && C[e.char].anchor?.tableY != null ? 'cup' : null; /* at a table the cup stays on the table */ continue; }
       if (e.kind === 'animal' && e.animal === 'birds') { const a = A.birds; if (a && e.act === 'fly') { a.fly = { t0: e.t0, t1: e.t1 }; } continue; }
       if (e.kind === 'animal') { const a = A[e.animal]; if (!a) continue; const side = (x) => (x < 0.5 ? -0.15 : 1.15); const on = !done;
         if (e.act === 'enter') { a.visible = true; const x0 = side(a.home.x); a.x = lerp(x0, a.home.x, k); a.face = a.home.x > x0 ? 1 : -1; a.move = on ? 1 : 0; }
         else if (e.act === 'exit' || e.act === 'run') { const x0 = a.x, x1 = e.act === 'run' ? (a.face > 0 ? 1.2 : -0.2) : side(x0); a.x = lerp(x0, x1, k); a.face = x1 > x0 ? 1 : -1; a.move = on ? 1 : 0; a.run = e.act === 'run' && on ? 1 : 0; if (done) a.visible = false; }
+        else if (e.act === 'leash' && C[e.target]) { a.visible = true; a.leash = e.target; }
         else if (e.act === 'follow' && C[e.target]) { const tc = C[e.target]; a.visible = true; const x0 = a.x, x1 = tc.x + (x0 < tc.x ? -0.09 : 0.09); a.x = lerp(x0, x1, sm(0, 1, k)); a.row = tc.row + 0.05; a.face = x1 > x0 ? 1 : -1; a.move = on ? 1 : 0; }
         else if (on) { a.visible = true; a.act = e.act === 'jump' || e.act === 'chatter' ? 'jump' : ['bark', 'moo', 'neigh', 'bleat', 'meow', 'trumpet', 'roar'].includes(e.act) ? 'bark' : e.act === 'sit' ? 'sit' : null; a.head = e.act === 'graze' ? 'down' : ['moo', 'neigh', 'trumpet', 'bleat'].includes(e.act) ? 'up' : null; }
         else if (e.act === 'sit') a.act = 'sit';
@@ -370,17 +377,22 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
             if (active && kw >= 1) { const cyc = Math.floor((t - e.t0) * 1.1 + i * 0.7) % 3; w._g = { name: cyc === 2 && r === 0 ? 'kick' : cyc === 1 ? 'slap' : 'punch', k: 1, ph: ((t - e.t0) * 1.6 + i * 0.37) % 1 }; } else if (!active) w._g = { name: 'angry', k: 1 - sm(until, until + 1.5, t) }; });
           if (active && t > e.t0 + 0.9) { c._g = { name: 'cower', k: 1 }; c.struggle = 0.8; c.x += Math.sin(t * 17) * 0.004; shake = Math.max(shake, 0.5); } else if (!active) { c._g = { name: 'cower', k: 1 - sm(until, until + 2.5, t) }; c.struggle = 0; }
           break; }
-        case 'sleep': c.lie = sm(0, 0.6, k); c.sit = 0; c.walk = c.run = 0; c.sleeping = true; break;
+        case 'thoughts': { const until = e._until ?? e.t1; if (t < until + 0.5) { FX.thoughts = { char: e.char, t0: e.t0, until, items: e.items || [] }; if (t < until) { c.worry = true; c._g = { name: 'cower', k: sm(e.t0, e.t0 + 0.6, t) * 0.6 }; } } break; }
+        case 'dream': { const until = e._until ?? e.t1; if (t < until + 0.6) FX.dream = { char: e.char, t0: e.t0, until, bg: e.dreamBg, with: e.with || [] }; break; }
+        case 'sleep': { const bed = p.ms.find((m) => m.type === 'bed'); if (bed && !c.inV && !(c.anchor && c.anchor.type === 'bed')) { /* walk to the bed, then lie down on it */ const x0 = c.x, x1 = bed.x - (bed.w || 0.3) * 0.3; const wd = Math.min(3.5, Math.abs(x1 - x0) * 4.5); const kw = wd > 0.05 ? Math.min(1, (t - e.t0) / wd) : 1;
+            if (kw < 1) { free(c); go(c, x0, x1, false, kw); break; } c.anchor = bed; c.feetY = bed.y; c.x = bed.x; c.sit = 0; c.walk = c.run = 0; c.lie = sm(e.t0 + wd, e.t0 + wd + 0.6, t); c.sleeping = true; break; }
+          c.lie = sm(0, 0.6, k); c.sit = 0; c.walk = c.run = 0; c.sleeping = true; break; }
         default: break;
       }
     }
     applyLinks();
+    for (const a of Object.values(A)) if (a.leash && C[a.leash]) { const o = C[a.leash]; a.visible = o.visible && !o.inV; const dir = o.face || 1; const g = gapOf(o) * 0.95; a.x = o.x + dir * g; a.row = o.row - 0.04; a.face = dir; a.move = o.walk || o.run ? 1 : 0; a.run = o.run ? 1 : 0; a.dist = (o.x * AR) / Math.max(0.05, heightAt(b, feet(o)) / 1.7) * dir; } /* the dog walks a little ahead of the owner on its leash */
     for (const c0 of Object.values(C)) if (c0.visible && !c0.inV && !c0.leaving && !c0.link && !chasing && !c0.anchor) c0.x = Math.min(0.9, Math.max(0.1, c0.x)); /* stay inside the picture (only entering / leaving people use the edges) */
     // keep people apart (except those touching on purpose)
     { const TOUCH = new Set(['hug', 'punch', 'hit_back', 'grab', 'cuff', 'give', 'receive', 'push', 'slap', 'aarti', 'dandiya']); const touching = new Set(Object.entries(C).filter(([, c]) => c.grab || c._cuff || c.link || c.linkLead || c._touch || (c._g && TOUCH.has(c._g.name))).map(([id]) => id));
-      const L = Object.entries(C).filter(([, c]) => c.visible && !c.inV && !c.lie && !c.swim && !c.climbed && !(c.anchor && SIT_TYPES.has(c.anchor.type)));
+      const L = Object.entries(C).filter(([, c]) => c.visible && !c.inV && !c.lie && !c.swim && !c.climbed); /* seated people stay put, standing people step away from them */
       for (let it = 0; it < 5; it++) for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) { const [ia, A1] = L[i], [ib, B1] = L[j]; if (touching.has(ia) && touching.has(ib)) continue;
-        const fa = feet(A1), fb = feet(B1); if (Math.abs(fa - fb) > 0.3) continue; const gap = (0.42 * Math.max(heightAt(b, fa), heightAt(b, fb))) / AR; const dx = B1.x - A1.x; if (Math.abs(dx) >= gap) continue;
+        const fa = feet(A1), fb = feet(B1); if (Math.abs(fa - fb) > 0.3) continue; const gap = ((tl.bean ? 0.55 : 0.42) * Math.max(heightAt(b, fa), heightAt(b, fb))) / AR * (A1.sit > 0.5 || B1.sit > 0.5 ? 1.45 : 1); /* seated legs stick out */ const dx = B1.x - A1.x; if (Math.abs(dx) >= gap) continue;
         const push = (gap - Math.abs(dx)) / 2; const sgn = dx === 0 ? (ia < ib ? 1 : -1) : Math.sign(dx); const am = A1.anchor ? 0 : 1, bm = B1.anchor ? 0 : 1; const tot = Math.max(1, am + bm);
         A1.x = Math.max(0.08, Math.min(0.92, A1.x - sgn * push * 2 * (am / tot))); B1.x = Math.max(0.08, Math.min(0.92, B1.x + sgn * push * 2 * (bm / tot))); } }
     return { C, V, A, FX, scroll, chasing, shake, crowd, baraat };
@@ -404,11 +416,21 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       if (L && L.mode === 'arm' && vis.includes(L.id) && actors[L.id].flat && !st[L.id].inV) { const th = actors[L.id], H = holders[L.id].h; const tm = st[L.id].face || 1; const P_ = th.parts; const W = V3(H.position.x + (-P_.shoulderB.x * 0.6) * tm * H.scale.x, H.position.y + (P_.shoulderB.y - P_.armU * 0.55) * H.scale.x, 0); pp.holdF = toLocal(id, W, mir); pp.gesture = null; }
     }
     const W_ = S.FX.wallet; if (W_ && W_.to === id && W_.q > 0.38 && W_.q < 0.62 && vis.includes(W_.from)) { const vH = holders[W_.from].h; const vm = st[W_.from].face || 1; const vk = actors[W_.from].parts?.k || 1; const W = V3(vH.position.x - 0.1 * vk * vm * vH.scale.x, vH.position.y + (st[W_.from].sit > 0.5 ? 0.36 : 0.5) * vk * vH.scale.x, 0); pp.holdF = toLocal(id, W, mir); }
-    const gname = pp.gesture?.name; if (c.holding === 'cup' && !gname && !pp.holdF && !c.walk && !c.run) pp.gesture = { name: 'hold_cup', k: 1 };
+    const gname = pp.gesture?.name; const an = c.anchor; const atTable = c.sit > 0.5 && an && an.type === 'seat' && an.tableY != null && !c.inV;
+    if (atTable) { const H = holders[id].h, s = H.scale.x, k_ = a.parts.k || 1, dir = c.face || 1; const top = 1 - an.tableY; const tableCup = ((an.cup || an.stool) && !flatState.served) || c.holding === 'cup'; /* a cafe table has cups, unless the waiter brings them in this scene */ const sipping = ['drink', 'sip'].includes(gname);
+      const cupX = H.position.x + dir * 0.36 * k_ * s; if (tableCup && !sipping) flatState.tableCups.push({ id, x: cupX, y: top, z: H.position.z + 0.15 * s, s, mir: dir }); /* the cup stands on the table until it is picked up */
+      if (!gname && !pp.holdF && !pp.talk) { pp.holdF = toLocal(id, V3(cupX - dir * 0.075 * s, top + 0.03 * s, 0), mir); pp.holdB = toLocal(id, V3(H.position.x + dir * 0.24 * k_ * s, top + 0.012 * s, 0), mir); } /* hands rest on the table */
+      if (!sipping) { flatState.cups.push({ id, mir, show: false }); return; } }
+    if (!pp.holdF) for (const [k_, an_] of Object.entries(S.A)) if (an_.leash === id && an_.visible && animals[k_]?.group.userData.collar) { const col = new THREE.Vector3(); animals[k_].group.updateMatrixWorld(true); animals[k_].group.userData.collar.getWorldPosition(col); const H = holders[id].h; const s = H.scale.x;
+      pp.holdF = toLocal(id, V3(lerp(H.position.x, col.x, 0.42), H.position.y + 0.62 * (a.parts.k || 1) * s, 0), mir); flatState.leash = { id, k: k_, col }; } /* holding the dog's leash */
+    if (c.holding === 'cup' && !gname && !pp.holdF && !c.walk && !c.run) pp.gesture = { name: 'hold_cup', k: 1 };
     flatState.cups.push({ id, mir, show: (c.holding === 'cup' || ['drink', 'sip', 'hold_cup'].includes(pp.gesture?.name) || (c._g?.item && CUP.test(c._g.item))) && !c.inV, ph: pp.gesture?.ph, sip: ['drink', 'sip'].includes(pp.gesture?.name) });
   }
   function placeFlatProps(t, S, vis) {
     for (const m of Object.values(flatProps)) m.visible = false;
+    for (const q of flatState.tableCups || []) { if (!vis.includes(q.id)) continue; const m = fprop('tcup:' + q.id, () => makeFlatCup()); m.visible = true; m.scale.set(q.s * q.mir * 0.9, q.s * 0.9, q.s); m.rotation.z = 0; m.position.set(q.x, q.y + 0.006 * q.s, q.z); m.userData.set?.(t, 1); }
+    const LS = flatState.leash; if (LS && vis.includes(LS.id)) { const m = fprop('leash', () => { const g = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x8a2a22, toneMapped: false })); g.userData.outlineParameters = { visible: false }; g.material.userData.outlineParameters = { visible: false }; return g; }); const hp = handPos(actors[LS.id]); const s = holders[LS.id].h.scale.x;
+      const dx = LS.col.x - hp.x, dy = LS.col.y - hp.y; m.visible = true; m.scale.set(Math.hypot(dx, dy), 0.018 * s, 1); m.rotation.z = Math.atan2(dy, dx); m.position.set((hp.x + LS.col.x) / 2, (hp.y + LS.col.y) / 2 - 0.004, Math.max(hp.z, LS.col.z) + 0.2); }
     for (const q of flatState.cups) { if (!q.show || !vis.includes(q.id)) continue; const m = fprop('cup:' + q.id, () => makeFlatCup()); const hp = handPos(actors[q.id]); const s = holders[q.id].h.scale.x;
       m.visible = true; m.scale.set(s * q.mir, s, s); const lift = q.sip && q.ph != null ? sm(0.18, 0.3, q.ph) * (1 - sm(0.72, 0.85, q.ph)) : 0; m.rotation.z = q.mir * 0.75 * lift; m.position.set(hp.x - 0.05 * s * Math.sin(m.rotation.z), hp.y - 0.055 * s, hp.z + 0.09 * s); m.userData.set(t, 1 - lift * 0.6); }
     const W_ = S.FX.wallet; if (W_ && !W_.hidden) { const who = W_.owner; if (vis.includes(who)) { const m = fprop('wallet', () => makeFlatWallet()); const s = holders[who].h.scale.x; m.visible = true; m.scale.setScalar(s);
@@ -464,15 +486,17 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
     }
     // animals
     for (const [k, m] of Object.entries(animals)) { const a = S.A[k]; m.group.visible = !!(a && a.visible); if (!m.group.visible) continue; const fy = rowY(b, a.row); const sc2 = heightAt(b, fy) / 1.7;
-      m.group.scale.setScalar(sc2); m.group.position.set(a.x * AR, 1 - fy, zOf(fy) + 0.05); m.group.rotation.y = a.face > 0 ? -0.3 : Math.PI + 0.3; m.set(t, { phase: t * (a.run ? 12 : 7), moving: a.move, run: a.run, head: a.head, act: a.act }); }
+      m.group.scale.setScalar(sc2); m.group.position.set(a.x * AR, 1 - fy, zOf(fy) + 0.05); m.group.rotation.y = a.face > 0 ? -0.3 : Math.PI + 0.3; if (m.flat) { m.group.rotation.y = 0; m.group.scale.set(sc2 * a.face, sc2, sc2); } m.set(t, { phase: a.leash ? (a.dist || 0) * 9 : t * (a.run ? 12 : 7), moving: a.move, run: a.run, head: a.head, act: a.act }); }
     // crowd people in the back rows (they face the camera)
     extras.forEach((e, i) => { const on = !!S.crowd.mood && i < S.crowd.count; e.group.visible = on; if (!on) return; const n = S.crowd.count; const row = 0.72 + (i % 2) * 0.28; const fy = rowY(b, row);
-      const walk = S.crowd.mood === 'walk'; const x = ((i + 0.5) / n) * 0.94 + 0.03 + (walk ? ((t * (tl.flat ? 0.055 : 0.03)) % 1) : 0); const sc2 = heightAt(b, fy) / 1.7;
-      e.group.scale.setScalar(sc2); e.group.position.set((((x % 1.1) + 1.1) % 1.1) * AR, 1 - fy, zOf(fy) - 0.2); e.group.rotation.y = e.flat ? 0 : walk ? 0 : -Math.PI / 2 + Math.sin(i) * 0.25; e.set(t, e.flat && S.crowd.mood === 'walk' ? { mood: 'walk', dist: (t * 0.055 * AR) / Math.max(0.05, sc2) } : S.crowd.mood); });
+      const walk = S.crowd.mood === 'walk'; const dir = e.flat && walk && i % 2 ? -1 : 1; const spd = (tl.flat ? 0.05 : 0.03) * (1 + (i % 3) * 0.12); let x = ((i + 0.5) / n) * 0.94 + 0.03 + (walk ? dir * ((t * spd) % 1.1) : 0); let fy2 = fy, qd = 1;
+      const ctr = S.crowd.mood === 'queue' ? p.ms.find((m) => m.type === 'counter') : null; if (ctr) { qd = ctr.x > 0.5 ? 1 : -1; x = ctr.x - qd * ((ctr.w || 0.2) / 2 + 0.05 + i * (tl.bean ? 0.1 : 0.075)); fy2 = b.groundNear - 0.03 - (i % 2) * 0.015; }
+      const sc2 = heightAt(b, fy2) / 1.7;
+      e.group.scale.setScalar(sc2); e.group.position.set((((x % 1.1) + 1.1) % 1.1) * AR, 1 - fy2, zOf(fy2) - 0.2); e.group.rotation.y = e.flat ? 0 : walk ? 0 : -Math.PI / 2 + Math.sin(i) * 0.25; e.set(t, e.flat && walk ? { mood: 'walk', dir, dist: (t * spd * AR) / Math.max(0.05, sc2) } : e.flat && ctr ? { mood: 'queue', dir: qd } : S.crowd.mood); });
     // baraat: groom's safa + confetti
     confetti.forEach((m, i) => { m.visible = !!(S.baraat && S.baraat.active); if (!m.visible) return; const y = 1.05 - (((t * (0.09 + (i % 5) * 0.012)) + i * 0.137) % 1.15); m.position.x = ((i * 0.618) % 1) * AR + Math.sin(t * 1.7 + i) * 0.02; m.position.y = y; m.rotation.set(t * 2 + i, t * 3 + i * 0.5, 0); });
     // talk / look / gestures
-    flatState = { vis, st, cups: [] }; st_ = (id) => st[id] || {};
+    flatState = { vis, st, cups: [], tableCups: [], leash: null, served: p.ev.some((e) => e.kind === 'give' && CUP.test(e.item || '')) }; st_ = (id) => st[id] || {};
     let lastLine = null; for (const x of tl.lines) if (x.scene === sc.index && x.start <= t) lastLine = x;
     for (const id of vis) {
       const c = st[id]; const a = actors[id]; const speaking = line && line.char === id;
@@ -491,6 +515,7 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       else if (lastLine && lastLine.char === id && t - lastLine.end < 2) pp.emotion = lastLine.emotion;
       const g = sc.events.find((e) => e.kind === 'gesture' && e.char === id && t >= e.t0 && t < e.t1); if (g) pp.gesture = { name: g.name, k: sm(g.t0, g.t0 + 0.3, t) * (1 - sm(g.t1 - 0.3, g.t1, t)), ph: (t - g.t0) / Math.max(0.01, g.t1 - g.t0) };
       if (c.grab) pp.gesture = { name: 'grab', k: 1 }; if (c._cuff) pp.gesture = { name: 'cuff', k: 1 }; if (c._g && c._g.k > 0) pp.gesture = c._g; if (c.swim && !c.inV) pp.gesture = { name: 'swim', k: 1 }; if (c.sleeping && c.lie > 0.5) pp.emotion = 'sleep';
+      if (c.worry) pp.emotion = 'worried';
       if (a.flat) flatExtras(id, c, a, pp, t, S);
       poseAny(a, t, pp); yawOf[id] = pp.yaw; ppOf[id] = pp;
     }
@@ -632,7 +657,52 @@ export async function createStageEngine({ canvas, width, height, tl, url }) {
       outline.render(scene, rigCam); return; }
     bench.visible = benchTop.visible = false;
     if (shot.type === 'cake' && S.FX.birthday) { const tfy = rowY(b, 0.22); const ts = heightAt(b, tfy) / 1.7; zoom = 2.6; cx = 0.5 * AR; cy = 1 - tfy + 1.0 * ts; const hw2 = AR / 2 / zoom, hh2 = 0.5 / zoom; cam.left = cx - hw2; cam.right = cx + hw2; cam.top = cy + hh2; cam.bottom = cy - hh2; cam.updateProjectionMatrix(); }
+    doodles(t, S, sc, b, line, vis, st);
     outline.render(scene, cam);
+  }
+  // ---- Bean Night doodles: speech bubbles, battery meter, big words, red worry notes, dream cloud (all styles can use them) ----
+  const DD = { bubble: new Map(), big: new Map(), notes: new Map(), dream: new Map(), dots: [], battery: null, dim: null }; const OVZ = 48;
+  const ddAll = () => [...DD.bubble.values(), ...DD.big.values(), ...DD.notes.values(), ...DD.dream.values(), ...DD.dots, DD.battery, DD.dim].filter(Boolean);
+  const keep = (map, key, make, max = 40) => { let m = map.get(key); if (!m) { m = make(); scene.add(m); map.set(key, m); if (map.size > max) { const [k0, m0] = map.entries().next().value; if (k0 !== key) { scene.remove(m0); m0.material.map?.dispose(); m0.material.dispose(); map.delete(k0); } } } return m; };
+  const lineText = (l) => { const lg = tl.bubbleLang || 'hinglish'; return String((lg === 'hindi' ? l.hindi : lg === 'english' ? l.english : l.hinglish) || l.hinglish || l.hindi || l.english || '').trim(); };
+  const isShadow = (id) => !!actors[id]?.shadow;
+  const battEv = tl.scenes.flatMap((x) => x.events.filter((e) => e.kind === 'battery')).sort((a_, b_) => a_.t0 - b_.t0);
+  function topOf(id) { const hp = headPos(actors[id]); const s = holders[id].h.scale.x; const r = actors[id].parts?.headR || 0.15; return { x: hp.x, y: hp.y + r * s * 1.45, s }; }
+  function put(m, x, y, h, sc = 1, z = OVZ) { const vw = cam.right - cam.left, vh = cam.top - cam.bottom; const w = h * m.userData.aspect; const mg = vh * 0.02;
+    x = Math.min(cam.right - w / 2 - mg, Math.max(cam.left + w / 2 + mg, x)); y = Math.min(cam.top - h / 2 - mg, Math.max(cam.bottom + h / 2 + mg, y)); m.visible = true; m.scale.set(w * sc, h * sc, 1); m.position.set(x, y, z); return { x, y, w, h, vw }; }
+  function doodles(t, S, sc, b, line, vis, st) {
+    for (const m of ddAll()) m.visible = false; const vh = cam.top - cam.bottom, px = vh / 720; // one output pixel (720p) in world units
+    for (const id of vis) if (actors[id].aura) actors[id].aura.material.opacity = 0.7 + Math.sin(t * 2.4) * 0.15;
+    const pop = (t0) => { const q = Math.min(1, Math.max(0, (t - t0) / 0.22)); return q < 1 ? 0.6 + 0.55 * Math.sin(q * Math.PI * 0.75) : 1; };
+    // battery meter (above that person, or the top-left corner)
+    let battTop = null; const be = battEv.filter((e) => e.t0 <= t && e.t0 >= sc.start - 0.01).pop();
+    if (be && t < be.t0 + 3.4) { const prev = battEv[battEv.indexOf(be) - 1]; const v0 = prev ? prev.value : be.value; const v = lerp(v0, be.value, sm(be.t0 + 0.2, be.t0 + 1.0, t)); DD.battery ||= (() => { const m = makeBattery(); scene.add(m); return m; })(); DD.battery.userData.set(Math.round(v), be.color);
+      const fade = 1 - sm(be.t0 + 3.0, be.t0 + 3.4, t); DD.battery.material.opacity = fade; const h = 70 * px; if (be.char && vis.includes(be.char)) { const tp = topOf(be.char); battTop = { id: be.char, y: tp.y + h }; put(DD.battery, tp.x, tp.y + h * 0.55, h, pop(be.t0)); } else put(DD.battery, cam.left + h * 2, cam.top - h, h, pop(be.t0)); }
+    // speech bubble: the line in chunks above the speaker (inner voice: red glowing words); narrator at the bottom
+    if (tl.bean && line) { const txt = lineText(line); const words = txt.split(/\s+/).filter(Boolean); const per = 9; const n = Math.max(1, Math.ceil(words.length / per)); const q = Math.min(n - 1, Math.floor(((t - line.start) / Math.max(0.1, line.end - line.start)) * n));
+      const chunk = words.slice(q * per, (q + 1) * per).join(' '); const who = line.char; const red = isShadow(who);
+      if (chunk) { const m = keep(DD.bubble, `${line.id}:${q}`, () => makeBubble(chunk, { red })); const H_ = (red ? 0.85 : 0.55) * px * (m.material.map.image.height); const t0 = q === 0 ? line.start : -9;
+        if (who !== 'narrator' && vis.includes(who)) { const tp = topOf(who); const y0 = battTop && battTop.id === who ? battTop.y + 10 * px : tp.y + 14 * px; put(m, tp.x, y0 + H_ / 2, H_, pop(t0)); m.material.opacity = 1 - sm(line.end - 0.08, line.end + 0.12, t); }
+        else put(m, (cam.left + cam.right) / 2, cam.bottom + H_ / 2 + 30 * px, H_, 1); } }
+    // big words ("GO!")
+    for (const e of sc.events) if (e.kind === 'big_text' && t >= e.t0 && t < e.t1) { const m = keep(DD.big, e.text + '|' + (e.color || ''), () => makeBigText(e.text, e.color || '#f2f2f2')); put(m, (cam.left + cam.right) / 2, (cam.top + cam.bottom) / 2 + vh * 0.12, vh * 0.3, pop(e.t0) * (1 + 0.04 * Math.sin((t - e.t0) * 9))); m.material.opacity = 1 - sm(e.t1 - 0.3, e.t1, t); }
+    // worry attack: red sticky notes appear one by one around the person, the room goes dark
+    const TH = S.FX.thoughts; if (TH && vis.includes(TH.char)) { const items = TH.items.length ? TH.items : ['sab dekh rahe hain', 'late ho gaya', 'galat ho jayega', 'kya sochenge log', 'main fail hoon', 'peeche mudo', 'bhaag jao', 'sab hasenge'];
+      const N = Math.min(18, Math.max(10, items.length)); const dur = Math.max(1.5, TH.until - TH.t0); const out = 1 - sm(TH.until, TH.until + 0.45, t); const hp = headPos(actors[TH.char]);
+      DD.dim ||= (() => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x050002, transparent: true, depthWrite: false, toneMapped: false })); m.userData.outlineParameters = { visible: false }; m.material.userData.outlineParameters = { visible: false }; scene.add(m); return m; })();
+      DD.dim.visible = true; DD.dim.material.opacity = 0.5 * sm(TH.t0, TH.t0 + 0.8, t) * out; DD.dim.scale.set(AR * 2, 2, 1); DD.dim.position.set(AR / 2, 0.5, 5);
+      for (let i = 0; i < N; i++) { const at = TH.t0 + 0.3 + i * Math.min(0.32, (dur * 0.7) / N); if (t < at) continue; const m = keep(DD.notes, TH.char + ':' + i + ':' + items[i % items.length], () => makeNote(items[i % items.length], i), 60);
+        const ang = i * 2.39996 + 0.4, rad = 0.3 + 0.6 * ((i * 0.618) % 1); const vw = cam.right - cam.left; const x = hp.x + Math.cos(ang) * rad * vw * 0.42 + Math.sin(t * 1.3 + i) * 4 * px, y = hp.y + Math.sin(ang) * rad * vh * 0.42 + Math.cos(t * 1.1 + i * 2) * 4 * px;
+        put(m, x, y, 128 * px, pop(at) * out, OVZ - 1 + i * 0.01); m.rotation.z = (((i * 0.37) % 1) - 0.5) * 0.5; } }
+    // dream / imagination: a red-glowing cloud above the dreamer with the place and the people in it
+    const DR = S.FX.dream; if (DR && vis.includes(DR.char)) { const want = String(DR.bg || '').toLowerCase(); const bgs = tl.backgrounds || {};
+      const bid = bgs[DR.bg] ? DR.bg : Object.keys(bgs).find((k) => want && (k.toLowerCase().includes(want) || String(bgs[k].name || '').toLowerCase().includes(want) || String(bgs[k].place || '').toLowerCase().includes(want))) || sc.background;
+      const nf = Math.min(4, (DR.with || []).length); const m = keep(DD.dream, bid + ':' + nf, () => makeDreamCloud(bgTex[bid]?.image, nf), 6); const tp = topOf(DR.char);
+      const grow = sm(DR.t0 + 0.5, DR.t0 + 1.2, t) * (1 - sm(DR.until, DR.until + 0.6, t)); const vw = cam.right - cam.left; const side = tp.x < (cam.left + cam.right) / 2 ? 1 : -1; const H_ = vh * 0.52;
+      const cx_ = Math.min(cam.right - H_ * 0.8, Math.max(cam.left + H_ * 0.8, tp.x + side * vw * 0.2)); const cy_ = Math.min(cam.top - H_ / 2 - vh * 0.03, tp.y + vh * 0.2 + H_ * 0.3) + Math.sin(t * 1.2) * 3 * px;
+      if (grow > 0.01) put(m, cx_, cy_, H_, grow);
+      for (let i = 0; i < 3; i++) { const d = DD.dots[i] || (DD.dots[i] = (() => { const x = makeDot(); scene.add(x); return x; })()); const k = sm(DR.t0 + i * 0.18, DR.t0 + 0.2 + i * 0.18, t) * (1 - sm(DR.until, DR.until + 0.5, t)); if (k < 0.01) continue;
+        const f = (i + 1) / 4; put(d, lerp(tp.x, cx_ - side * H_ * 0.45, f), lerp(tp.y + 6 * px, cy_ - H_ * 0.4, f), (14 + i * 9) * px, k); } }
   }
   function doorWorld(m, seat) { if (m.doors) { const sx = m.seats[Math.min(seat, m.seats.length - 1)][0]; return m.doors.reduce((b_, d) => (Math.abs(d - sx) < Math.abs(b_ - sx) ? d : b_), m.doors[0]); } return seat > 0 && m.seats[1] ? m.seats[1][0] : m.doorX; }
   return { renderAt };

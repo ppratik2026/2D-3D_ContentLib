@@ -1,0 +1,29 @@
+{
+  "id": "bg_bean_bedroom",
+  "file": "backgrounds/bg_bean_bedroom/image.jpg",
+  "rev": 3,
+  "name": "Bean: bedroom at night",
+  "place": "house_inside",
+  "time": "night",
+  "indoor": true,
+  "tags": [
+    "bean",
+    "bedroom",
+    "home",
+    "house",
+    "night",
+    "bed",
+    "sleep"
+  ],
+  "groundNear": 0.91,
+  "groundFar": 0.874,
+  "heightNear": 0.4,
+  "seats": [
+    {
+      "type": "bed",
+      "x": 0.6,
+      "y": 0.73,
+      "w": 0.46
+    }
+  ]
+}

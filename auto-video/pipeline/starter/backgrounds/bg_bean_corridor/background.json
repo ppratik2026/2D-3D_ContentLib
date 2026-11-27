@@ -1,0 +1,21 @@
+{
+  "id": "bg_bean_corridor",
+  "file": "backgrounds/bg_bean_corridor/image.jpg",
+  "rev": 3,
+  "name": "Bean: school corridor (lockers)",
+  "place": "school",
+  "time": "day",
+  "indoor": true,
+  "tags": [
+    "bean",
+    "school",
+    "corridor",
+    "lockers",
+    "college",
+    "hallway"
+  ],
+  "groundNear": 0.91,
+  "groundFar": 0.874,
+  "heightNear": 0.4,
+  "seats": []
+}

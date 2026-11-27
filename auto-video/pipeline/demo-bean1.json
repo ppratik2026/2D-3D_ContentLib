@@ -1,0 +1,484 @@
+{
+ "title": "Battery 1%",
+ "title_hindi": "बैटरी 1%",
+ "logline": "Ek thaka hua student, uski battery aur andar ki awaaz.",
+ "moral": "Neend aur mehnat dono zaroori hain.",
+ "category": "comedy",
+ "characters": [
+  {
+   "id": "arjun",
+   "name": "Arjun",
+   "gender": "male",
+   "age": "young",
+   "role": "college student",
+   "look": "white",
+   "personality": "tired, funny"
+  },
+  {
+   "id": "riya",
+   "name": "Riya",
+   "gender": "female",
+   "age": "young",
+   "role": "best friend",
+   "look": "tan",
+   "hair_color": "#3b2f2a",
+   "personality": "cheerful"
+  },
+  {
+   "id": "chhotu",
+   "name": "Chhotu",
+   "gender": "male",
+   "age": "child",
+   "role": "little brother, red beanie",
+   "look": "white",
+   "personality": "naughty"
+  },
+  {
+   "id": "awaaz",
+   "name": "Andar ki Awaaz",
+   "gender": "male",
+   "age": "adult",
+   "role": "inner voice (shadow)",
+   "personality": "calm, scary"
+  },
+  {
+   "id": "sir",
+   "name": "Sharma Sir",
+   "gender": "male",
+   "age": "old",
+   "role": "teacher",
+   "look": "tan",
+   "personality": "strict"
+  },
+  {
+   "id": "bhaiya",
+   "name": "Cafe Bhaiya",
+   "gender": "male",
+   "age": "adult",
+   "role": "barista cap",
+   "look": "tan",
+   "personality": "friendly"
+  }
+ ],
+ "scenes": [
+  {
+   "background": "bg_bean_bedroom",
+   "time_of_day": "night",
+   "present": [
+    "arjun"
+   ],
+   "summary": "3 baje raat, Arjun phone chala raha hai.",
+   "seconds": 26,
+   "beats": [
+    {
+     "type": "action",
+     "action": "big_text",
+     "text": "3:00 AM",
+     "seconds": 1.6
+    },
+    {
+     "type": "action",
+     "action": "scroll_phone",
+     "char": "arjun"
+    },
+    {
+     "type": "action",
+     "action": "battery",
+     "char": "arjun",
+     "value": 12
+    },
+    {
+     "type": "action",
+     "action": "enter",
+     "char": "awaaz"
+    },
+    {
+     "type": "line",
+     "char": "awaaz",
+     "emotion": "neutral",
+     "hindi": "सो जा अर्जुन... कल एग्ज़ाम है।",
+     "hinglish": "So ja Arjun... kal exam hai.",
+     "english": "Go to sleep Arjun... exam tomorrow."
+    },
+    {
+     "type": "line",
+     "char": "arjun",
+     "emotion": "tired",
+     "hindi": "बस एक और वीडियो...",
+     "hinglish": "Bas ek aur video...",
+     "english": "Just one more video..."
+    },
+    {
+     "type": "action",
+     "action": "exit",
+     "char": "awaaz"
+    },
+    {
+     "type": "action",
+     "action": "scroll_phone",
+     "char": "arjun"
+    },
+    {
+     "type": "action",
+     "action": "sleep",
+     "char": "arjun"
+    }
+   ]
+  },
+  {
+   "background": "bg_bean_classroom",
+   "time_of_day": "day",
+   "present": [
+    "sir",
+    "arjun",
+    "riya"
+   ],
+   "summary": "Class me Arjun sota hai.",
+   "seconds": 24,
+   "beats": [
+    {
+     "type": "action",
+     "action": "sit",
+     "char": "arjun"
+    },
+    {
+     "type": "action",
+     "action": "sit",
+     "char": "riya"
+    },
+    {
+     "type": "action",
+     "action": "battery",
+     "char": "arjun",
+     "value": 9
+    },
+    {
+     "type": "line",
+     "char": "sir",
+     "emotion": "angry",
+     "hindi": "अर्जुन! x की वैल्यू बताओ।",
+     "hinglish": "Arjun! x ki value batao.",
+     "english": "Arjun! Tell me the value of x."
+    },
+    {
+     "type": "action",
+     "action": "shock",
+     "char": "arjun"
+    },
+    {
+     "type": "line",
+     "char": "arjun",
+     "emotion": "tired",
+     "hindi": "x... x बराबर... नींद?",
+     "hinglish": "x... x barabar... neend?",
+     "english": "x... x equals... sleep?"
+    },
+    {
+     "type": "action",
+     "action": "laugh",
+     "char": "riya"
+    }
+   ]
+  },
+  {
+   "background": "bg_bean_corridor",
+   "time_of_day": "day",
+   "present": [],
+   "summary": "Corridor me log aa-ja rahe hain.",
+   "seconds": 18,
+   "beats": [
+    {
+     "type": "action",
+     "action": "crowd",
+     "mood": "walk",
+     "count": 6
+    },
+    {
+     "type": "action",
+     "action": "hold_hands",
+     "char": "riya",
+     "target": "arjun"
+    },
+    {
+     "type": "action",
+     "action": "enter",
+     "char": "riya"
+    },
+    {
+     "type": "line",
+     "char": "riya",
+     "emotion": "happy",
+     "hindi": "चल कैफ़े चलते हैं, कॉफ़ी से बैटरी चार्ज कर।",
+     "hinglish": "Chal cafe chalte hain, coffee se battery charge kar.",
+     "english": "Let's go to the cafe, recharge with coffee."
+    },
+    {
+     "type": "action",
+     "action": "exit",
+     "char": "riya"
+    }
+   ]
+  },
+  {
+   "background": "bg_bean_cafe",
+   "time_of_day": "night",
+   "present": [
+    "bhaiya"
+   ],
+   "summary": "Cafe: dono table pe coffee peete hain.",
+   "seconds": 30,
+   "beats": [
+    {
+     "type": "action",
+     "action": "crowd",
+     "mood": "queue",
+     "count": 3
+    },
+    {
+     "type": "action",
+     "action": "enter",
+     "char": "riya"
+    },
+    {
+     "type": "action",
+     "action": "enter",
+     "char": "arjun"
+    },
+    {
+     "type": "action",
+     "action": "sit",
+     "char": "riya"
+    },
+    {
+     "type": "action",
+     "action": "sit",
+     "char": "arjun"
+    },
+    {
+     "type": "line",
+     "char": "bhaiya",
+     "emotion": "happy",
+     "hindi": "दो कॉफ़ी, स्ट्रॉन्ग वाली!",
+     "hinglish": "Do coffee, strong wali!",
+     "english": "Two coffees, strong ones!"
+    },
+    {
+     "type": "action",
+     "action": "sip",
+     "char": "arjun"
+    },
+    {
+     "type": "action",
+     "action": "battery",
+     "char": "arjun",
+     "value": 40
+    },
+    {
+     "type": "line",
+     "char": "riya",
+     "emotion": "happy",
+     "hindi": "देखा? चालीस परसेंट!",
+     "hinglish": "Dekha? Chalis percent!",
+     "english": "See? Forty percent!"
+    },
+    {
+     "type": "action",
+     "action": "sip",
+     "char": "riya"
+    },
+    {
+     "type": "line",
+     "char": "arjun",
+     "emotion": "happy",
+     "hindi": "थैंक यू रिया।",
+     "hinglish": "Thank you Riya.",
+     "english": "Thank you Riya."
+    }
+   ]
+  },
+  {
+   "background": "bg_bean_street",
+   "time_of_day": "night",
+   "present": [],
+   "summary": "Chhotu dog ko ghuma raha hai.",
+   "seconds": 22,
+   "beats": [
+    {
+     "type": "action",
+     "action": "animal",
+     "animal": "dog",
+     "act": "leash",
+     "target": "chhotu"
+    },
+    {
+     "type": "action",
+     "action": "enter",
+     "char": "chhotu"
+    },
+    {
+     "type": "action",
+     "action": "enter",
+     "char": "arjun"
+    },
+    {
+     "type": "action",
+     "action": "battery",
+     "char": "arjun",
+     "value": 7
+    },
+    {
+     "type": "line",
+     "char": "chhotu",
+     "emotion": "happy",
+     "hindi": "भैया, घर तक रेस करें?",
+     "hinglish": "Bhaiya, ghar tak race karein?",
+     "english": "Brother, race till home?"
+    },
+    {
+     "type": "line",
+     "char": "arjun",
+     "emotion": "tired",
+     "hindi": "सात परसेंट पे? नहीं भाई।",
+     "hinglish": "Saat percent pe? Nahi bhai.",
+     "english": "At seven percent? No way."
+    },
+    {
+     "type": "action",
+     "action": "exit",
+     "char": "chhotu"
+    }
+   ]
+  },
+  {
+   "background": "bg_bean_park",
+   "time_of_day": "night",
+   "present": [
+    "arjun"
+   ],
+   "summary": "Arjun ko tension hoti hai.",
+   "seconds": 24,
+   "beats": [
+    {
+     "type": "action",
+     "action": "sit",
+     "char": "arjun"
+    },
+    {
+     "type": "action",
+     "action": "thoughts",
+     "char": "arjun",
+     "items": [
+      "कल एग्ज़ाम है",
+      "कुछ नहीं पढ़ा",
+      "फेल हो जाऊँगा",
+      "पापा क्या कहेंगे",
+      "सब आगे निकल गए",
+      "टाइम खत्म"
+     ],
+     "seconds": 5
+    },
+    {
+     "type": "action",
+     "action": "enter",
+     "char": "awaaz"
+    },
+    {
+     "type": "line",
+     "char": "awaaz",
+     "emotion": "neutral",
+     "hindi": "पीछे मुड़ो।",
+     "hinglish": "Peeche mudo.",
+     "english": "Turn around."
+    },
+    {
+     "type": "action",
+     "action": "look_around",
+     "char": "arjun"
+    },
+    {
+     "type": "line",
+     "char": "awaaz",
+     "emotion": "neutral",
+     "hindi": "डर से भागो मत, पढ़ाई शुरू करो।",
+     "hinglish": "Darr se bhaago mat, padhai shuru karo.",
+     "english": "Don't run from fear, start studying."
+    }
+   ]
+  },
+  {
+   "background": "bg_bean_bedroom",
+   "time_of_day": "night",
+   "present": [
+    "arjun"
+   ],
+   "summary": "Arjun sapna dekhta hai.",
+   "seconds": 16,
+   "beats": [
+    {
+     "type": "action",
+     "action": "sleep",
+     "char": "arjun"
+    },
+    {
+     "type": "action",
+     "action": "dream",
+     "char": "arjun",
+     "background": "bg_bean_stadium",
+     "with": [
+      "riya",
+      "chhotu"
+     ],
+     "seconds": 6
+    }
+   ]
+  },
+  {
+   "background": "bg_bean_stadium",
+   "time_of_day": "day",
+   "present": [
+    "arjun",
+    "chhotu",
+    "riya"
+   ],
+   "summary": "Battery full, race!",
+   "seconds": 20,
+   "beats": [
+    {
+     "type": "action",
+     "action": "battery",
+     "char": "arjun",
+     "value": 100
+    },
+    {
+     "type": "line",
+     "char": "arjun",
+     "emotion": "happy",
+     "hindi": "आज बैटरी फुल है!",
+     "hinglish": "Aaj battery full hai!",
+     "english": "Battery is full today!"
+    },
+    {
+     "type": "action",
+     "action": "big_text",
+     "text": "GO!",
+     "seconds": 1.4
+    },
+    {
+     "type": "action",
+     "action": "run_exit",
+     "char": "arjun"
+    },
+    {
+     "type": "action",
+     "action": "run_exit",
+     "char": "chhotu"
+    },
+    {
+     "type": "action",
+     "action": "clap",
+     "char": "riya"
+    }
+   ]
+  }
+ ]
+}

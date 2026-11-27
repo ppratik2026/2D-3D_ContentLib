@@ -1,0 +1,22 @@
+{
+  "id": "bg_bean_street",
+  "file": "backgrounds/bg_bean_street/image.jpg",
+  "rev": 3,
+  "name": "Bean: night street with shops",
+  "place": "city_street",
+  "time": "night",
+  "indoor": false,
+  "tags": [
+    "bean",
+    "street",
+    "road",
+    "market",
+    "city",
+    "night",
+    "shops"
+  ],
+  "groundNear": 0.91,
+  "groundFar": 0.874,
+  "heightNear": 0.4,
+  "seats": []
+}

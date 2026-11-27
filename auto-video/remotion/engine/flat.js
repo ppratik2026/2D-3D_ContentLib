@@ -4,6 +4,7 @@
 // The object is shaped like the 3D actors (o, height, hipY, bones.Head / RightHand …) so the stage can use it the same way.
 import * as THREE from 'three';
 
+export { hash, mat, INK, shade, rrect, outlined, circle, pill, bar };
 const SKINS = ['#f1c79a', '#e5b07e', '#d79d6c', '#f6d2b0', '#c98d5e', '#eab98c'];
 const hash = (s) => { let h = 2166136261; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return (h >>> 0) / 4294967295; };
 const mat = (c) => { const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(c), side: THREE.DoubleSide }); m.userData.outlineParameters = { visible: false }; return m; };
@@ -116,6 +117,7 @@ function gesture(name, kk, t, ph, P) {
     case 'wave': g.F = T(0.08 + Math.sin(t * 10) * 0.07, 0.38); g.face = 'happy'; break;
     case 'point': g.F = T(0.46, 0.06); break;
     case 'think': g.F = { x: mouth.x - 0.02 * s, y: mouth.y - 0.06 * s }; g.tilt = 0.12; break;
+    case 'scroll_phone': g.F = T(0.22, -0.1 + Math.sin(t * 0.7) * 0.004); g.B = T(0.3, -0.12); g.tilt = 0.2; g.look = 0.9; g.phone = true; break;
     case 'phone': g.F = { x: P.headR * 0.95 - P.shoulderF.x, y: P.headY - P.shoulderF.y }; break;
     case 'shock': g.F = T(0.12, 0.28); g.B = T(-0.12, 0.28); g.face = 'surprised'; g.lean = -0.06; break;
     case 'hands_up': g.F = T(0.08, 0.46); g.B = T(-0.08, 0.46); g.face = 'scared'; break;
@@ -203,15 +205,19 @@ export function poseFlat(a, t, st) {
   // head: tilt, nod, look; face
   P.head.rotation.z = -(g.tilt || 0) + (st.talk ? Math.sin(t * 4.1) * 0.04 * st.talk : 0) + (gait ? Math.sin(gaitP * Math.PI * 4) * (r ? 0.05 : 0.03) : 0);
   P.head.position.y = P.headY + (gait ? -Math.cos(gaitP * Math.PI * 4) * 0.008 * k : 0); P.torso.rotation.z = gait ? Math.sin(gaitP * Math.PI * 2) * 0.035 : 0;
-  const side = face !== 0 && !back; if (a._nose) a._nose.visible = side; P.face.position.x = side ? P.headR * 0.16 : 0;
-  const emo = g.face || st.emotion || 'neutral';
-  const per = 3.3 + a.id.length * 0.31, q = (t + a.id.length * 1.7) % per; const blink = emo === 'sleep' || g.sipping ? 1 : q < 0.14 ? 1 - Math.abs(q - 0.07) / 0.07 : 0;
-  const look = g.look != null ? g.look : face === 0 ? 0 : 0.45; for (const e of P.eyes) e.position.x = (e.position.x > 0 ? 0.38 : -0.38) * P.headR + look * 0.07 * k;
-  P.lids.forEach((l, i) => { l.scale.y = Math.max(0.01, blink); l.position.x = P.eyes[i].position.x; l.position.y = 0.075 * k - blink * 0.035 * k; });
-  const browA = emo === 'angry' ? 0.35 : emo === 'sad' || emo === 'scared' ? -0.3 : emo === 'surprised' ? 0 : 0; P.brows.forEach((b, i) => { b.rotation.z = (i ? 1 : -1) * browA; b.position.x = P.eyes[i].position.x; b.position.y = (emo === 'surprised' ? 0.14 : 0.115) * k; });
+  const FX = P.fx || { eyeX: 0.38 * P.headR, eyeY: 0.04 * k, lidY: 0.075 * k, lidDrop: 0.035 * k, browY: 0.115 * k, browUp: 0.025 * k, browBase: 0, smileY: -0.055 * k, frownY: -0.095 * k, look: 0.07 * k, shift: P.headR * 0.16, mouthShift: 0.04 * k };
+  const side = face !== 0 && !back; if (a._nose) a._nose.visible = side; P.face.position.x = side ? FX.shift : 0;
+  const emo = g.face || st.emotion || 'neutral'; const tired = emo === 'tired' || emo === 'sleepy' || emo === 'bored';
+  const per = 3.3 + a.id.length * 0.31, q = (t + a.id.length * 1.7) % per; const blink0 = q < 0.14 ? 1 - Math.abs(q - 0.07) / 0.07 : 0; const blink = emo === 'sleep' || g.sipping ? 1 : Math.max(blink0, tired ? 0.5 : 0);
+  if (P.bags) P.bags.visible = tired && !back;
+  const look = g.look != null ? g.look : face === 0 ? 0 : 0.45; P.eyes.forEach((e, i) => { e.position.x = (i ? 1 : -1) * FX.eyeX + look * FX.look; });
+  P.lids.forEach((l, i) => { l.scale.y = Math.max(0.01, blink); l.position.x = P.eyes[i].position.x; l.position.y = FX.lidY - blink * FX.lidDrop; });
+  const browA = FX.browBase + (emo === 'angry' ? 0.3 : emo === 'sad' || emo === 'scared' || emo === 'worried' ? -0.38 : emo === 'surprised' ? -0.1 : tired ? -0.05 : 0); P.brows.forEach((b, i) => { b.rotation.z = (i ? 1 : -1) * browA; b.position.x = P.eyes[i].position.x; b.position.y = FX.browY + (emo === 'surprised' ? FX.browUp : 0) - (tired ? FX.browUp * 0.4 : 0); });
   const mouth = st.mouth || 0; const open = Math.max(mouth, emo === 'surprised' || emo === 'scared' ? 0.5 : emo === 'happy' && g.face === 'happy' ? 0.25 : 0);
-  P.smile.visible = open < 0.12; P.smile.rotation.z = emo === 'sad' || emo === 'angry' ? Math.PI * 0.05 + Math.PI : Math.PI * 1.05; P.smile.position.y = (emo === 'sad' || emo === 'angry' ? -0.095 : -0.055) * k;
-  P.mouthO.visible = open >= 0.12; P.mouthO.scale.set(0.8 + open * 0.4, 0.25 + open * 1.0, 1); P.mouthO.position.x = look * 0.04 * k;
+  const down = emo === 'sad' || emo === 'angry' || emo === 'worried'; P.smile.visible = open < 0.12; P.smile.rotation.z = down ? (P.smileDown ?? Math.PI * 0.05 + Math.PI) : emo === 'happy' || emo === 'laugh' ? (P.smileUp ?? Math.PI * 1.05) : (P.smileFlat ?? Math.PI * 1.05); P.smile.position.y = down ? FX.frownY : FX.smileY;
+  if (P.smileNeutral) { const neutral = !down && !(emo === 'happy' || emo === 'laugh') && open < 0.12; P.smileNeutral.visible = neutral; if (neutral) P.smile.visible = false; P.smileNeutral.position.x = look * FX.mouthShift; }
+  P.smile.position.x = look * FX.mouthShift;
+  P.mouthO.visible = open >= 0.12; P.mouthO.scale.set(0.8 + open * 0.4, 0.25 + open * 1.0, 1); P.mouthO.position.x = look * FX.mouthShift;
   a.o.updateMatrixWorld(true);
 }
 

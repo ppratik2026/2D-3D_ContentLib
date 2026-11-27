@@ -165,7 +165,7 @@ def cafe_in():
         p.rect(bx - 0.007, 0.57, bx + 0.007, 0.87, '#c0583f', r=0.004); p.rect(cx - 0.042, 0.755, cx + 0.042, 0.775, '#c0583f', r=0.006)
         p.rect(cx - 0.036, 0.775, cx - 0.028, 0.87, '#8a3f2c'); p.rect(cx + 0.028, 0.775, cx + 0.036, 0.87, '#8a3f2c')
     p.save('bg_flat_cafe_in', {'name': 'Flat: cafe inside', 'place': 'cafe', 'time': 'day', 'indoor': True, 'tags': ['flat', 'cafe', 'coffee', 'restaurant'], 'groundNear': 0.95, 'groundFar': 0.82, 'heightNear': 0.6,
-        'seats': [{'type': 'counter', 'x': 0.18, 'y': 0.7, 'cover': 0.53, 'w': 0.32}, {'type': 'seat', 'x': 0.563, 'y': 0.87, 'face': 1}, {'type': 'seat', 'x': 0.797, 'y': 0.87, 'face': -1}]})
+        'seats': [{'type': 'counter', 'x': 0.18, 'y': 0.7, 'cover': 0.53, 'w': 0.32}, {'type': 'seat', 'x': 0.563, 'y': 0.87, 'face': 1, 'tableY': 0.672, 'cup': True}, {'type': 'seat', 'x': 0.797, 'y': 0.87, 'face': -1, 'tableY': 0.672, 'cup': True}]})
 
 # ---------- 3. market street ----------
 def market():

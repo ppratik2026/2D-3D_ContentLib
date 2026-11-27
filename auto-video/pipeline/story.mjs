@@ -101,8 +101,9 @@ export function normalizeBeats(beats, chars, sc) {
       const hindi = String(b.hindi || b.hinglish || '').trim(), hinglish = String(b.hinglish || b.hindi || '').trim(); if (hindi) out.push({ type: 'line', char: 'narrator', emotion: 'neutral', hindi, hinglish, english: String(b.english || hinglish) });
       continue; }
     if (['fire', 'fire_out', 'explosion', 'holi', 'diwali', 'cracker', 'fly_by', 'eid', 'christmas', 'moving_view'].includes(b.action) && !matchId(b.char, chars)) { out.push({ type: 'action', char: null, action: b.action, target: matchId(b.target, chars) || null, where: b.where, size: b.size, small: b.small, vehicle: b.vehicle, cracker: b.cracker || b.kind, lights: b.lights, fireworks: b.fireworks, diyas: b.diyas }); continue; }
+    if (b.action === 'battery' || b.action === 'big_text') { out.push({ type: 'action', char: matchId(b.char, chars) || null, action: b.action, value: Number(b.value ?? b.percent ?? 50), color: HEX.test(String(b.color || '')) ? '#' + String(b.color).replace('#', '') : undefined, text: String(b.text || '').slice(0, 40), seconds: Number(b.seconds) || undefined }); continue; }
     if (b.action === 'animal' || b.action === 'crowd') { // no character needed
-      out.push({ type: 'action', char: null, action: b.action, animal: ['dog', 'cow', 'horse', 'goat', 'cat', 'elephant', 'birds', 'monkey', 'tiger'].includes(b.animal) ? b.animal : 'dog', act: String(b.act || 'enter'), target: matchId(b.target, chars) || null, mood: ['dance', 'cheer', 'clap', 'watch', 'walk', 'none'].includes(b.mood) ? b.mood : 'watch', count: Number(b.count) || 8 }); continue; }
+      out.push({ type: 'action', char: null, action: b.action, animal: ['dog', 'cow', 'horse', 'goat', 'cat', 'elephant', 'birds', 'monkey', 'tiger'].includes(b.animal) ? b.animal : 'dog', act: String(b.act || 'enter'), target: matchId(b.target, chars) || null, mood: ['dance', 'cheer', 'clap', 'watch', 'walk', 'queue', 'none'].includes(b.mood) ? b.mood : 'watch', count: Number(b.count) || 8 }); continue; }
     const char = matchId(b.char, chars);
     if (b.type !== 'line' && !b.hindi && !b.hinglish && b.action && !ACTIONS.includes(b.action)) { unsupported.push(String(b.action).toLowerCase().slice(0, 30)); continue; }
     if (!char) continue;
@@ -117,6 +118,7 @@ export function normalizeBeats(beats, chars, sc) {
       if (HEX.test(String(b.color || ''))) a.color = '#' + String(b.color).replace('#', '');
       if (b.place && MARKS[b.place]) a.place = b.place;
       if (b.item) { const it = String(b.item).toLowerCase(); a.item = it === 'money' ? 'money' : /coffee|cup|tea|chai|glass|juice/.test(it) ? 'coffee' : it === 'laddu' ? 'laddu' : 'give'; }
+      if (Array.isArray(b.items)) a.items = b.items.map((x) => String(x).slice(0, 40)).filter(Boolean).slice(0, 24); if (b.background) a.background = String(b.background); if (b.text) a.text = String(b.text).slice(0, 60);
       if (b.game) a.game = String(b.game); if (b.where) a.where = String(b.where); if (b.size) a.size = Number(b.size); if (b.small) a.small = true;
       if (Number(b.seconds)) a.seconds = Math.max(4, Math.min(20, Number(b.seconds)));
       for (const f of ['with', 'chasers']) if (Array.isArray(b[f])) a[f] = b[f].map((x) => matchId(x, chars)).filter((x) => x && x !== char);
@@ -143,7 +145,7 @@ function actionHelp(stage) { return `Between dialogue lines add actions (only th
 - With another person ("target" = their id): hug, fight, push, slap, give (optional "item":"gift|money").
 - Two-wheelers and horse riding use the vehicle actions with "vehicle":"bike|scooter|cycle|horse" (drive_in / get_in / get_out / drive_away; a thief can run away on a bike in a car_chase).
 - Animals: {"type":"action","action":"animal","animal":"dog|cow|horse","act":"enter|exit|run|bark|moo|neigh|graze|sit|follow","target":"char id for follow"}.
-- Crowd in the background: {"type":"action","action":"crowd","mood":"dance|cheer|clap|watch|walk|none","count":8}.
+- Crowd in the background: {"type":"action","action":"crowd","mood":"dance|cheer|clap|watch|walk|queue|none","count":8} (walk = people passing behind, both ways; queue = a line of people waiting at the counter).
 - Fire and blasts: {"type":"action","action":"fire","where":"left|center|right","size":1} (keeps burning, crackling) / {"type":"action","action":"fire_out"} / {"type":"action","char":"id","action":"explosion","where":"right"} (flash, fireball, smoke, debris, everybody near is shocked).
 - Rain: use "weather":"rain" or "storm" for the scene and the gesture {"action":"umbrella","seconds":8} for people holding umbrellas.
 - Games: {"type":"action","char":"batsman / kid id","action":"game","game":"cricket|ball|skip|kite|tag","with":["bowler / other kids"],"seconds":10} (cricket = bowling, shot, ball flying, fielders clap; ball = throw and catch; skip = skipping rope; kite = kite flying; tag = pakdam-pakdai, running around). Lines can be spoken during the game.
@@ -163,6 +165,9 @@ function actionHelp(stage) { return `Between dialogue lines add actions (only th
 - Christmas: {"type":"action","action":"christmas"} (decorated tree with lights and gifts, Santa caps, jingle bells).
 - Travelling inside a train / plane / bus: background of the inside with a "window" place, then {"type":"action","action":"moving_view","vehicle":"train|plane|bus|car"} (the view outside moves, people rock gently, train / plane sound).
 - Under water: scene "weather":"underwater" (blue light, bubbles, fish, sea grass); use swim for people.
+- Energy meter on screen: {"type":"action","action":"battery","char":"id","value":12} (shows a battery with % above that person; 0–15 red, 100 yellow; change it again later in the story). Big words on screen: {"type":"action","action":"big_text","text":"GO!"}.
+- Worry attack: {"action":"thoughts","char":"id","items":["they will laugh","too late now", …],"seconds":5} (red sticky notes swarm around the person). Dream / memory / imagination: {"action":"dream","char":"id","background":"bg id or place","with":["ids in the dream"],"seconds":6} (a red-glowing thought cloud with that place and those people as silhouettes).
+- A character whose role is "inner voice" (or "shadow", "anxiety") is drawn as a black figure with a red glow; its lines appear as red text. Gesture scroll_phone = looks at a phone in both hands. Dog on a leash: {"type":"action","action":"animal","animal":"dog","act":"leash","target":"owner id"} (the dog walks with that person).
 - Two people walking hand in hand: {"type":"action","char":"leader id","action":"hold_hands","target":"partner id"} BEFORE the leader's enter / walk_to / go_to / exit (the partner walks along holding the hand); {"action":"let_go","char":"id"} ends it.
 - Police (or anybody) taking a person by the arm: {"action":"escort","char":"police id","target":"thief id"} then the police's walk_to / go_to / exit takes both.
 - Pickpocket / chori: {"action":"pickpocket","char":"thief id","target":"victim id"} (sneaks behind, close-up of the hand taking the wallet). A mob beating someone: {"action":"beat","char":"victim id","with":["attacker ids"],"seconds":5} (punches, kicks, slaps; the victim cowers). Gesture cower = protects the head.

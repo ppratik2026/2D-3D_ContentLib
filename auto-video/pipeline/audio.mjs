@@ -232,6 +232,9 @@ export function mixAll(tl, mood, outFile) {
     if (c.kind === 'hooves') add(mix, hooves(c.t1 - c.t, c.run), c.t, 0.3); if (c.kind === 'bell') add(mix, cycleBell(), c.t + 0.2, 0.6); if (c.kind === 'engine_small') add(mix, smallEngine(c.t1 - c.t), c.t, 0.3);
     if (c.kind === 'baraat') { const d = c.t1 - c.t; add(mix, dhol(d), c.t, 0.55); add(mix, shehnai(d), c.t, 0.5); add(mix, cheer(d), c.t, 0.12); }
     if (c.kind === 'slap') add(mix, slapSnd(), c.t, 0.8);
+    if (c.kind === 'heartbeat') for (let x = c.t; x < c.t1; x += 0.85) { add(mix, thud(), x, 0.45); add(mix, thud(), x + 0.22, 0.3); }
+    if (c.kind === 'dreamhum') { const d = c.t1 - c.t, n = Math.floor(d * SR), o = new Float32Array(n); for (let i = 0; i < n; i++) { const tt = i / SR; o[i] = (Math.sin(2 * Math.PI * 110 * tt) * 0.5 + Math.sin(2 * Math.PI * 164.8 * tt) * 0.3 + Math.sin(2 * Math.PI * 220.5 * tt) * 0.2) * Math.min(1, tt / 0.8, (d - tt) / 0.8) * 0.35; } add(mix, o, c.t, 0.5); }
+    if (c.kind === 'whoosh2') add(mix, whoosh(), c.t, 0.5);
     if (c.kind === 'swish') { const o = new Float32Array(Math.floor(0.35 * SR)); let f = 0; for (let i = 0; i < o.length; i++) { f += 0.3 * (noise() - f); o[i] = f * Math.sin(Math.PI * i / o.length) ** 2; } add(mix, o, c.t, 0.5); }
     if (c.kind === 'cheer' && c.angry) add(mix, cheer(c.t1 - c.t), c.t, 0.22);
     if (c.kind === 'snore') add(mix, snore(c.t1 - c.t), c.t, 0.35);

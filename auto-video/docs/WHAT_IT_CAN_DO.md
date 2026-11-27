@@ -62,6 +62,26 @@ Car (any colour), taxi, police jeep (flashing lights + siren), ambulance (siren)
 | Monkey / tiger | monkey jumps and chatters; tiger (stripes) roars and runs |
 | Snow | weather "snow" — snowfall with wind |
 
+## Bean Night style (v1.8)
+
+Pick **Style → Bean Night (dark doodle, bean characters)** for the dark "late-night doodle" look: head and body are one soft bean, thick round arms and legs, dot eyes, thick flat brows, tired eye-bags, beanies / caps / hair, and dark backgrounds with thin light lines and warm lamp glows.
+
+- **Speech bubbles:** every line appears in a dark rounded bubble with white handwritten text above the speaker (long lines change bubble part by part). The narrator's lines show at the bottom. Subtitles are not burned on this style (the bubbles carry the words); `subtitles.srt` is still saved.
+- **Inner voice:** a character whose role says *inner voice*, *shadow* or *anxiety* is a black figure in a pulsing red glow with red eyes; its lines are glowing red words.
+- **Battery meter:** `{"type":"action","action":"battery","char":"arjun","value":12}` shows the energy above that person (0–15 red, 100 yellow, others white); the next battery beat animates from the old value to the new one.
+- **Big words:** `{"type":"action","action":"big_text","text":"GO!"}` ("3:00 AM", "GO!", "LATE!") pop in the middle with a whoosh.
+- **Worry attack:** `{"action":"thoughts","char":"arjun","items":["kal exam hai","kuch nahi padha"],"seconds":5}`: the room goes dark, red sticky notes pop around the person one by one, heartbeat sound.
+- **Dream / imagination:** `{"action":"dream","char":"arjun","background":"stadium","with":["riya"],"seconds":6}`: thought dots rise from the head and a red-glowing cloud shows that place (tinted red) with the people as glowing silhouettes, with a soft hum.
+- **Dog on a leash:** `{"type":"action","action":"animal","animal":"dog","act":"leash","target":"chhotu"}`: a flat doodle dog walks a little ahead of the owner, the owner's hand holds the red leash.
+- **People walking behind:** crowd `"mood":"walk"` now walks both ways, people further back are dimmer. Crowd `"mood":"queue"` makes a line of people waiting at the cafe counter.
+- **Phone at night:** gesture `scroll_phone` (both hands, head down, lit screen).
+- **Sleep goes to the bed:** `sleep` walks to the bed in the background and lies down on it.
+- 7 starter backgrounds: classroom, cafe (counter + table for two), corridor with lockers, night street with shops, bedroom, park at night, stadium.
+
+### Cafe tables (all flat styles)
+
+Two people at a cafe table sit facing each other with their cups standing on the table and hands resting next to them; a `sip` picks the cup up to the mouth and puts it back. The barista / waiter stands behind the counter. Works in Flat 2D Explainer (cafe inside) and Bean Night (cafe). On your own backgrounds, give a seat marker `tableY` (the table top line) and `"cup": true`.
+
 ## Flat 2D Explainer style (v1.6)
 
 Pick **Style → Flat 2D Explainer** for YouTube-explainer cartoons: big round heads, dot eyes that blink, a mouth that talks, stick arms and legs, and flat vector backgrounds.

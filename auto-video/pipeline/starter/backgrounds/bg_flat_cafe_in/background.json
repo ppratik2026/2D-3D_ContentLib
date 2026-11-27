@@ -26,14 +26,18 @@
       "type": "seat",
       "x": 0.563,
       "y": 0.87,
-      "face": 1
+      "face": 1,
+      "tableY": 0.672,
+      "cup": true
     },
     {
       "type": "seat",
       "x": 0.797,
       "y": 0.87,
-      "face": -1
+      "face": -1,
+      "tableY": 0.672,
+      "cup": true
     }
   ],
-  "rev": 2
+  "rev": 3
 }

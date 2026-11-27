@@ -1,0 +1,46 @@
+{
+  "id": "bg_bean_cafe",
+  "file": "backgrounds/bg_bean_cafe/image.jpg",
+  "rev": 3,
+  "name": "Bean: cafe",
+  "place": "cafe",
+  "time": "night",
+  "indoor": true,
+  "tags": [
+    "bean",
+    "cafe",
+    "coffee",
+    "restaurant",
+    "tea"
+  ],
+  "groundNear": 0.91,
+  "groundFar": 0.874,
+  "heightNear": 0.4,
+  "seats": [
+    {
+      "type": "seat",
+      "x": 0.095,
+      "y": 0.88,
+      "face": 1,
+      "tableY": 0.776,
+      "stool": true,
+      "cup": true
+    },
+    {
+      "type": "seat",
+      "x": 0.265,
+      "y": 0.88,
+      "face": -1,
+      "tableY": 0.776,
+      "stool": true,
+      "cup": true
+    },
+    {
+      "type": "counter",
+      "x": 0.86,
+      "y": 0.83,
+      "cover": 0.66,
+      "w": 0.33
+    }
+  ]
+}

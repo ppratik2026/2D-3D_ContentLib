@@ -1,0 +1,22 @@
+{
+  "id": "bg_bean_stadium",
+  "file": "backgrounds/bg_bean_stadium/image.jpg",
+  "rev": 3,
+  "name": "Bean: stadium running track at night",
+  "place": "other",
+  "time": "night",
+  "indoor": false,
+  "tags": [
+    "bean",
+    "stadium",
+    "race",
+    "sports",
+    "track",
+    "ground",
+    "match"
+  ],
+  "groundNear": 0.93,
+  "groundFar": 0.8,
+  "heightNear": 0.42,
+  "seats": []
+}

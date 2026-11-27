@@ -1,0 +1,35 @@
+{
+  "id": "bg_bean_park",
+  "file": "backgrounds/bg_bean_park/image.jpg",
+  "rev": 3,
+  "name": "Bean: night park / court with fence",
+  "place": "other",
+  "time": "night",
+  "indoor": false,
+  "tags": [
+    "bean",
+    "park",
+    "court",
+    "playground",
+    "night",
+    "fence",
+    "ground"
+  ],
+  "groundNear": 0.91,
+  "groundFar": 0.874,
+  "heightNear": 0.4,
+  "seats": [
+    {
+      "type": "seat",
+      "x": 0.8,
+      "y": 0.88,
+      "face": 1
+    },
+    {
+      "type": "seat",
+      "x": 0.88,
+      "y": 0.88,
+      "face": -1
+    }
+  ]
+}

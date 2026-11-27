@@ -27,8 +27,8 @@ export const newJobId = (category) => new Date().toISOString().replace(/[:T]/g, 
 export async function makeVideo(opts, report = () => {}, { signal } = {}) {
   loadEnv();
   const category = CATEGORIES[opts.category] ? opts.category : 'drama';
-  const style = STYLES[opts.style] ? opts.style : 'toon'; const isStage = style === 'cartoon2d' || style === 'flat2d';
-  const isFlatBg = (x) => (x.tags || []).includes('flat'); const styleBgs = () => { const all = listBackgrounds(); const mine = all.filter((x) => (style === 'flat2d') === isFlatBg(x)); return mine.length ? mine : all; };
+  const style = STYLES[opts.style] ? opts.style : 'toon'; const isStage = style === 'cartoon2d' || style === 'flat2d' || style === 'bean2d'; const bgTag = style === 'bean2d' ? 'bean' : style === 'flat2d' ? 'flat' : null;
+  const tagOf = (x) => ((x.tags || []).includes('bean') ? 'bean' : (x.tags || []).includes('flat') ? 'flat' : null); const styleBgs = () => { const all = listBackgrounds(); const mine = all.filter((x) => tagOf(x) === bgTag); return mine.length ? mine : all; };
   const look = opts.look && opts.look !== 'auto' && LOOKS[opts.look] ? opts.look : isStage ? (category === 'horror' ? 'horror' : 'vivid') : CATEGORIES[category].look; // cartoon channels are colourful
   const subs = opts.subs && opts.subs !== 'auto' && SUBTITLE_STYLES[opts.subs] ? opts.subs : CATEGORIES[category].subs;
   const renderer = opts.renderer === 'remotion' || !opts.renderFn ? 'remotion' : 'chrome';
@@ -62,17 +62,18 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
     for (const sc of story.scenes) { const want = /^new\s*:/i.test(sc.background || '') ? sc.background.replace(/^new\s*:\s*/i, '') : ''; const b = all.find((x) => x.id === sc.background) || pickBackground(all, { place: sc.location, time: sc.time_of_day, weather: sc.weather, text: `${want} ${sc.summary}`, used });
       if (sc.weather === 'snow' && !/snow|hill|mountain|pahad|barf|himal/i.test([b.name, ...(b.tags || [])].join(' '))) (story.newBackgrounds ||= []).push('snowy mountain / hill scene with snow on the ground and roofs (for the snow scenes)');
       sc.background = b.id; used.set(b.id, (used.get(b.id) || 0) + 1); stageBgs[b.id] = b; if (!sc.time_of_day || sc.time_of_day === 'day') sc.time_of_day = b.time || sc.time_of_day; } }
+  if (stageBgs) { const all = styleBgs(); for (const sc of story.scenes) for (const bt of sc.beats || []) if (bt.action === 'dream') { const b = all.find((x) => x.id === bt.background) || pickBackground(all, { place: bt.background || sc.location, text: String(bt.background || ''), used: new Map() }); if (b) { bt.background = b.id; stageBgs[b.id] = b; } } } /* the place seen inside a dream cloud */
   fs.writeFileSync(path.join(work, 'story.json'), JSON.stringify(story, null, 2));
   // what the app could not show yet → a to-do list next to the video
   const notes = [];
   if (story.unsupported?.length) { notes.push('Actions the story needs that the app cannot animate yet (the narrator tells them instead):', ...story.unsupported.map((a) => '  - ' + a), ''); step('story', `⚠ Not animated yet (narrator tells them): ${story.unsupported.join(', ')}`); }
-  if (story.newBackgrounds?.length) { notes.push('Backgrounds to make (a similar one was used this time). Prompts:', ...[...new Set(story.newBackgrounds)].map((d) => `  - ${d}. ${style === 'flat2d' ? 'flat 2D vector explainer-video background, simple flat shapes, pastel colours, thin dark outlines, no gradients,' : 'Indian 2D cartoon animation background, hand-painted digital art, soft cel shading, clean outlines, warm vivid colours,'} wide shot at eye level, flat open ground in the lower third, completely empty scene, no people, no animals, no text, 16:9`), ''); step('story', `⚠ Missing backgrounds (used the closest): ${story.newBackgrounds.join('; ')}`); }
+  if (story.newBackgrounds?.length) { notes.push('Backgrounds to make (a similar one was used this time). Prompts:', ...[...new Set(story.newBackgrounds)].map((d) => `  - ${d}. ${style === 'bean2d' ? 'dark night 2D doodle cartoon background, very dark grey-blue walls, flat simple shapes with thin light grey outlines, warm glowing lamps, side view, empty floor line in the lower part, no people,' : style === 'flat2d' ? 'flat 2D vector explainer-video background, simple flat shapes, pastel colours, thin dark outlines, no gradients,' : 'Indian 2D cartoon animation background, hand-painted digital art, soft cel shading, clean outlines, warm vivid colours,'} wide shot at eye level, flat open ground in the lower third, completely empty scene, no people, no animals, no text, 16:9`), ''); step('story', `⚠ Missing backgrounds (used the closest): ${story.newBackgrounds.join('; ')}`); }
   if (notes.length) fs.writeFileSync(path.join(work, 'TO-DO.txt'), notes.join('\r\n'));
   step('story', `Story ready: "${story.title}" (${story.scenes.length} scenes, ${story.characters.length} characters)`, { title: story.title });
 
   // 2. voices
   const tl = buildTimeline(story, { style, look, subs, stage: !!stageBgs });
-  tl.categoryLabel = CATEGORIES[category].label; tl.cast = cast; if (stageBgs) { tl.mode = 'stage'; tl.backgrounds = stageBgs; tl.flat = style === 'flat2d'; }
+  tl.categoryLabel = CATEGORIES[category].label; tl.cast = cast; if (stageBgs) { tl.mode = 'stage'; tl.backgrounds = stageBgs; tl.flat = style === 'flat2d' || style === 'bean2d'; tl.bean = style === 'bean2d'; }
   const soft = opts.gl === 'swiftshader' || (renderer === 'remotion' && (process.env.REMOTION_GL || (process.platform === 'linux' && !process.env.DISPLAY ? 'swiftshader' : 'angle')) === 'swiftshader');
   tl.perf = { aa: !soft, simpleMat: style === 'toon', noLamps: style !== 'realistic' };
   // fixed voices: a library character can have its own voice (first story character played by it gets it)
@@ -93,7 +94,7 @@ export async function makeVideo(opts, report = () => {}, { signal } = {}) {
 
   // 4. render
   const clean = JSON.parse(JSON.stringify(tl)); for (const l of clean.lines) delete l.file;
-  const subStyle = styleFrom(subs, opts.subStyle); clean.subsPreset = subs; clean.subs = 'none'; // subtitles are burned afterwards (editable)
+  let subStyle = styleFrom(subs, opts.subStyle); if (style === 'bean2d') { clean.bubbleLang = subStyle.lang === 'hindi' ? 'hindi' : subStyle.lang === 'english' ? 'english' : 'hinglish'; subStyle = { ...subStyle, off: true }; } /* Bean Night: the words are in speech bubbles */ clean.subsPreset = subs; clean.subs = 'none'; // subtitles are burned afterwards (editable)
   fs.writeFileSync(path.join(work, 'timeline.json'), JSON.stringify(clean));
   const out = path.join(work, 'video_clean.mp4');
   const onProgress = (p, frames, secs) => { step('render', `Rendering ${(p * 100).toFixed(0)}% (${frames}/${clean.durationInFrames} frames)`, { progress: p, eta: p > 0.02 ? secs / p - secs : null, stage: { name: 'render', done: frames, total: clean.durationInFrames, label: `Frames ${frames}/${clean.durationInFrames}` } }); };
