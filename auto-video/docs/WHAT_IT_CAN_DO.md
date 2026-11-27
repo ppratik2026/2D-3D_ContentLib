@@ -205,3 +205,69 @@ The video is rendered clean, then the subtitles are added on top. That means you
 ## Not yet (send your TO-DO lists)
 
 Multi-angle backgrounds for talk scenes (front / reverse painted views of the same place), Ganesh Chaturthi, Durga Puja, Onam, Pongal. Send your TO-DO lists for more.
+
+## Prompt Studio (v1.7)
+
+A new tab that writes a complete, original story as prompts for AI video tools (Flow, Veo, Kling…). It follows the "Animation Story Engine" rules and libraries.
+
+**Input:**
+- Genre (or a mix of two)
+- Duration (1–120 min)
+- Style (2D Anime / 2D Cartoon / 2D Storybook / 3D Stylized / 3D Realistic)
+- Language
+- Aspect (16:9 / 9:16)
+- Audience
+- Topic (optional)
+
+**Phases:**
+1. **Story Bible:**
+   - title and logline;
+   - synopsis and theme;
+   - characters, each with a full consistency tag;
+   - locations, each with a full location tag;
+   - key props;
+   - colour and lighting guide;
+   - act outline;
+   - scene and shot plan.
+2. **Scenes:** location, time, weather, characters, props, mood, goal and summary for every scene.
+3. **Shots:** batches of up to 10 scenes. Each shot has:
+   - shot type, angle and camera move;
+   - action;
+   - image prompt and video prompt;
+   - dialogue (with emotion and delivery) or voiceover;
+   - SFX, music and transition;
+   - a continuity note.
+
+   Each batch also gets a continuity checkpoint.
+
+Videos of 1–3 minutes get all three phases at once.
+
+**Consistency:** the AI writes `{{C01}}` / `{{L01}}` / `{{P01}}` / `{{STYLE}}` placeholders, and the app fills in the exact Story Bible text. Every image prompt therefore carries the same character and location wording.
+
+**Variety:** every story gets a new variety seed (era, region, protagonist, conflict, twist). A **used-stories log** stops repeats.
+
+**Buttons:**
+
+| Button | What it does |
+|---|---|
+| NEXT | Writes the next batch of shots |
+| REDO scene (+ optional note) | Rewrites one scene's shots |
+| More scary / More emotional / Faster pace | Changes the tone of the next batches |
+| Thumbnail | Writes 3 thumbnail prompts, 5 titles, a description and tags |
+| Only prompts | Lists every image and video prompt |
+| Voiceover script | Gives all dialogue and narration with timings |
+| Character sheet | Gives reference-sheet prompts for every character and location |
+| Open folder | Opens the project folder |
+| Delete | Deletes the project |
+
+**Saved files:** every project is saved in `Documents\AutoVideo\studio\projects\<id>\`:
+- `project.json`
+- `full_with_prompts.json`
+- `ONLY_PROMPTS.txt`
+- `VOICEOVER_SCRIPT.txt`
+- `CHARACTER_SHEET.txt`
+- `THUMBNAILS_TITLES.txt`
+
+You can close the app and continue with NEXT later.
+
+**Libraries:** the genre, location / prop, structure and schema libraries are in `Documents\AutoVideo\studio\library`. Click **Edit libraries** to open that folder and add genres, locations or props.

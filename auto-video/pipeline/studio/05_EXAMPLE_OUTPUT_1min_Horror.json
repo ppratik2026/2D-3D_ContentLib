@@ -1,0 +1,506 @@
+{
+  "project": {
+    "project_id": "HOR-2026-11-26-EX1",
+    "title": "Aaina (The Mirror) / आईना",
+    "genre_primary": "horror",
+    "genre_secondary": "drama",
+    "duration_min": 1,
+    "style_preset": "3D_Stylized",
+    "aspect_ratio": "16:9",
+    "language": "Hindi",
+    "audience": "Family 13+",
+    "variety_seed": {
+      "era": "Modern",
+      "region": "Gujarat coastal village",
+      "protagonist_type": "skeptical city youth",
+      "core_conflict": "object that should not be moved",
+      "twist_type": "spirit was protecting, not haunting"
+    }
+  },
+  "story_bible": {
+    "logline": "Shehar se aayi Riya dadi ke ghar ka purana aaina bechne nikalti hai, par raat ko aaine mein dikhi aurat usse darane nahi, bachane aayi hai.",
+    "synopsis": "Riya store room se ek purana aaina nikaalti hai taaki use bech sake. Raat ko aaine mein ek aurat dikhti hai. Dari hui Riya uske ishaare ke peeche kitchen jaati hai aur dekhti hai ki gas khuli reh gayi thi. Subah dadi batati hai ki woh aurat unki behen Kamla thi, jo hamesha parivaar ki raksha karti thi.",
+    "theme": "Har dikhne waala darr dushman nahi hota.",
+    "characters": [
+      {
+        "char_id": "C01",
+        "name": "Riya",
+        "role": "protagonist",
+        "age": 24,
+        "gender": "female",
+        "personality": [
+          "practical",
+          "skeptical",
+          "brave"
+        ],
+        "goal": "purana aaina bechna",
+        "arc": "skeptical → respectful",
+        "voice": "young clear female",
+        "consistency_tag": "Riya, a 24-year-old Indian woman, slim build, wheatish skin, oval face, large dark eyes, shoulder-length wavy black hair, wearing a mustard yellow kurti with blue jeans and a thin silver wristwatch",
+        "outfit_changes": [
+          {
+            "from_scene": 2,
+            "outfit": "same kurti, hair open"
+          }
+        ]
+      },
+      {
+        "char_id": "C02",
+        "name": "Dadi",
+        "role": "support",
+        "age": 72,
+        "gender": "female",
+        "personality": [
+          "calm",
+          "wise"
+        ],
+        "goal": "ghar ki yaadein bachana",
+        "arc": "secret batati hai",
+        "voice": "soft old female",
+        "consistency_tag": "Dadi, a 72-year-old Indian grandmother, small frame, wrinkled warm brown skin, white hair in a bun, round gold-rimmed glasses, wearing a pale green cotton saree",
+        "outfit_changes": []
+      },
+      {
+        "char_id": "C03",
+        "name": "Kamla",
+        "role": "spirit",
+        "age": 30,
+        "gender": "female",
+        "personality": [
+          "silent",
+          "protective"
+        ],
+        "goal": "parivaar ki raksha",
+        "arc": "darawni lagti hai → rakshak nikalti hai",
+        "voice": "none (silent)",
+        "consistency_tag": "Kamla, a translucent spirit of a 30-year-old Indian woman, gentle face, long black braided hair, wearing an old-fashioned off-white cotton saree with a thin red border, soft pale glow around her",
+        "outfit_changes": []
+      }
+    ],
+    "locations": [
+      {
+        "loc_id": "L01",
+        "library_ref": "store_room",
+        "location_tag": "the store room of an old Gujarati village house: low wooden-beamed ceiling, lime-washed walls with damp patches, a dusty iron trunk, sacks of grain, a tall oval antique mirror covered with a faded maroon cloth",
+        "time_of_day_used": [
+          "dusk"
+        ],
+        "weather": "clear"
+      },
+      {
+        "loc_id": "L02",
+        "library_ref": "bedroom",
+        "location_tag": "a small village bedroom: wooden cot with a blue cotton bedsheet, small window with iron bars, clay-tile roof beams, the oval antique mirror now leaning against the wall facing the cot",
+        "time_of_day_used": [
+          "midnight"
+        ],
+        "weather": "clear"
+      },
+      {
+        "loc_id": "L03",
+        "library_ref": "kitchen",
+        "location_tag": "a small village kitchen: two-burner gas stove on a stone platform, steel utensils rack, a brass water pot, one small window",
+        "time_of_day_used": [
+          "midnight"
+        ],
+        "weather": "clear"
+      },
+      {
+        "loc_id": "L04",
+        "library_ref": "village_courtyard",
+        "location_tag": "a Gujarati village courtyard (aangan) with a tulsi plant on a raised platform, a wooden swing, clay walls with white rangoli patterns",
+        "time_of_day_used": [
+          "dawn"
+        ],
+        "weather": "winter mist"
+      }
+    ],
+    "props_master": [
+      {
+        "prop_id": "P01",
+        "name": "antique mirror",
+        "description": "an oval antique mirror with a tarnished silver frame and a small crack on the top-left",
+        "story_importance": "key",
+        "owner_char": "C03"
+      }
+    ],
+    "visual_style_guide": {
+      "style_prompt": "3D stylized animated film style, soft global illumination, slightly exaggerated proportions, high detail textures, cinematic render",
+      "color_palette": [
+        "desaturated blue-green",
+        "sickly yellow lamp light",
+        "warm dawn gold (ending)"
+      ],
+      "lighting_rule": "night scenes lit by single lamp/moonlight; ending warm",
+      "negative_prompt": "text, watermark, logo, extra fingers, deformed face, blurry, low quality, gore, blood"
+    },
+    "act_outline": [
+      {
+        "act": 1,
+        "name": "Hook → Scare → Twist",
+        "time_range": "00:00-01:00",
+        "scenes": "1-4",
+        "summary": "Aaina milta hai, raat ko aurat dikhti hai, gas leak se bachati hai, dadi sach batati hai."
+      }
+    ],
+    "plan": {
+      "total_scenes": 4,
+      "total_shots_estimate": 9,
+      "batches": 1
+    }
+  },
+  "scenes": [
+    {
+      "scene_no": 1,
+      "act": 1,
+      "title": "Purana Aaina",
+      "loc_id": "L01",
+      "sub_area": "store room",
+      "time_of_day": "dusk",
+      "weather": "clear",
+      "characters_present": [
+        "C01"
+      ],
+      "props_in_scene": [
+        "P01"
+      ],
+      "mood": "curiosity, slight unease",
+      "goal_of_scene": "aaina introduce karna",
+      "summary": "Riya kapda hatakar aaina dekhti hai; ek pal ke liye reflection late hota hai.",
+      "start_time": "00:00",
+      "end_time": "00:13",
+      "music_cue": "low drone fades in",
+      "shots": [
+        {
+          "shot_id": "S01-01",
+          "duration_sec": 7,
+          "shot_type": "WS",
+          "camera_angle": "eye level",
+          "camera_movement": "slow push-in",
+          "characters": [
+            "C01"
+          ],
+          "action": "Riya mirror se kapda kheenchti hai, dhool udti hai",
+          "image_prompt": "3D stylized animated film style, soft global illumination, slightly exaggerated proportions, high detail textures, cinematic render, wide shot, eye level, Riya, a 24-year-old Indian woman, slim build, wheatish skin, oval face, large dark eyes, shoulder-length wavy black hair, wearing a mustard yellow kurti with blue jeans and a thin silver wristwatch, pulling a faded maroon cloth off an oval antique mirror with a tarnished silver frame and a small crack on the top-left, dust flying, the store room of an old Gujarati village house: low wooden-beamed ceiling, lime-washed walls with damp patches, a dusty iron trunk, sacks of grain, a tall oval antique mirror covered with a faded maroon cloth, dusk light through a small window, desaturated blue-green palette, curious uneasy mood, 16:9",
+          "video_prompt": "camera slowly pushes in; cloth slides off the mirror; dust particles swirl in the light beam",
+          "dialogue": [
+            {
+              "char_id": "C01",
+              "line": "Yeh to kaafi purana hai... achhe paise milenge.",
+              "emotion": "excited",
+              "delivery": "normal"
+            }
+          ],
+          "voiceover": null,
+          "sfx": [
+            "cloth swoosh",
+            "dust"
+          ],
+          "music": "low drone",
+          "transition_out": "cut",
+          "negative_prompt": "text, watermark, logo, extra fingers, deformed face, blurry, low quality, gore, blood",
+          "continuity_note": "mirror uncovered"
+        },
+        {
+          "shot_id": "S01-02",
+          "duration_sec": 6,
+          "shot_type": "ECU",
+          "camera_angle": "eye level",
+          "camera_movement": "static",
+          "characters": [
+            "C01"
+          ],
+          "action": "Reflection ek second late hilta hai",
+          "image_prompt": "3D stylized animated film style, soft global illumination, slightly exaggerated proportions, high detail textures, cinematic render, extreme close-up of an oval antique mirror with a tarnished silver frame and a small crack on the top-left, reflection of Riya, a 24-year-old Indian woman, slim build, wheatish skin, oval face, large dark eyes, shoulder-length wavy black hair, wearing a mustard yellow kurti with blue jeans and a thin silver wristwatch slightly delayed and not smiling while the real Riya smiles, the store room of an old Gujarati village house: low wooden-beamed ceiling, lime-washed walls with damp patches, a dusty iron trunk, sacks of grain, a tall oval antique mirror covered with a faded maroon cloth, dim light, eerie mood, 16:9",
+          "video_prompt": "the reflection lags one beat behind Riya's head turn, then snaps back to normal",
+          "dialogue": [],
+          "voiceover": null,
+          "sfx": [
+            "low whoosh"
+          ],
+          "music": "drone rises",
+          "transition_out": "cut",
+          "negative_prompt": "text, watermark, logo, extra fingers, deformed face, blurry, low quality, gore, blood",
+          "continuity_note": ""
+        }
+      ]
+    },
+    {
+      "scene_no": 2,
+      "act": 1,
+      "title": "Aaine Mein Koi",
+      "loc_id": "L02",
+      "sub_area": "bedroom",
+      "time_of_day": "midnight",
+      "weather": "clear",
+      "characters_present": [
+        "C01",
+        "C03"
+      ],
+      "props_in_scene": [
+        "P01"
+      ],
+      "mood": "dread",
+      "goal_of_scene": "scare",
+      "summary": "Riya so rahi hai; aaine mein uske peeche ek aurat dikhti hai.",
+      "start_time": "00:13",
+      "end_time": "00:32",
+      "music_cue": "silence then sting",
+      "shots": [
+        {
+          "shot_id": "S02-01",
+          "duration_sec": 6,
+          "shot_type": "MS",
+          "camera_angle": "high angle",
+          "camera_movement": "slow pan right",
+          "characters": [
+            "C01"
+          ],
+          "action": "Riya so rahi hai, aaina deewar par",
+          "image_prompt": "3D stylized animated film style, soft global illumination, slightly exaggerated proportions, high detail textures, cinematic render, medium shot, high angle, Riya, a 24-year-old Indian woman, slim build, wheatish skin, oval face, large dark eyes, shoulder-length wavy black hair, wearing a mustard yellow kurti with blue jeans and a thin silver wristwatch asleep on the cot, hair open, a small village bedroom: wooden cot with a blue cotton bedsheet, small window with iron bars, clay-tile roof beams, the oval antique mirror now leaning against the wall facing the cot, moonlight through iron-barred window, deep blue shadows, quiet dread, 16:9",
+          "video_prompt": "camera pans slowly from sleeping Riya to the mirror; curtain moves slightly",
+          "dialogue": [],
+          "voiceover": null,
+          "sfx": [
+            "crickets",
+            "clock tick"
+          ],
+          "music": "silence",
+          "transition_out": "cut",
+          "negative_prompt": "text, watermark, logo, extra fingers, deformed face, blurry, low quality, gore, blood",
+          "continuity_note": "hair open"
+        },
+        {
+          "shot_id": "S02-02",
+          "duration_sec": 7,
+          "shot_type": "CU",
+          "camera_angle": "eye level",
+          "camera_movement": "slow push-in",
+          "characters": [
+            "C03"
+          ],
+          "action": "Aaine mein Riya ke peeche Kamla khadi dikhti hai",
+          "image_prompt": "3D stylized animated film style, soft global illumination, slightly exaggerated proportions, high detail textures, cinematic render, close-up of an oval antique mirror with a tarnished silver frame and a small crack on the top-left on the wall, inside the reflection Kamla, a translucent spirit of a 30-year-old Indian woman, gentle face, long black braided hair, wearing an old-fashioned off-white cotton saree with a thin red border, soft pale glow around her stands silently behind the sleeping Riya, a small village bedroom: wooden cot with a blue cotton bedsheet, small window with iron bars, clay-tile roof beams, the oval antique mirror now leaning against the wall facing the cot, moonlight, soft pale glow, eerie still mood, 16:9",
+          "video_prompt": "camera pushes in on the mirror; spirit's glow pulses softly; she slowly raises her hand",
+          "dialogue": [],
+          "voiceover": null,
+          "sfx": [
+            "soft whisper",
+            "heartbeat"
+          ],
+          "music": "high string sting",
+          "transition_out": "cut",
+          "negative_prompt": "text, watermark, logo, extra fingers, deformed face, blurry, low quality, gore, blood",
+          "continuity_note": "spirit only in reflection"
+        },
+        {
+          "shot_id": "S02-03",
+          "duration_sec": 6,
+          "shot_type": "CU",
+          "camera_angle": "eye level",
+          "camera_movement": "handheld shake",
+          "characters": [
+            "C01"
+          ],
+          "action": "Riya jhatke se uthti hai",
+          "image_prompt": "3D stylized animated film style, soft global illumination, slightly exaggerated proportions, high detail textures, cinematic render, close-up, Riya, a 24-year-old Indian woman, slim build, wheatish skin, oval face, large dark eyes, shoulder-length wavy black hair, wearing a mustard yellow kurti with blue jeans and a thin silver wristwatch sitting up suddenly with wide terrified eyes, a small village bedroom: wooden cot with a blue cotton bedsheet, small window with iron bars, clay-tile roof beams, the oval antique mirror now leaning against the wall facing the cot, moonlight on face, cold blue palette, 16:9",
+          "video_prompt": "Riya jolts awake, breathing fast; camera shakes slightly",
+          "dialogue": [
+            {
+              "char_id": "C01",
+              "line": "Kaun... kaun hai wahan?",
+              "emotion": "terrified",
+              "delivery": "whisper"
+            }
+          ],
+          "voiceover": null,
+          "sfx": [
+            "gasp"
+          ],
+          "music": "sting holds",
+          "transition_out": "cut",
+          "negative_prompt": "text, watermark, logo, extra fingers, deformed face, blurry, low quality, gore, blood",
+          "continuity_note": ""
+        }
+      ]
+    },
+    {
+      "scene_no": 3,
+      "act": 1,
+      "title": "Ishaara",
+      "loc_id": "L03",
+      "sub_area": "kitchen",
+      "time_of_day": "midnight",
+      "weather": "clear",
+      "characters_present": [
+        "C01",
+        "C03"
+      ],
+      "props_in_scene": [
+        "P01",
+        "gas stove"
+      ],
+      "mood": "tension → realization",
+      "goal_of_scene": "twist setup",
+      "summary": "Aaine wali aurat kitchen ki taraf ishaara karti hai; gas khuli mili.",
+      "start_time": "00:32",
+      "end_time": "00:45",
+      "music_cue": "pulse",
+      "shots": [
+        {
+          "shot_id": "S03-01",
+          "duration_sec": 7,
+          "shot_type": "POV",
+          "camera_angle": "eye level",
+          "camera_movement": "tracking forward",
+          "characters": [
+            "C01",
+            "C03"
+          ],
+          "action": "Kamla ishaara karti hai, Riya kitchen ki taraf jaati hai",
+          "image_prompt": "3D stylized animated film style, soft global illumination, slightly exaggerated proportions, high detail textures, cinematic render, POV shot from Riya walking through a dark doorway toward the kitchen, faint reflection of Kamla, a translucent spirit of a 30-year-old Indian woman, gentle face, long black braided hair, wearing an old-fashioned off-white cotton saree with a thin red border, soft pale glow around her pointing ahead in a steel plate on the wall, a small village kitchen: two-burner gas stove on a stone platform, steel utensils rack, a brass water pot, one small window, single dim bulb, tense mood, 16:9",
+          "video_prompt": "camera moves forward through the doorway; faint hiss grows louder",
+          "dialogue": [],
+          "voiceover": null,
+          "sfx": [
+            "footsteps",
+            "gas hiss"
+          ],
+          "music": "pulse",
+          "transition_out": "cut",
+          "negative_prompt": "text, watermark, logo, extra fingers, deformed face, blurry, low quality, gore, blood",
+          "continuity_note": ""
+        },
+        {
+          "shot_id": "S03-02",
+          "duration_sec": 6,
+          "shot_type": "INSERT",
+          "camera_angle": "close",
+          "camera_movement": "rack focus",
+          "characters": [],
+          "action": "Gas ka knob khula hai",
+          "image_prompt": "3D stylized animated film style, soft global illumination, slightly exaggerated proportions, high detail textures, cinematic render, insert close-up of a gas stove knob turned on with no flame, a small village kitchen: two-burner gas stove on a stone platform, steel utensils rack, a brass water pot, one small window, dim yellow light, danger mood, 16:9",
+          "video_prompt": "rack focus from knob to burner; air shimmers slightly",
+          "dialogue": [
+            {
+              "char_id": "C01",
+              "line": "Gas... khuli reh gayi thi!",
+              "emotion": "shocked",
+              "delivery": "normal"
+            }
+          ],
+          "voiceover": null,
+          "sfx": [
+            "gas hiss",
+            "knob click off"
+          ],
+          "music": "pulse stops",
+          "transition_out": "fade to black",
+          "negative_prompt": "text, watermark, logo, extra fingers, deformed face, blurry, low quality, gore, blood",
+          "continuity_note": "Riya turns knob off"
+        }
+      ]
+    },
+    {
+      "scene_no": 4,
+      "act": 1,
+      "title": "Kamla",
+      "loc_id": "L04",
+      "sub_area": "aangan",
+      "time_of_day": "dawn",
+      "weather": "winter mist",
+      "characters_present": [
+        "C01",
+        "C02",
+        "C03"
+      ],
+      "props_in_scene": [
+        "P01"
+      ],
+      "mood": "warm, emotional",
+      "goal_of_scene": "twist reveal",
+      "summary": "Dadi batati hai ki aaine wali Kamla unki behen thi.",
+      "start_time": "00:45",
+      "end_time": "01:00",
+      "music_cue": "soft flute",
+      "shots": [
+        {
+          "shot_id": "S04-01",
+          "duration_sec": 8,
+          "shot_type": "WS",
+          "camera_angle": "eye level",
+          "camera_movement": "slow dolly in",
+          "characters": [
+            "C01",
+            "C02"
+          ],
+          "action": "Dadi aur Riya aaine ke saamne",
+          "image_prompt": "3D stylized animated film style, soft global illumination, slightly exaggerated proportions, high detail textures, cinematic render, wide shot, Dadi, a 72-year-old Indian grandmother, small frame, wrinkled warm brown skin, white hair in a bun, round gold-rimmed glasses, wearing a pale green cotton saree and Riya, a 24-year-old Indian woman, slim build, wheatish skin, oval face, large dark eyes, shoulder-length wavy black hair, wearing a mustard yellow kurti with blue jeans and a thin silver wristwatch standing beside an oval antique mirror with a tarnished silver frame and a small crack on the top-left placed near the tulsi plant, a Gujarati village courtyard (aangan) with a tulsi plant on a raised platform, a wooden swing, clay walls with white rangoli patterns, warm golden dawn light through mist, emotional calm mood, 16:9",
+          "video_prompt": "slow dolly in; mist drifts; Dadi touches the mirror frame gently",
+          "dialogue": [
+            {
+              "char_id": "C02",
+              "line": "Woh meri badi behen Kamla thi... aaj bhi humein bachaati hai.",
+              "emotion": "emotional",
+              "delivery": "soft"
+            }
+          ],
+          "voiceover": null,
+          "sfx": [
+            "birds",
+            "temple bell far"
+          ],
+          "music": "soft flute",
+          "transition_out": "cut",
+          "negative_prompt": "text, watermark, logo, extra fingers, deformed face, blurry, low quality, gore, blood",
+          "continuity_note": "mirror now in courtyard"
+        },
+        {
+          "shot_id": "S04-02",
+          "duration_sec": 7,
+          "shot_type": "ECU",
+          "camera_angle": "eye level",
+          "camera_movement": "slow push-in",
+          "characters": [
+            "C03"
+          ],
+          "action": "Aaine mein Kamla muskurati hai aur gayab",
+          "image_prompt": "3D stylized animated film style, soft global illumination, slightly exaggerated proportions, high detail textures, cinematic render, extreme close-up of an oval antique mirror with a tarnished silver frame and a small crack on the top-left, inside it Kamla, a translucent spirit of a 30-year-old Indian woman, gentle face, long black braided hair, wearing an old-fashioned off-white cotton saree with a thin red border, soft pale glow around her smiles gently and fades into golden light, a Gujarati village courtyard (aangan) with a tulsi plant on a raised platform, a wooden swing, clay walls with white rangoli patterns, warm dawn glow, peaceful mood, 16:9",
+          "video_prompt": "spirit smiles, then dissolves into light particles",
+          "dialogue": [],
+          "voiceover": "Kuch rishte aaine mein bhi zinda rehte hain.",
+          "sfx": [
+            "soft chime"
+          ],
+          "music": "flute resolves",
+          "transition_out": "fade to black",
+          "negative_prompt": "text, watermark, logo, extra fingers, deformed face, blurry, low quality, gore, blood",
+          "continuity_note": "END"
+        }
+      ]
+    }
+  ],
+  "extras": {
+    "youtube_titles": [
+      "Aaine Mein Koi Hai… | 1 Minute Horror",
+      "Dadi Ka Purana Aaina | Horror Story",
+      "Woh Darane Nahi, Bachane Aayi Thi"
+    ],
+    "thumbnail_prompts": [
+      "3D stylized animated film style, soft global illumination, slightly exaggerated proportions, high detail textures, cinematic render, an oval antique mirror with a tarnished silver frame and a small crack on the top-left in a dark room with a glowing woman's silhouette inside, terrified young woman in foreground, high contrast, 16:9"
+    ],
+    "description": "Ek purana aaina... aur uske andar ek raaz.",
+    "tags": [
+      "horror story",
+      "hindi horror",
+      "animated horror",
+      "3d animation"
+    ],
+    "chapters": [
+      {
+        "time": "00:00",
+        "title": "Aaina"
+      }
+    ]
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "_info": "Animation Story Engine v1.0 — Output Schema. Claude: output hamesha isi structure mein do. Phase 1 = story_bible, Phase 2 = scenes (bina shots), Phase 3 = scenes with shots.",
+  "project": {
+    "project_id": "HOR-2026-11-26-01  (GENRE3-DATE-NUMBER)",
+    "title": "string (Hindi + English dono)",
+    "genre_primary": "horror",
+    "genre_secondary": "mystery | null",
+    "duration_min": 10,
+    "style_preset": "3D_Stylized",
+    "aspect_ratio": "16:9",
+    "language": "Hindi",
+    "audience": "Family 13+",
+    "variety_seed": {
+      "era": "Modern",
+      "region": "Gujarat coastal village",
+      "protagonist_type": "skeptical city youth",
+      "core_conflict": "object that should not be moved",
+      "twist_type": "spirit was protecting, not haunting"
+    }
+  },
+  "story_bible": {
+    "logline": "1 line — kaun, kya chahta hai, kya rokta hai",
+    "synopsis": "5-8 lines poori kahani",
+    "theme": "kahani ka message",
+    "characters": [
+      {
+        "char_id": "C01",
+        "name": "string",
+        "role": "protagonist | antagonist | support | spirit | narrator",
+        "age": "number",
+        "gender": "male | female | other",
+        "personality": ["3-4 words"],
+        "goal": "string",
+        "arc": "start → end mein kaise badla",
+        "voice": "deep calm male / young energetic female ...",
+        "consistency_tag": "FULL visual description in English — age, body, face, skin tone, hair, outfit, accessories. Har prompt mein exactly same copy karna hai.",
+        "outfit_changes": [{"from_scene": 1, "outfit": "string"}]
+      }
+    ],
+    "locations": [
+      {
+        "loc_id": "L01",
+        "library_ref": "abandoned_haveli",
+        "location_tag": "FULL visual description in English with fixed details (colors, key furniture positions). Har prompt mein same.",
+        "time_of_day_used": ["night"],
+        "weather": "foggy"
+      }
+    ],
+    "props_master": [
+      {"prop_id": "P01", "name": "old mirror", "description": "an oval antique mirror with tarnished silver frame and a crack on top-left", "story_importance": "key clue | background", "owner_char": "C03"}
+    ],
+    "visual_style_guide": {
+      "style_prompt": "style_presets se copy",
+      "color_palette": ["genre se"],
+      "lighting_rule": "string",
+      "negative_prompt": "text, watermark, logo, extra fingers, deformed face, blurry, low quality, gore"
+    },
+    "act_outline": [
+      {"act": 1, "name": "Setup", "time_range": "00:00-02:30", "scenes": "1-5", "summary": "string"}
+    ],
+    "plan": {"total_scenes": 18, "total_shots_estimate": 90, "batches": 2}
+  },
+  "scenes": [
+    {
+      "scene_no": 1,
+      "act": 1,
+      "title": "string",
+      "loc_id": "L01",
+      "sub_area": "main courtyard",
+      "time_of_day": "night",
+      "weather": "foggy",
+      "characters_present": ["C01"],
+      "props_in_scene": ["P01", "brass oil lamp"],
+      "mood": "unease",
+      "goal_of_scene": "string",
+      "summary": "2-3 lines",
+      "start_time": "00:00",
+      "end_time": "00:35",
+      "music_cue": "low drone fades in",
+      "shots": [
+        {
+          "shot_id": "S01-01",
+          "duration_sec": 7,
+          "shot_type": "WS",
+          "camera_angle": "eye level",
+          "camera_movement": "slow push-in",
+          "characters": ["C01"],
+          "action": "simple Hindi/English description of what happens",
+          "image_prompt": "[style_prompt], wide shot, eye level, [C01 consistency_tag], standing at the gate holding a torch, [L01 location_tag], moonlight through fog, desaturated blue-green palette, eerie mood, 16:9",
+          "video_prompt": "camera slowly pushes in; fog drifts across the ground; character takes two hesitant steps forward; torch beam flickers",
+          "dialogue": [{"char_id": "C01", "line": "Hindi line", "emotion": "nervous", "delivery": "whisper"}],
+          "voiceover": "narrator line ya null",
+          "sfx": ["gate creak", "wind"],
+          "music": "low drone",
+          "transition_out": "cut",
+          "negative_prompt": "visual_style_guide se",
+          "continuity_note": "torch in right hand; scarf on"
+        }
+      ]
+    }
+  ],
+  "continuity_checkpoint": {
+    "_info": "Har batch ke start mein do",
+    "after_scene": 10,
+    "characters_state": [{"char_id": "C01", "location": "L02", "outfit": "string", "holding": ["P01"], "condition": "scared, small cut on hand"}],
+    "open_mysteries": ["string"],
+    "time_in_story": "night 2, 1 AM"
+  },
+  "extras": {
+    "youtube_titles": ["5 options"],
+    "thumbnail_prompts": ["3 options"],
+    "description": "string",
+    "tags": ["string"],
+    "chapters": [{"time": "00:00", "title": "string"}]
+  }
+}

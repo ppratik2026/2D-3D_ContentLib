@@ -1,0 +1,1125 @@
+{
+  "_info": "Animation Story Engine v1.0 — Location & Prop Library. Claude: har location ka 'location_tag' = id + description + chosen time_of_day + weather. Ek story mein ek location ka tag fix rakho. Library mein na ho to isi format mein nayi location bana sakte ho.",
+  "locations": {
+    "abandoned_haveli": {
+      "description": "a crumbling 150-year-old Rajasthani-Gujarati haveli with carved wooden jharokhas, peeling lime-washed walls, dust and cobwebs",
+      "sub_areas": [
+        "main courtyard",
+        "dark corridor",
+        "zenana room",
+        "stepwell basement",
+        "rooftop chhatri"
+      ],
+      "default_props": [
+        "broken jhoola",
+        "covered mirror",
+        "brass oil lamp",
+        "old portraits",
+        "rusted iron chest",
+        "torn curtains"
+      ],
+      "ambient_sound": "wind through arches, bats, creaking doors"
+    },
+    "village_hut": {
+      "description": "a mud-and-thatch village hut with cow-dung plastered floor, small wooden door, earthen stove",
+      "sub_areas": [
+        "single room",
+        "verandah",
+        "cattle shed"
+      ],
+      "default_props": [
+        "charpai",
+        "earthen pots",
+        "chulha",
+        "lantern",
+        "brass lota",
+        "rope"
+      ],
+      "ambient_sound": "crickets, cows, distant temple bell"
+    },
+    "old_apartment": {
+      "description": "a 1970s city apartment block with yellowed walls, iron grill windows, flickering corridor tube light",
+      "sub_areas": [
+        "narrow staircase",
+        "living room",
+        "bedroom",
+        "balcony",
+        "terrace door"
+      ],
+      "default_props": [
+        "old TV set",
+        "rotary phone",
+        "sofa with plastic cover",
+        "calendar",
+        "wall clock"
+      ],
+      "ambient_sound": "traffic far away, dripping tap, neighbour TV"
+    },
+    "apartment": {
+      "description": "a modern compact city apartment with white walls, wooden flooring, large window with city view",
+      "sub_areas": [
+        "living room",
+        "kitchen",
+        "bedroom",
+        "balcony"
+      ],
+      "default_props": [
+        "sofa",
+        "smart TV",
+        "laptop",
+        "plants",
+        "dining table for four"
+      ],
+      "ambient_sound": "AC hum, city traffic"
+    },
+    "middle_class_home": {
+      "description": "an Indian middle-class home with pastel walls, tube lights, steel almirah, family photos on wall",
+      "sub_areas": [
+        "drawing room",
+        "kitchen",
+        "bedroom",
+        "pooja corner",
+        "small balcony"
+      ],
+      "default_props": [
+        "steel almirah",
+        "diwan with cushions",
+        "ceiling fan",
+        "pressure cooker",
+        "framed family photo",
+        "calendar"
+      ],
+      "ambient_sound": "pressure cooker whistle, ceiling fan, TV news"
+    },
+    "forest_night": {
+      "description": "a dense forest at night with twisted trees, thin fog at ground level, moonlight through branches",
+      "sub_areas": [
+        "narrow trail",
+        "clearing",
+        "dry riverbed",
+        "old banyan tree"
+      ],
+      "default_props": [
+        "torch",
+        "broken signboard",
+        "fallen log",
+        "abandoned jeep"
+      ],
+      "ambient_sound": "owls, crickets, twigs snapping"
+    },
+    "jungle_day": {
+      "description": "a lush tropical jungle in daylight with giant ferns, vines, sunbeams through canopy",
+      "sub_areas": [
+        "trail",
+        "waterfall",
+        "river crossing",
+        "tree house"
+      ],
+      "default_props": [
+        "rope bridge",
+        "machete-free backpack",
+        "map",
+        "fruit"
+      ],
+      "ambient_sound": "birds, monkeys, waterfall"
+    },
+    "enchanted_forest": {
+      "description": "a glowing magical forest with bioluminescent plants, floating sparkles, giant mushrooms",
+      "sub_areas": [
+        "glowing pond",
+        "ancient tree",
+        "fairy ring"
+      ],
+      "default_props": [
+        "glowing flowers",
+        "crystal",
+        "talking owl perch"
+      ],
+      "ambient_sound": "chimes, soft wind, magical hum"
+    },
+    "graveyard": {
+      "description": "an old overgrown cemetery with tilted stone graves, dry trees, iron gate",
+      "sub_areas": [
+        "gate",
+        "old tomb",
+        "caretaker hut"
+      ],
+      "default_props": [
+        "lantern",
+        "spade",
+        "withered garland",
+        "iron gate chain"
+      ],
+      "ambient_sound": "wind, dogs howling far away"
+    },
+    "old_hospital": {
+      "description": "an abandoned government hospital with green-tiled walls, rusted beds, broken glass",
+      "sub_areas": [
+        "ward",
+        "operation theatre",
+        "morgue corridor",
+        "reception"
+      ],
+      "default_props": [
+        "wheelchair",
+        "rusted bed",
+        "files",
+        "flickering tube light",
+        "IV stand"
+      ],
+      "ambient_sound": "dripping water, flickering light buzz"
+    },
+    "hospital_corridor": {
+      "description": "a busy modern hospital corridor with white lights, steel benches, nurses passing",
+      "sub_areas": [
+        "corridor",
+        "ICU door",
+        "waiting area"
+      ],
+      "default_props": [
+        "steel bench",
+        "stretcher",
+        "medical chart",
+        "water cooler"
+      ],
+      "ambient_sound": "beeping monitors, footsteps, announcements"
+    },
+    "well_courtyard": {
+      "description": "an old stepped stone well (baori) in a village courtyard surrounded by neem trees",
+      "sub_areas": [
+        "well edge",
+        "steps going down",
+        "neem tree"
+      ],
+      "default_props": [
+        "rope and bucket",
+        "brass pot",
+        "old stone idol"
+      ],
+      "ambient_sound": "echo, water drip, crows"
+    },
+    "highway_night": {
+      "description": "an empty two-lane highway at night, lone street lamp, dhaba lights far away",
+      "sub_areas": [
+        "road",
+        "broken-down car",
+        "tea stall"
+      ],
+      "default_props": [
+        "truck",
+        "milestone",
+        "headlights",
+        "hitchhiker's bag"
+      ],
+      "ambient_sound": "trucks passing, crickets"
+    },
+    "highway_day": {
+      "description": "a wide national highway under harsh sun, trucks, dusty sides",
+      "sub_areas": [
+        "road",
+        "toll booth",
+        "fuel pump"
+      ],
+      "default_props": [
+        "truck",
+        "motorbike",
+        "jeep"
+      ],
+      "ambient_sound": "engines, horns"
+    },
+    "police_station": {
+      "description": "a small-town police station with yellow walls, wooden desks, ceiling fan, lock-up cell",
+      "sub_areas": [
+        "front desk",
+        "inspector cabin",
+        "lock-up",
+        "record room"
+      ],
+      "default_props": [
+        "FIR register",
+        "wireless set",
+        "wooden lathi stand",
+        "file stacks",
+        "typewriter"
+      ],
+      "ambient_sound": "fan, phone ringing, wireless chatter"
+    },
+    "interrogation_room": {
+      "description": "a bare grey room with one hanging bulb, metal table, two chairs, one-way mirror",
+      "sub_areas": [
+        "table area",
+        "observation room"
+      ],
+      "default_props": [
+        "metal table",
+        "case file",
+        "glass of water",
+        "recorder"
+      ],
+      "ambient_sound": "bulb buzz, clock tick"
+    },
+    "city_street_night": {
+      "description": "a wet city street at night with neon signs, reflections on puddles, street vendors closing",
+      "sub_areas": [
+        "main road",
+        "narrow lane",
+        "bus stop"
+      ],
+      "default_props": [
+        "auto rickshaw",
+        "street lamp",
+        "food cart",
+        "umbrella"
+      ],
+      "ambient_sound": "rain, honks, distant music"
+    },
+    "dhaba": {
+      "description": "a highway dhaba with charpais, tandoor fire, tube lights, trucks parked",
+      "sub_areas": [
+        "seating area",
+        "kitchen",
+        "parking"
+      ],
+      "default_props": [
+        "charpai",
+        "steel glasses",
+        "tandoor",
+        "radio"
+      ],
+      "ambient_sound": "sizzling, truck engines, old songs"
+    },
+    "warehouse": {
+      "description": "a large dim warehouse with stacked crates, high windows, dust in light beams",
+      "sub_areas": [
+        "floor",
+        "office cabin",
+        "loading dock"
+      ],
+      "default_props": [
+        "wooden crates",
+        "forklift",
+        "chains",
+        "hanging lamp"
+      ],
+      "ambient_sound": "echoes, metal clank"
+    },
+    "courtroom": {
+      "description": "an Indian district courtroom with wooden benches, judge's raised desk, ceiling fans",
+      "sub_areas": [
+        "judge bench",
+        "witness box",
+        "public seats"
+      ],
+      "default_props": [
+        "gavel",
+        "case files",
+        "law books",
+        "nameplate"
+      ],
+      "ambient_sound": "murmurs, fan, gavel"
+    },
+    "railway_station": {
+      "description": "a busy Indian railway station with yellow signboards, crowd, tea vendors",
+      "sub_areas": [
+        "platform",
+        "ticket counter",
+        "waiting room",
+        "foot over-bridge"
+      ],
+      "default_props": [
+        "trunk suitcase",
+        "tea kettle",
+        "bench",
+        "train timetable board"
+      ],
+      "ambient_sound": "announcements, train horn, chai vendor"
+    },
+    "railway_platform": {
+      "description": "a quiet small railway platform with a single bench, tin roof, station-master room",
+      "sub_areas": [
+        "platform",
+        "station-master room"
+      ],
+      "default_props": [
+        "bench",
+        "lantern",
+        "signal lever",
+        "station bell"
+      ],
+      "ambient_sound": "distant train, wind"
+    },
+    "train": {
+      "description": "an Indian train sleeper coach with blue berths, windows with iron bars, passing landscape",
+      "sub_areas": [
+        "berth",
+        "door area",
+        "pantry",
+        "engine"
+      ],
+      "default_props": [
+        "luggage",
+        "chain",
+        "window bars",
+        "tea cups"
+      ],
+      "ambient_sound": "rhythmic train clatter"
+    },
+    "office_tower": {
+      "description": "a glass corporate office tower with open workspace, cabins, city skyline",
+      "sub_areas": [
+        "open office",
+        "boss cabin",
+        "conference room",
+        "lift"
+      ],
+      "default_props": [
+        "laptops",
+        "glass board",
+        "coffee machine",
+        "ID card"
+      ],
+      "ambient_sound": "keyboard typing, AC hum"
+    },
+    "office": {
+      "description": "a small cramped government-style office with files, old computers",
+      "sub_areas": [
+        "clerk desk",
+        "manager cabin"
+      ],
+      "default_props": [
+        "file stacks",
+        "rubber stamp",
+        "old computer",
+        "tea glass"
+      ],
+      "ambient_sound": "fan, phone"
+    },
+    "underground_parking": {
+      "description": "a dim concrete underground parking with pillars, flickering lights, few cars",
+      "sub_areas": [
+        "ramp",
+        "pillar area",
+        "lift lobby"
+      ],
+      "default_props": [
+        "car",
+        "CCTV camera",
+        "fire extinguisher"
+      ],
+      "ambient_sound": "echo, engine start, dripping"
+    },
+    "hotel_room": {
+      "description": "a mid-range hotel room with beige walls, double bed, curtains, city view",
+      "sub_areas": [
+        "bed area",
+        "bathroom door",
+        "window"
+      ],
+      "default_props": [
+        "suitcase",
+        "room key card",
+        "TV",
+        "phone"
+      ],
+      "ambient_sound": "AC, corridor footsteps"
+    },
+    "rooftop": {
+      "description": "a city building rooftop with water tanks, antennas, city lights below",
+      "sub_areas": [
+        "edge",
+        "water tank",
+        "stair door"
+      ],
+      "default_props": [
+        "water tank",
+        "clothesline",
+        "satellite dish"
+      ],
+      "ambient_sound": "wind, city hum"
+    },
+    "server_room": {
+      "description": "a cold server room with rows of blinking racks, blue light",
+      "sub_areas": [
+        "rack aisle",
+        "control desk"
+      ],
+      "default_props": [
+        "servers",
+        "cables",
+        "monitor",
+        "keycard reader"
+      ],
+      "ambient_sound": "fans humming, beeps"
+    },
+    "village_courtyard": {
+      "description": "a Gujarati village courtyard (aangan) with tulsi plant, otla, swing, clay walls with designs",
+      "sub_areas": [
+        "aangan",
+        "otla",
+        "kitchen side"
+      ],
+      "default_props": [
+        "tulsi pot",
+        "jhoola",
+        "brass vessels",
+        "rangoli"
+      ],
+      "ambient_sound": "birds, kids playing"
+    },
+    "school": {
+      "description": "a city school with corridors, classrooms, blackboard, playground",
+      "sub_areas": [
+        "classroom",
+        "corridor",
+        "playground",
+        "principal office"
+      ],
+      "default_props": [
+        "blackboard",
+        "benches",
+        "school bags",
+        "bell"
+      ],
+      "ambient_sound": "bell, kids chatter"
+    },
+    "village_school": {
+      "description": "a small village school with one classroom, slate boards, tree outside",
+      "sub_areas": [
+        "classroom",
+        "tree shade"
+      ],
+      "default_props": [
+        "slate",
+        "chalk",
+        "mat",
+        "bell"
+      ],
+      "ambient_sound": "kids reciting, birds"
+    },
+    "terrace": {
+      "description": "a house terrace with water tank, clothesline, kites, evening sky",
+      "sub_areas": [
+        "terrace",
+        "staircase door"
+      ],
+      "default_props": [
+        "kite",
+        "charpai",
+        "clothesline",
+        "plants"
+      ],
+      "ambient_sound": "wind, kids, birds"
+    },
+    "farm": {
+      "description": "green farm fields with a tube well, mango tree, bullock cart",
+      "sub_areas": [
+        "field",
+        "tube well",
+        "farm hut"
+      ],
+      "default_props": [
+        "plough",
+        "bullock cart",
+        "water pump",
+        "scarecrow"
+      ],
+      "ambient_sound": "water flowing, birds"
+    },
+    "college_campus": {
+      "description": "a college campus with old building, canteen, trees, students",
+      "sub_areas": [
+        "canteen",
+        "library",
+        "corridor",
+        "lawn"
+      ],
+      "default_props": [
+        "books",
+        "bikes",
+        "notice board"
+      ],
+      "ambient_sound": "chatter, birds"
+    },
+    "cafe": {
+      "description": "a cozy cafe with warm lights, wooden tables, plants, rainy window",
+      "sub_areas": [
+        "table by window",
+        "counter"
+      ],
+      "default_props": [
+        "coffee cups",
+        "books",
+        "fairy lights"
+      ],
+      "ambient_sound": "coffee machine, soft music, rain"
+    },
+    "hill_station": {
+      "description": "a misty hill station with pine trees, winding roads, colonial cottages",
+      "sub_areas": [
+        "mall road",
+        "viewpoint",
+        "pine forest"
+      ],
+      "default_props": [
+        "shawls",
+        "toy train",
+        "bench"
+      ],
+      "ambient_sound": "wind, birds, horse hooves"
+    },
+    "hill_station_bungalow": {
+      "description": "an old colonial bungalow on a misty hill with fireplace, wooden floors, big windows",
+      "sub_areas": [
+        "living room with fireplace",
+        "study",
+        "garden",
+        "attic"
+      ],
+      "default_props": [
+        "fireplace",
+        "piano",
+        "grandfather clock",
+        "gramophone"
+      ],
+      "ambient_sound": "fireplace crackle, clock"
+    },
+    "beach": {
+      "description": "a sunset beach with gentle waves, coconut trees, fishing boats",
+      "sub_areas": [
+        "shore",
+        "rocks",
+        "shack"
+      ],
+      "default_props": [
+        "fishing boat",
+        "net",
+        "coconut stall"
+      ],
+      "ambient_sound": "waves, gulls"
+    },
+    "island_beach": {
+      "description": "a remote tropical island beach with white sand, turquoise water, jungle behind",
+      "sub_areas": [
+        "shore",
+        "cave",
+        "cliff"
+      ],
+      "default_props": [
+        "wrecked boat",
+        "message bottle",
+        "palm tree"
+      ],
+      "ambient_sound": "waves, wind"
+    },
+    "market": {
+      "description": "a crowded Indian bazaar with colorful stalls, hanging lights, people",
+      "sub_areas": [
+        "vegetable lane",
+        "cloth shop",
+        "chai stall"
+      ],
+      "default_props": [
+        "carts",
+        "scales",
+        "baskets",
+        "awnings"
+      ],
+      "ambient_sound": "bargaining, horns, bells"
+    },
+    "chawl": {
+      "description": "a Mumbai chawl with long common corridor, rooms side by side, clotheslines",
+      "sub_areas": [
+        "corridor",
+        "room",
+        "common tap"
+      ],
+      "default_props": [
+        "buckets",
+        "clotheslines",
+        "bicycles",
+        "radio"
+      ],
+      "ambient_sound": "neighbours talking, radio, water"
+    },
+    "wedding_venue": {
+      "description": "a decorated Indian wedding venue with marigold garlands, mandap, lights",
+      "sub_areas": [
+        "mandap",
+        "stage",
+        "food counter",
+        "dressing room"
+      ],
+      "default_props": [
+        "garlands",
+        "mandap",
+        "dhol",
+        "gifts"
+      ],
+      "ambient_sound": "dhol, shehnai, crowd"
+    },
+    "small_town_street": {
+      "description": "a small-town street with shops, cycles, cows, colorful buildings",
+      "sub_areas": [
+        "street",
+        "kirana shop",
+        "square"
+      ],
+      "default_props": [
+        "cycle",
+        "shop signboards",
+        "handcart"
+      ],
+      "ambient_sound": "bells, vendors"
+    },
+    "lab": {
+      "description": "a futuristic science lab with glass tubes, holographic screens, white light",
+      "sub_areas": [
+        "main lab",
+        "test chamber"
+      ],
+      "default_props": [
+        "hologram",
+        "robot arm",
+        "glass tubes",
+        "tablet"
+      ],
+      "ambient_sound": "machine hum, beeps"
+    },
+    "space_station": {
+      "description": "an orbiting space station with modular corridors, Earth view windows",
+      "sub_areas": [
+        "corridor",
+        "command deck",
+        "airlock",
+        "sleeping pod"
+      ],
+      "default_props": [
+        "helmet",
+        "floating tools",
+        "screens"
+      ],
+      "ambient_sound": "hum, hiss, beeps"
+    },
+    "spaceship_cockpit": {
+      "description": "a spaceship cockpit with glowing controls, starfield view",
+      "sub_areas": [
+        "pilot seat",
+        "control panel"
+      ],
+      "default_props": [
+        "joystick",
+        "screens",
+        "warning lights"
+      ],
+      "ambient_sound": "engine hum, alarms"
+    },
+    "future_city": {
+      "description": "a futuristic Indian megacity with flying vehicles, neon, vertical gardens",
+      "sub_areas": [
+        "sky street",
+        "market",
+        "tower top"
+      ],
+      "default_props": [
+        "drone",
+        "hologram ads",
+        "robots"
+      ],
+      "ambient_sound": "electronic hum"
+    },
+    "alien_planet": {
+      "description": "an alien planet with purple sky, two moons, crystal rock formations",
+      "sub_areas": [
+        "crater",
+        "crystal field",
+        "alien ruins"
+      ],
+      "default_props": [
+        "alien plants",
+        "crashed pod"
+      ],
+      "ambient_sound": "strange wind, low tones"
+    },
+    "palace": {
+      "description": "a grand fantasy palace with marble halls, golden pillars, gardens",
+      "sub_areas": [
+        "throne hall",
+        "garden",
+        "tower"
+      ],
+      "default_props": [
+        "throne",
+        "chandelier",
+        "crown"
+      ],
+      "ambient_sound": "echo, fountain"
+    },
+    "mountain_cave": {
+      "description": "a deep mountain cave with stalactites, glowing crystals, underground stream",
+      "sub_areas": [
+        "entrance",
+        "inner chamber",
+        "stream"
+      ],
+      "default_props": [
+        "torch",
+        "ancient carvings",
+        "chest"
+      ],
+      "ambient_sound": "drips, echo"
+    },
+    "mountain_road": {
+      "description": "a narrow mountain road with hairpin bends, cliffs, clouds",
+      "sub_areas": [
+        "bend",
+        "cliff edge",
+        "tea stall"
+      ],
+      "default_props": [
+        "jeep",
+        "milestone",
+        "barrier"
+      ],
+      "ambient_sound": "wind, engine"
+    },
+    "floating_island": {
+      "description": "a floating island in the sky with waterfalls falling into clouds",
+      "sub_areas": [
+        "edge",
+        "temple ruins"
+      ],
+      "default_props": [
+        "vines",
+        "crystal"
+      ],
+      "ambient_sound": "wind, waterfall"
+    },
+    "ancient_temple": {
+      "description": "an ancient stone temple with carved pillars, diyas, bells",
+      "sub_areas": [
+        "garbhagriha entrance",
+        "mandapa",
+        "courtyard"
+      ],
+      "default_props": [
+        "diyas",
+        "bells",
+        "kalash",
+        "flowers"
+      ],
+      "ambient_sound": "bells, chants (generic), wind"
+    },
+    "royal_court": {
+      "description": "an ancient royal court with throne, pillars, courtiers, silk curtains",
+      "sub_areas": [
+        "throne",
+        "court floor",
+        "balcony"
+      ],
+      "default_props": [
+        "throne",
+        "scroll",
+        "chamar fan",
+        "sword"
+      ],
+      "ambient_sound": "murmurs, drums"
+    },
+    "ashram_forest": {
+      "description": "a peaceful forest ashram with huts, river, sages",
+      "sub_areas": [
+        "hut",
+        "river bank",
+        "yagna area"
+      ],
+      "default_props": [
+        "kamandal",
+        "palm-leaf manuscripts",
+        "deer"
+      ],
+      "ambient_sound": "river, birds"
+    },
+    "river_ghat": {
+      "description": "an old river ghat with stone steps, boats, diyas floating",
+      "sub_areas": [
+        "steps",
+        "boat",
+        "temple side"
+      ],
+      "default_props": [
+        "diyas",
+        "boat",
+        "flowers"
+      ],
+      "ambient_sound": "water, bells"
+    },
+    "battlefield_ancient": {
+      "description": "an ancient battlefield with dust, flags, chariots (no gore)",
+      "sub_areas": [
+        "front line",
+        "camp",
+        "hill"
+      ],
+      "default_props": [
+        "chariot",
+        "flags",
+        "shields"
+      ],
+      "ambient_sound": "conch, drums, horses"
+    },
+    "fort": {
+      "description": "a massive hill fort with stone ramparts, gates, cannons",
+      "sub_areas": [
+        "gate",
+        "rampart",
+        "palace inside"
+      ],
+      "default_props": [
+        "cannon",
+        "flag",
+        "torch"
+      ],
+      "ambient_sound": "wind, horses"
+    },
+    "village_market_old": {
+      "description": "a historical village market with cloth stalls, bullock carts, earthen pots",
+      "sub_areas": [
+        "market lane",
+        "well"
+      ],
+      "default_props": [
+        "carts",
+        "pots",
+        "coins"
+      ],
+      "ambient_sound": "bargaining, animals"
+    },
+    "colonial_office": {
+      "description": "a British-era office with high ceilings, punkah fan, wooden desks",
+      "sub_areas": [
+        "office",
+        "verandah"
+      ],
+      "default_props": [
+        "typewriter",
+        "inkpot",
+        "map",
+        "punkah"
+      ],
+      "ambient_sound": "typewriter, fan"
+    },
+    "museum": {
+      "description": "a quiet museum with glass display cases, artifacts, spotlights",
+      "sub_areas": [
+        "gallery",
+        "storage room",
+        "curator office"
+      ],
+      "default_props": [
+        "display case",
+        "statue",
+        "old map"
+      ],
+      "ambient_sound": "echoing footsteps"
+    },
+    "old_library": {
+      "description": "an old library with tall wooden shelves, ladders, dusty books",
+      "sub_areas": [
+        "shelves",
+        "reading table",
+        "rare books room"
+      ],
+      "default_props": [
+        "ladder",
+        "old books",
+        "lamp",
+        "globe"
+      ],
+      "ambient_sound": "page turning, clock"
+    },
+    "village_temple": {
+      "description": "a small village temple under a peepal tree with bell and diya",
+      "sub_areas": [
+        "shrine",
+        "peepal tree"
+      ],
+      "default_props": [
+        "bell",
+        "diya",
+        "flowers"
+      ],
+      "ambient_sound": "bell, birds"
+    },
+    "desert": {
+      "description": "vast golden sand dunes with harsh sun, camel tracks",
+      "sub_areas": [
+        "dunes",
+        "oasis",
+        "ruins"
+      ],
+      "default_props": [
+        "camel",
+        "water bottle",
+        "tent"
+      ],
+      "ambient_sound": "wind, sand"
+    },
+    "ancient_ruins": {
+      "description": "overgrown stone ruins with broken pillars, vines, hidden doors",
+      "sub_areas": [
+        "entrance",
+        "inner hall",
+        "secret chamber"
+      ],
+      "default_props": [
+        "carvings",
+        "idol",
+        "chest"
+      ],
+      "ambient_sound": "wind, birds"
+    }
+  },
+  "room_props": {
+    "living_room": [
+      "sofa",
+      "diwan",
+      "coffee table",
+      "TV",
+      "wall clock",
+      "family photo",
+      "shoe rack",
+      "ceiling fan",
+      "curtains",
+      "show-case"
+    ],
+    "bedroom": [
+      "bed",
+      "almirah",
+      "dressing table with mirror",
+      "side lamp",
+      "clothes on chair",
+      "alarm clock",
+      "window"
+    ],
+    "kitchen": [
+      "gas stove",
+      "chulha",
+      "pressure cooker",
+      "steel utensils rack",
+      "spice box (masala dabba)",
+      "fridge",
+      "water matka"
+    ],
+    "pooja_room": [
+      "small temple",
+      "diya",
+      "incense stand",
+      "bell",
+      "flowers",
+      "photos of deities"
+    ],
+    "study_room": [
+      "study table",
+      "books",
+      "table lamp",
+      "globe",
+      "laptop",
+      "notice board"
+    ],
+    "bathroom": [
+      "bucket",
+      "mug",
+      "mirror",
+      "geyser",
+      "tap"
+    ],
+    "store_room": [
+      "old trunk",
+      "broken furniture",
+      "sacks",
+      "dusty boxes",
+      "old cycle"
+    ]
+  },
+  "variation_engine": {
+    "_info": "Har scene mein same prop alag dikhe, isliye prop ke saath ye 4 attributes randomly chuno: material + age + condition + color. Example: 'table' -> 'a heavy dark teak wooden table, 50 years old, scratched surface'.",
+    "material": [
+      "teak wood",
+      "sheesham wood",
+      "steel",
+      "plastic",
+      "glass",
+      "marble",
+      "brass",
+      "iron",
+      "bamboo",
+      "cane",
+      "carved stone"
+    ],
+    "age": [
+      "brand new",
+      "5 years old",
+      "20 years old",
+      "antique 100+ years"
+    ],
+    "condition": [
+      "spotless",
+      "slightly worn",
+      "scratched",
+      "dusty",
+      "broken",
+      "rusted",
+      "burnt edges"
+    ],
+    "color": [
+      "dark brown",
+      "faded white",
+      "deep red",
+      "mustard yellow",
+      "sky blue",
+      "black",
+      "golden"
+    ],
+    "house_types": [
+      "village mud hut",
+      "pucca village house",
+      "Gujarati pol house",
+      "Rajasthani haveli",
+      "Mumbai chawl room",
+      "1BHK city flat",
+      "3BHK apartment",
+      "bungalow with garden",
+      "farmhouse",
+      "colonial hill bungalow",
+      "slum shanty",
+      "palace"
+    ],
+    "time_of_day": [
+      "dawn",
+      "morning",
+      "noon",
+      "golden hour",
+      "dusk",
+      "night",
+      "midnight",
+      "pre-dawn"
+    ],
+    "weather": [
+      "clear",
+      "foggy",
+      "monsoon rain",
+      "storm with lightning",
+      "dusty wind",
+      "winter mist",
+      "humid summer"
+    ],
+    "season_festival_overlay": [
+      "Diwali lights",
+      "Navratri decorations",
+      "Holi colors",
+      "monsoon",
+      "winter",
+      "wedding season",
+      "none"
+    ]
+  }
+}

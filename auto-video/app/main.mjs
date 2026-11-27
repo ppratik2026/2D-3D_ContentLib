@@ -204,6 +204,7 @@ function libraryList() {
     return { dir: d, title: story.title || d, category: story.category, created: st.mtimeMs, sizeMB: +(st.size / 1e6).toFixed(1), video: `av://videos/${encodeURIComponent(d)}/final.mp4` };
   }).sort((a, b) => b.created - a.created);
 }
+const studio = () => import('../pipeline/studio.mjs'); const slog = (e) => (m) => { try { e.sender.send('studio:log', m); } catch {} };
 const H = {
   options: () => ({ categories: CATEGORIES, styles: STYLES, looks: LOOKS, subs: SUBTITLE_STYLES }),
   estimate: (o) => { const e = estimate({ style: o.style, minutes: Number(o.minutes) || 1, renderer: readSettings().renderer }); return { ...e, totalText: fmt(e.total), partsText: Object.fromEntries(Object.entries(e.parts).map(([k, v]) => [k, fmt(v)])) }; },
@@ -286,6 +287,20 @@ const H = {
   'voice:list': () => tts.availableVoices(),
   'voice:sample': async (id) => { const dir = path.join(PUBLIC, 'tmp'); fs.mkdirSync(dir, { recursive: true }); const f = path.join(dir, `voice_${id}.wav`); if (!fs.existsSync(f)) await tts.sampleVoice(id, null, f); return `av://data/tmp/voice_${id}.wav?${Date.now()}`; },
   'open:data': () => shell.openPath(process.env.AUTOVIDEO_DATA),
+  // Prompt Studio (story bible → scenes → shots with image / video prompts)
+  'studio:options': async () => (await studio()).options(),
+  'studio:list': async () => (await studio()).list(),
+  'studio:get': async (id) => (await studio()).get(id),
+  'studio:create': async (o, e) => (await studio()).create(o, await buildChain(o.ai), slog(e)),
+  'studio:scenes': async (o, e) => (await studio()).scenes(o.id, await buildChain(o.ai), slog(e)),
+  'studio:next': async (o, e) => (await studio()).next(o.id, await buildChain(o.ai), slog(e)),
+  'studio:redo': async (o, e) => (await studio()).redo(o.id, o.scene, o.note, await buildChain(o.ai), slog(e)),
+  'studio:tone': async (o) => (await studio()).tone(o.id, o.tone),
+  'studio:thumbs': async (o, e) => (await studio()).thumbnails(o.id, await buildChain(o.ai), slog(e)),
+  'studio:exports': async (id) => { const S = await studio(); return S.exportsOf(S.get(id)); },
+  'studio:open': async (id) => { const S = await studio(); return shell.openPath(id ? S.folderOf(id) : S.STUDIO); },
+  'studio:library': async () => shell.openPath((await studio()).libraryFolder()),
+  'studio:delete': async (id) => { (await studio()).remove(id); return true; },
   'update:get': () => upd,
   'update:check': () => checkUpdates(),
   'update:download': () => { autoUpdater.downloadUpdate().catch((e) => sendUpd({ state: 'error', msg: String(e.message || e) })); sendUpd({ state: 'downloading', percent: 0 }); return upd; },
@@ -304,6 +319,11 @@ function createWindow() {
     const dir = process.argv[shots + 1]; const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); await wait(2500);
     if (process.argv.includes('--mystory-ui')) { await win.webContents.executeJavaScript(`document.querySelector('#storyMode [data-m=mine]').click(); const t=document.querySelector('#myStory'); t.value='Inspector Arjun: "Raka, gaadi roko!"\\n\\n'+'Raka laal car me highway par bhaag raha tha. '.repeat(120); t.dispatchEvent(new Event('input'));`); await wait(2000); fs.writeFileSync(path.join(dir, 'mystory_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
     if (process.argv.includes('--subed-ui')) { await win.webContents.executeJavaScript(`document.querySelector('[data-tab=library]').click()`); await wait(2000); await win.webContents.executeJavaScript(`document.querySelector('[data-subs]').click()`); await wait(2500); await win.webContents.executeJavaScript(`(()=>{const v=document.querySelector('#seVideo'); v.currentTime=13.4; document.querySelector('#sePreset').value='youtube'; document.querySelector('#sePreset').onchange();})()`); await wait(2500); fs.writeFileSync(path.join(dir, 'subed_ui.png'), (await win.webContents.capturePage()).toPNG()); return app.quit(); }
+    if (process.argv.includes('--studio-ui')) { const js = (c) => win.webContents.executeJavaScript(c); await js(`document.querySelector('[data-tab=studio]').click()`); await wait(1500);
+      fs.writeFileSync(path.join(dir, 'studio_new.png'), (await win.webContents.capturePage()).toPNG()); await js(`document.querySelector('#stList .it')?.click()`); await wait(1500);
+      fs.writeFileSync(path.join(dir, 'studio_bible.png'), (await win.webContents.capturePage()).toPNG()); await js(`document.querySelector('.stscene').open=true; document.querySelector('.stscene').scrollIntoView()`); await wait(800);
+      fs.writeFileSync(path.join(dir, 'studio_shots.png'), (await win.webContents.capturePage()).toPNG()); await js(`document.querySelector('[data-ex=voiceover]').click()`); await wait(1200);
+      fs.writeFileSync(path.join(dir, 'studio_vo.png'), (await win.webContents.capturePage()).toPNG()); app.quit(); return; }
     if (process.argv.includes('--team-ui')) { const js = (c) => win.webContents.executeJavaScript(c); const shot = async (n) => fs.writeFileSync(path.join(dir, n), (await win.webContents.capturePage()).toPNG());
       await shot('team_login.png');
       await js(`document.querySelector('#lgAdmin').click(); document.querySelector('#lgUrl').value='http://127.0.0.1:18090'; document.querySelector('#lgPub').value='anon-test'; document.querySelector('#lgAdm').value='service-test'; document.querySelector('#lgAdminSave').click();`); await wait(2500);
