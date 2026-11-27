@@ -106,8 +106,11 @@ async function buildChain(choice) {
   const chain = [];
   for (const n of names) { const c = a.providers[n] || {}; const p = { provider: n, key: dec(c), baseUrl: c.baseUrl };
     let ids = []; try { ids = await ai.listModels(p); } catch {}
-    const ranked = ai.rankModels(n, ids); const models = [c.model && (ids.includes(c.model) || !ids.length) ? c.model : null, ranked[0], n === 'gemini' ? ranked.find((x) => /flash-lite/.test(x)) : null].filter(Boolean);
-    for (const m of [...new Set(models)].slice(0, 2)) chain.push({ ...p, model: m }); }
+    const ranked = ai.rankModels(n, ids); const stable = ranked.filter((x) => !/preview|exp|tts|image|live|embed|gemma/i.test(x));
+    // every Gemini model has its own free daily quota: when one is used up, the next one is tried
+    const models = n === 'gemini' ? [c.model && (ids.includes(c.model) || !ids.length) ? c.model : null, ranked[0], ...stable.filter((x) => /flash/.test(x)), ...['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'].filter((x) => !ids.length || ids.includes(x))].filter(Boolean)
+      : [c.model && (ids.includes(c.model) || !ids.length) ? c.model : null, ranked[0]].filter(Boolean);
+    for (const m of [...new Set(models)].slice(0, n === 'gemini' ? 6 : 2)) chain.push({ ...p, model: m }); }
   return chain;
 }
 
@@ -217,8 +220,7 @@ async function importChars(paths, meta, e) { const out = [];
   return out; }
 const H = {
   options: () => ({ categories: CATEGORIES, styles: STYLES, looks: LOOKS, subs: SUBTITLE_STYLES, englishReady: englishReady() }),
-  'topics:find': async (o, e) => { const chain = await buildChain(o.storyAI); if (!chain.length) return { ok: false, msg: 'Add a Gemini key in Settings → Story AI first.' };
-    if (o.mode === 'real' && !chain.some((p) => p.provider === 'gemini')) return { ok: false, msg: 'Real stories use Google Search through Gemini: add a Gemini key in Settings.' };
+  'topics:find': async (o, e) => { const chain = await buildChain(o.storyAI); if (!chain.length && o.mode !== 'real') return { ok: false, msg: 'Add a story AI key (Gemini or the free Groq) in Settings → Story AI first.' };
     try { const topics = await findTopics({ category: o.category, mode: o.mode, chain, language: o.language, series: !!o.series, extra: o.extra || '', onLog: (m) => { try { e.sender.send('topics:log', m); } catch {} } }); return { ok: true, topics }; } catch (err) { return { ok: false, msg: err.message }; } },
   'cast:list': () => castLib.listCast(),
   'cast:update': (o) => castLib.updateCast(o.id, o.patch),
